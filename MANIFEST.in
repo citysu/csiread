@@ -1,0 +1,2 @@
+include csiread/sample/*
+include csiread/*.pyx
