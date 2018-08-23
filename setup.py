@@ -41,7 +41,7 @@ setup(
     ext_modules = cythonize(extensions),
 
     classifiers = ["Topic :: Scientific/Engineering",
-                    "Programming Language :: Python :: 3"
+                    "Programming Language :: Python :: 3",
                     "Programming Language :: Python :: Implementation :: CPython", 
                     "Operating System :: POSIX :: Linux",
                     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"],
