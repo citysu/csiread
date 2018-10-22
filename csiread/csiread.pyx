@@ -9,6 +9,8 @@ import struct
 import numpy as np 
 cimport numpy as np
 
+__all__ = ['CSI']
+
 cdef packed struct iwl5000_bfee_notif:
     uint32_t timestamp_low;
     uint16_t bfee_count;
@@ -28,10 +30,11 @@ cdef class CSI:
     """
         It's a tool to parse channel state infomation received from Intel 5300NIC by csi-tool
 
-        CSI(self, Nrxnum, Ntxnum):
+        CSI(self, filepath, Nrxnum, Ntxnum):
+            filepath: the file name of csi .dat
             Nrxnum  : the set number of receive antennas, default=3
             Nrxnum  : the set number of transmit antennas, default=2
-            return  : filepath
+            return  : csidata
         
         read(self):
             解析数据
@@ -215,6 +218,9 @@ cdef class CSI:
     def readstp(self):
         stppath = self.filepath + "stp"
         f = open(stppath, "rb")
+        if f is None:
+            f.close()
+            raise Exception("error: file does not exist\n")
         f.seek(0, os.SEEK_END)
         len = f.tell()
         f.seek(0, os.SEEK_SET)
