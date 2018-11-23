@@ -23,38 +23,53 @@ cdef packed struct iwl5000_bfee_notif:
     uint16_t fake_rate_n_flags;
     uint8_t payload[0];
 
+cdef packed struct lorcon_packet:
+    uint16_t fc;
+    uint16_t dur;
+    uint8_t addr_des[6];
+    uint8_t addr_src[6];
+    uint8_t addr_bssid[6];
+    uint16_t seq;
+    uint8_t payload[0];
+
 cdef extern from "complex.h":
     float complex I
 
 cdef class CSI:
     """
-        It's a tool to parse channel state infomation received from Intel 5300NIC by csi-tool
+        A tool to parse channel state infomation received from Intel 5300 NIC by csitools
 
         CSI(self, filepath, Nrxnum, Ntxnum):
             filepath: the file name of csi .dat
             Nrxnum  : the set number of receive antennas, default=3
-            Nrxnum  : the set number of transmit antennas, default=2
+            Ntxnum  : the set number of transmit antennas, default=2
+            pl_size : the payload size, default=0
             return  : csidata
         
         read(self):
-            解析数据
+            parse data
 
-            读取文件中的所有数据, 比纯净的python版速度提升很多,目前比matlab读取
-            速度快４倍
+            1. all Initialized value of members are set zero, and csi set np.nan
+            2. when `connector_log=0x4, 0x5`, the max size of payload is [500-28]
+            3. read the payload or addr_src, e.g.
+                >>ss = ''
+                >>for s in csidata.payload[0]:
+                >>    ss = ss+(chr(s))
 
-            一次解析出所有的数据可能有些失策, 应该有返回值
+                >>ss = ''
+                >>for s in csidata.addr_src[0]:
+                >>    ss = ss+(hex(s))
 
-            csi初始化的值是numpy.nan, plot不会绘制numpy.nan
-
+                the last 4 bytes are CRC and noe be parsed
+                
         readstp(self):
-            解析时间戳, 返回第一个数据包的时间
+            return the first packet's world timestamp
 
-            获取时间戳请使用修改过的`log_to_file.c`. 并确保`.dat`和`.datstp`
-            文件在同一目录下. 不然请不要使用该方法.
-            (因为数据量不算大, 使用纯净python实现)
+            `file.dat` and `file.datstp` must be in the same directory.
     """
     cdef readonly str filepath
     cdef readonly int count
+
     cdef public np.ndarray timestamp_low
     cdef public np.ndarray bfee_count
     cdef public np.ndarray Nrx
@@ -68,14 +83,27 @@ cdef class CSI:
     cdef public np.ndarray rate
     cdef public np.ndarray csi
     cdef public np.ndarray stp
+
+    cdef public np.ndarray fc
+    cdef public np.ndarray dur
+    cdef public np.ndarray addr_des
+    cdef public np.ndarray addr_src
+    cdef public np.ndarray addr_bssid
+    cdef public np.ndarray seq
+    cdef public np.ndarray payload
+
     cdef int Nrxnum
     cdef int Ntxnum
+    cdef int pl_size
 
-    def __init__(self, filepath, int Nrxnum = 3, int Ntxnum = 2):
+    def __init__(self, filepath, int Nrxnum = 3, int Ntxnum = 2, pl_size = 0):
         self.filepath = filepath
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
-        
+        self.pl_size = pl_size
+        if not os.path.isfile(filepath):
+            raise Exception("error: file does not exist, Stop!\n")
+                
     cpdef read(self):
         cdef FILE *f
 
@@ -84,7 +112,7 @@ cdef class CSI:
 
         f = fopen(filepath_c, "rb")
         if f is NULL:
-            print("打开失败\n")
+            print("Open failed!\n")
             fclose(f)
             return -1
         
@@ -92,78 +120,94 @@ cdef class CSI:
         cdef long len = ftell(f);
         fseek(f, 0, SEEK_SET);
 
-        self.timestamp_low = np.zeros([len//95, 1], dtype = np.int64)
-        self.bfee_count = np.zeros([len//95, 1], dtype = np.int64)
-        self.Nrx = np.zeros([len//95, 1], dtype = np.int64)
-        self.Ntx = np.zeros([len//95, 1], dtype = np.int64)
-        self.rssiA = np.zeros([len//95, 1], dtype = np.int64)
-        self.rssiB = np.zeros([len//95, 1], dtype = np.int64)
-        self.rssiC = np.zeros([len//95, 1], dtype = np.int64)
-        self.noise = np.zeros([len//95, 1], dtype = np.int64)
-        self.agc = np.zeros([len//95, 1], dtype = np.int64)
+        self.timestamp_low = np.zeros([len//95], dtype = np.int64)
+        self.bfee_count = np.zeros([len//95], dtype = np.int64)
+        self.Nrx = np.zeros([len//95], dtype = np.int64)
+        self.Ntx = np.zeros([len//95], dtype = np.int64)
+        self.rssiA = np.zeros([len//95], dtype = np.int64)
+        self.rssiB = np.zeros([len//95], dtype = np.int64)
+        self.rssiC = np.zeros([len//95], dtype = np.int64)
+        self.noise = np.zeros([len//95], dtype = np.int64)
+        self.agc = np.zeros([len//95], dtype = np.int64)
         self.perm = np.zeros([len//95, 3], dtype = np.int64)
-        self.rate = np.zeros([len//95, 1], dtype = np.int64)
-        # self.csi = np.full([len//95, 30, self.Nrxnum, self.Ntxnum], np.nan, dtype = np.complex128)
+        self.rate = np.zeros([len//95], dtype = np.int64)
         self.csi = np.zeros([len//95, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
 
+        cdef long [:] timestamp_low_mem = self.timestamp_low
+        cdef long [:] bfee_count_mem = self.bfee_count
+        cdef long [:] Nrx_mem = self.Nrx
+        cdef long [:] Ntx_mem = self.Ntx
+        cdef long [:] rssiA_mem = self.rssiA
+        cdef long [:] rssiB_mem = self.rssiB
+        cdef long [:] rssiC_mem = self.rssiC
+        cdef long [:] noise_mem = self.noise
+        cdef long [:] agc_mem = self.agc
+        cdef long [:, :] perm_mem = self.perm
+        cdef long [:] rate_mem = self.rate
+        cdef complex [:, :, :, :] csi_mem = self.csi
+
+        self.fc = np.zeros([len//95], dtype = np.int64)
+        self.dur = np.zeros([len//95], dtype = np.int64)
+        self.addr_des = np.zeros([len//95, 6], dtype = np.int64)
+        self.addr_src = np.zeros([len//95, 6], dtype = np.int64)
+        self.addr_bssid = np.zeros([len//95, 6], dtype = np.int64)
+        self.seq = np.zeros([len//95], dtype = np.int64)
+        self.payload = np.zeros([len//95, self.pl_size + 4], dtype = np.int64)
+
+        cdef long [:] fc_mem = self.fc
+        cdef long [:] dur_mem = self.dur
+        cdef long [:, :] addr_des_mem = self.addr_des
+        cdef long [:, :] addr_src_mem = self.addr_src
+        cdef long [:, :] addr_bssid_mem = self.addr_bssid
+        cdef long [:] seq_mem = self.seq
+        cdef long [:, :] payload_mem = self.payload
+
         cdef long cur = 0
-        cdef int count = 0
+        cdef int count_0xbb = 0
+        cdef int count_0xc1 = 0
         cdef unsigned short field_len
         cdef unsigned char code
-        cdef unsigned char buf[400]
+        cdef unsigned char buf[500]
         cdef unsigned char temp[3]
         cdef size_t l
         cdef iwl5000_bfee_notif *bfee
-
-        cdef long [:, :] timestamp_low_mem = self.timestamp_low
-        cdef long [:, :] bfee_count_mem = self.bfee_count
-        cdef long [:, :] Nrx_mem = self.Nrx
-        cdef long [:, :] Ntx_mem = self.Ntx
-        cdef long [:, :] rssiA_mem = self.rssiA
-        cdef long [:, :] rssiB_mem = self.rssiB
-        cdef long [:, :] rssiC_mem = self.rssiC
-        cdef long [:, :] noise_mem = self.noise
-        cdef long [:, :] agc_mem = self.agc
-        cdef long [:, :] perm_mem = self.perm
-        cdef long [:, :] rate_mem = self.rate
-        cdef complex [:, :, :, :] csi_mem = self.csi
+        cdef lorcon_packet *mpdu
 
         cdef int index
-        cdef int i, j, k
+        cdef int i, j, k, g
         cdef int remainder = 0
 
         while cur < (len-3):
             if fread(&temp, sizeof(unsigned char), 3, f) == False:
-                print("打开失败\n")
+                print("Open failed!\n")
                 fclose(f)
                 return -1
 
             field_len = temp[1]+(temp[0]<<8)
             code = temp[2]
             cur = cur +3
-            if code == 187:
+
+            if code == 0xbb:
                 l = fread(buf, sizeof(unsigned char), field_len-1, f)
-                cur = cur + field_len -1
                 if l != (field_len-1):
-                    # 读取完毕, 跳出循环
-                    break
+                    break # finished
                 bfee = <iwl5000_bfee_notif*> &buf
 
-                timestamp_low_mem[count, 0] = bfee.timestamp_low
-                bfee_count_mem[count, 0] = bfee.bfee_count
-                Nrx_mem[count, 0] = bfee.Nrx
-                Ntx_mem[count, 0] = bfee.Ntx
-                rssiA_mem[count, 0] = bfee.rssiA
-                rssiB_mem[count, 0] = bfee.rssiB
-                rssiC_mem[count, 0] = bfee.rssiC
-                noise_mem[count, 0] = bfee.noise
-                agc_mem[count, 0] = bfee.agc
-                rate_mem[count, 0] = bfee.fake_rate_n_flags
+                timestamp_low_mem[count_0xbb] = bfee.timestamp_low
+                bfee_count_mem[count_0xbb] = bfee.bfee_count
+                Nrx_mem[count_0xbb] = bfee.Nrx
+                Ntx_mem[count_0xbb] = bfee.Ntx
+                rssiA_mem[count_0xbb] = bfee.rssiA
+                rssiB_mem[count_0xbb] = bfee.rssiB
+                rssiC_mem[count_0xbb] = bfee.rssiC
+                noise_mem[count_0xbb] = bfee.noise
+                agc_mem[count_0xbb] = bfee.agc
+                rate_mem[count_0xbb] = bfee.fake_rate_n_flags
 
-                perm_mem[count, 0] = (bfee.antenna_sel & 0x3)
-                perm_mem[count, 1] = ((bfee.antenna_sel >> 2) & 0x3)
-                perm_mem[count, 2] = ((bfee.antenna_sel >> 4) & 0x3)
-                csi_mem[count] = np.nan
+                perm_mem[count_0xbb, 0] = (bfee.antenna_sel & 0x3)
+                perm_mem[count_0xbb, 1] = ((bfee.antenna_sel >> 2) & 0x3)
+                perm_mem[count_0xbb, 2] = ((bfee.antenna_sel >> 4) & 0x3)
+                csi_mem[count_0xbb] = np.nan
 
                 index = 0
                 for i in range(30):
@@ -179,16 +223,59 @@ cdef class CSI:
                             b = <double>tmp
                             b = <char>b
                             
-                            csi_mem[count, i, perm_mem[count,j], k] =  a + b * I
+                            csi_mem[count_0xbb, i, perm_mem[count_0xbb,j], k] =  a + b * I
                             index = index +16
-                count = count + 1
+                cur = cur + field_len -1
+                count_0xbb = count_0xbb + 1
+                
+            elif code == 0xc1:
+                l = fread(buf, sizeof(unsigned char), field_len-1, f)
+                if l != (field_len-1):
+                    break # finished
+                mpdu = <lorcon_packet*>&buf
+
+                fc_mem[count_0xc1] = mpdu.fc
+                dur_mem[count_0xc1] = mpdu.dur
+
+                for g in range(6):
+                    addr_des_mem[count_0xc1, g] = mpdu.addr_des[g]
+                    addr_src_mem[count_0xc1, g] = mpdu.addr_src[g]
+                    addr_bssid_mem[count_0xc1, g] = mpdu.addr_bssid[g]
+
+                seq_mem[count_0xc1] = mpdu.seq
+
+                for g in range(self.pl_size + 4):
+                    payload_mem[count_0xc1, g] = mpdu.payload[g]
+
+                cur = cur + field_len -1 
+                count_0xc1 = count_0xc1 + 1
+
             else:
                 fseek(f, field_len, SEEK_CUR)
-                count = count +1
+                count_0xbb = count_0xbb + 1
+                count_0xc1 = count_0xc1 + 1
                 cur = cur + field_len -1   
         
         fclose(f)
-        print(str(count) + " packets\n" + "读取完毕")
+
+        if count_0xbb == 0:
+            self.count = count_0xc1
+            print("connector_log=" + hex(4))
+            print(str(count_0xc1) + " packets " + "parsed")
+        elif count_0xc1 == 0:
+            self.count = count_0xbb
+            print("connector_log=" + hex(1))
+            print(str(count_0xbb) + " packets " + "parsed")
+        else:
+            c = count_0xbb - count_0xc1
+            if c < 0:
+                print(str(-c)+" 0xbb packets have been lossed in user space")
+            if c > 0:
+                print(str(c)+" 0xc1 packets have been lossed in user space")
+
+            print("connector_log=" + hex(1 | 4))
+            print(str(count_0xbb) + " packets " + "parsed")
+
         del timestamp_low_mem
         del bfee_count_mem
         del Nrx_mem
@@ -201,19 +288,35 @@ cdef class CSI:
         del perm_mem
         del rate_mem
         del csi_mem
-        self.timestamp_low = self.timestamp_low[:count, :]
-        self.bfee_count = self.bfee_count[:count, :]
-        self.Nrx = self.Nrx[:count, :]
-        self.Ntx = self.Ntx[:count, :]
-        self.rssiA = self.rssiA[:count, :]
-        self.rssiB = self.rssiB[:count, :]
-        self.rssiC = self.rssiC[:count, :]
-        self.noise = self.noise[:count, :]
-        self.agc = self.agc[:count, :]
-        self.perm = self.perm[:count, :]
-        self.rate = self.rate[:count, :]
-        self.csi = self.csi[:count, :, :, :]
-        self.count = count
+
+        del fc_mem
+        del dur_mem
+        del addr_des_mem
+        del addr_src_mem
+        del addr_bssid_mem
+        del seq_mem
+        del payload_mem
+
+        self.timestamp_low = self.timestamp_low[:count_0xbb]
+        self.bfee_count = self.bfee_count[:count_0xbb,]
+        self.Nrx = self.Nrx[:count_0xbb]
+        self.Ntx = self.Ntx[:count_0xbb]
+        self.rssiA = self.rssiA[:count_0xbb]
+        self.rssiB = self.rssiB[:count_0xbb]
+        self.rssiC = self.rssiC[:count_0xbb]
+        self.noise = self.noise[:count_0xbb]
+        self.agc = self.agc[:count_0xbb]
+        self.perm = self.perm[:count_0xbb, :]
+        self.rate = self.rate[:count_0xbb]
+        self.csi = self.csi[:count_0xbb, :, :, :]
+
+        self.fc = self.fc[:count_0xc1]
+        self.dur = self.dur[:count_0xc1]
+        self.addr_des = self.addr_des[:count_0xc1]
+        self.addr_src = self.addr_src[:count_0xc1]
+        self.addr_bssid = self.addr_bssid[:count_0xc1]
+        self.seq = self.seq[:count_0xc1]
+        self.payload = self.payload[:count_0xc1]
 
     def readstp(self):
         stppath = self.filepath + "stp"

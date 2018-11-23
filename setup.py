@@ -17,24 +17,23 @@ extensions = [
 ]
 setup(
     name = "csiread",
-    version = "1.0.3",
+    version = "1.1.0",
 
-    author = "suhecheng",
+    author = "Hecheng Su",
     author_email = "2215523266@qq.com",
-
-    description = "Parse binary file obtained by csi-tool",
+    url = "https://github.com/citysu/csiread",
+    description = "Parse binary file obtained by csitools",
     long_description = long_description,
     long_description_content_type="text/markdown",
 
-    maintainer = "suhecheng",
+    maintainer = "Hecheng Su",
     maintainer_email = "2215523266@qq.com",
 
     packages = find_packages(),
-    package_data = {
-        'csiread.sample': ['*']
-    },
+
     install_requires = [
-        'numpy'
+        'numpy',
+        'cython'
     ],
     python_requires = '>=3',
 
@@ -44,6 +43,6 @@ setup(
                     "Programming Language :: Python :: 3",
                     "Programming Language :: Python :: Implementation :: CPython", 
                     "Operating System :: POSIX :: Linux",
-                    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)"],
+                    "License :: OSI Approved :: MIT License"],
 
 )

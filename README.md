@@ -1,54 +1,67 @@
 # csiread
 
-Parse binary file obtained by csi-tool
+Parse binary file obtained by 
+[Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/)
 
-get csi data by [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/), instead of reading it in matlab, you can use it in python directly. and 4 times faster than matlab when reading.
+Parsing `.dat` file in python directly. and 4 times faster than matlab when 
+parsing. the csiread tool only works when setting `connector_log=0x1, 0x4, 0x5`,
+and just works on Linux
 
 ## Install 
 
-### easy method
+    sudo pip3 install csiread
 
-```
-sudo pip3 install csiread
-```
+or  
 
-### from source
-
-requries:  
-
-```
-sudo pip3 install numpy cython setuptools wheel
-```
-
-install:  
-
-```
-sudo python3 setup.py install
-```
+    sudo python3 setup.py install
 
 publish:  
 
-```
-python3 setup.py sdist bdist_wheel
-```
+    python3 setup.py sdist bdist_wheel
 
 ## Usage
 
-```
-import csiread
+    import csiread
 
-csipath = "sample.dat"
-csidata = csiread.CSI(csipath)
-csidata.read()
-csidata.readstp()
+    csipath = "sample_0x1_ap.dat"
+    csidata = csiread.CSI(csipath)
+    csidata.read()
+    csidata.readstp()
 
-print(csidata.csi.shape)
-print(csidata.timestamp)
-...
-print(csidata.Nrx)
-```
+    print(csidata.csi.shape)
+    print(csidata.timestamp)
+    ...
+    print(csidata.Nrx)
 
-you can find some useful data in `sample/` where you install `csiread`.  
-all the csidata are in ndarray format.  
+## Material 
 
-only Ubuntu16.04 was tested, I can't tell if it can work on Windows.
+`log_to_file.c`: log the world timestamp of when it has receviced csi packets in userspace
+
+`random_packets.c`: control the sequence of the packet.
+
+`sample_0x5_64_3000.dat`: connector_log=0x5, channel_number=64, packets_count=3000
+
+## Tip:
+ap mode:
+
+    sudo stop network-manager
+    sudo modprobe -r iwlwifi mac80211
+    sudo modprobe iwlwifi connector_log=0x1
+
+    sudo ifconfig wlan0 up
+    sudo iw dev wlan0 connect <BSSID>
+    sudo dhcpcd wlan0
+
+monitor mode: 
+
+    sudo stop network-manager
+
+    ./setup_inject.sh 64 HT20
+    sudo echo 0x4101 | sudo tee `sudo find /sys -name monitor_tx_rate`
+    sudo ./seq_packets 10000 100 1 1000
+
+setup_inject.sh:
+
+    ...
+    ifconfig mon0 up
+    iw mon0 set channel $1 $2
