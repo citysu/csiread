@@ -22,7 +22,7 @@ setup(
     author = "Hecheng Su",
     author_email = "2215523266@qq.com",
     url = "https://github.com/citysu/csiread",
-    description = "Parse binary file obtained by csitools",
+    description = "Parse channel state information obtained by csitools",
     long_description = long_description,
     long_description_content_type="text/markdown",
 

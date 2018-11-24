@@ -1,6 +1,6 @@
 # csiread
 
-Parse binary file obtained by 
+Parse channel state information obtained by 
 [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/)
 
 Parsing `.dat` file in python directly. and 4 times faster than matlab when 

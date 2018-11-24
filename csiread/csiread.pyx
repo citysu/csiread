@@ -47,7 +47,7 @@ cdef class CSI:
             return  : csidata
         
         read(self):
-            parse data
+            parse data if code=0xbb and code=0xc1
 
             1. all Initialized value of members are set zero, and csi set np.nan
             2. when `connector_log=0x4, 0x5`, the max size of payload is [500-28]
@@ -269,12 +269,17 @@ cdef class CSI:
         else:
             c = count_0xbb - count_0xc1
             if c < 0:
-                print(str(-c)+" 0xbb packets have been lossed in user space")
-            if c > 0:
-                print(str(c)+" 0xc1 packets have been lossed in user space")
-
+                self.count = count_0xc1
+                print(str(-c)+" 0xbb packets have been lossed in user space, count:0xc1")
+                print("Waring: maybe Set incorrectly, e.g. too hgih transmitter rate")
+            elif c > 0:
+                self.count = count_0xbb
+                print(str(c)+" 0xc1 packets have been lossed in user space, count:0xbb")
+                print("Waring: maybe Set incorrectly, e.g. too hgih transmitter rate")
+            else:
+                self.count = count_0xbb
             print("connector_log=" + hex(1 | 4))
-            print(str(count_0xbb) + " packets " + "parsed")
+            print(str(self.count) + " packets " + "parsed")
 
         del timestamp_low_mem
         del bfee_count_mem

@@ -17,6 +17,6 @@ csidata2.read()
 ss = ''
 for s in csidata2.addr_src[0]:
     ss = ss+hex(s)[2:]+":"
-print("addr_src:", ss)
-
-print("seq:", csidata2.seq[:10])
+print("addr_src: ", ss)
+print("seq: ", csidata2.seq[:10])
+print("count: ",csidata2.count)
