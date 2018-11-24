@@ -18,7 +18,7 @@ or
 publish:  
 
     python3 setup.py sdist bdist_wheel
-    sudo pip3 install csiread-1.1.0-cp35-cp35m-linux_x86_64.whl
+    sudo pip3 install dist/csiread-1.1.0-cp35-cp35m-linux_x86_64.whl
 
 ## Usage
 
