@@ -5,6 +5,7 @@
 from setuptools import setup, find_packages
 from setuptools.extension import Extension
 from Cython.Build import cythonize
+import numpy
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
@@ -12,7 +13,8 @@ with open("README.md", "r") as fh:
 extensions = [
     Extension(
         "csiread", ["csiread/csiread.pyx"], 
-        extra_compile_args=['-Wno-cpp']
+        include_dirs=[numpy.get_include()],
+        extra_compile_args=['-w']
     ),
 ]
 setup(

@@ -5,17 +5,13 @@ Parse channel state information obtained by
 
 Parsing `.dat` file in python directly. and 4 times faster than matlab when 
 parsing. the csiread tool only works when setting `connector_log=0x1, 0x4, 0x5`,
-and just works on Linux
+and just works on Linux and Windows
 
 ## Install 
 
     sudo pip3 install csiread
 
 or  
-
-    sudo python3 setup.py install
-
-publish:  
 
     python3 setup.py sdist bdist_wheel
     sudo pip3 install dist/csiread-1.1.0-cp35-cp35m-linux_x86_64.whl

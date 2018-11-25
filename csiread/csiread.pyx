@@ -5,6 +5,7 @@ from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t
 from libc.string cimport strcpy, strlen
 
 import os
+import sys
 import struct
 import numpy as np 
 cimport numpy as np
@@ -32,8 +33,7 @@ cdef packed struct lorcon_packet:
     uint16_t seq;
     uint8_t payload[0];
 
-cdef extern from "complex.h":
-    float complex I
+cdef float complex I = 1j
 
 cdef class CSI:
     """
@@ -101,12 +101,13 @@ cdef class CSI:
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
         self.pl_size = pl_size
+        
         if not os.path.isfile(filepath):
             raise Exception("error: file does not exist, Stop!\n")
-                
+
     cpdef read(self):
         cdef FILE *f
-
+        
         filepath_b = self.filepath.encode(encoding="utf-8")
         cdef char *filepath_c = filepath_b
 
@@ -120,17 +121,25 @@ cdef class CSI:
         cdef long len = ftell(f);
         fseek(f, 0, SEEK_SET);
 
-        self.timestamp_low = np.zeros([len//95], dtype = np.int64)
-        self.bfee_count = np.zeros([len//95], dtype = np.int64)
-        self.Nrx = np.zeros([len//95], dtype = np.int64)
-        self.Ntx = np.zeros([len//95], dtype = np.int64)
-        self.rssiA = np.zeros([len//95], dtype = np.int64)
-        self.rssiB = np.zeros([len//95], dtype = np.int64)
-        self.rssiC = np.zeros([len//95], dtype = np.int64)
-        self.noise = np.zeros([len//95], dtype = np.int64)
-        self.agc = np.zeros([len//95], dtype = np.int64)
-        self.perm = np.zeros([len//95, 3], dtype = np.int64)
-        self.rate = np.zeros([len//95], dtype = np.int64)
+        btype = None
+        if sys.platform == 'linux':
+            btype = np.int64
+        elif sys.platform == 'win32':
+            btype = np.int32
+        else:
+            raise Exception("error: Only works on linux and windows !\n")
+        
+        self.timestamp_low = np.zeros([len//95], dtype = btype)
+        self.bfee_count = np.zeros([len//95], dtype = btype)
+        self.Nrx = np.zeros([len//95], dtype = btype)
+        self.Ntx = np.zeros([len//95], dtype = btype)
+        self.rssiA = np.zeros([len//95], dtype = btype)
+        self.rssiB = np.zeros([len//95], dtype = btype)
+        self.rssiC = np.zeros([len//95], dtype = btype)
+        self.noise = np.zeros([len//95], dtype = btype)
+        self.agc = np.zeros([len//95], dtype = btype)
+        self.perm = np.zeros([len//95, 3], dtype = btype)
+        self.rate = np.zeros([len//95], dtype = btype)
         self.csi = np.zeros([len//95, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
 
         cdef long [:] timestamp_low_mem = self.timestamp_low
@@ -146,13 +155,13 @@ cdef class CSI:
         cdef long [:] rate_mem = self.rate
         cdef complex [:, :, :, :] csi_mem = self.csi
 
-        self.fc = np.zeros([len//95], dtype = np.int64)
-        self.dur = np.zeros([len//95], dtype = np.int64)
-        self.addr_des = np.zeros([len//95, 6], dtype = np.int64)
-        self.addr_src = np.zeros([len//95, 6], dtype = np.int64)
-        self.addr_bssid = np.zeros([len//95, 6], dtype = np.int64)
-        self.seq = np.zeros([len//95], dtype = np.int64)
-        self.payload = np.zeros([len//95, self.pl_size + 4], dtype = np.int64)
+        self.fc = np.zeros([len//95], dtype = btype)
+        self.dur = np.zeros([len//95], dtype = btype)
+        self.addr_des = np.zeros([len//95, 6], dtype = btype)
+        self.addr_src = np.zeros([len//95, 6], dtype = btype)
+        self.addr_bssid = np.zeros([len//95, 6], dtype = btype)
+        self.seq = np.zeros([len//95], dtype = btype)
+        self.payload = np.zeros([len//95, self.pl_size + 4], dtype = btype)
 
         cdef long [:] fc_mem = self.fc
         cdef long [:] dur_mem = self.dur
