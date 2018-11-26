@@ -5,7 +5,8 @@ Parse channel state information obtained by
 
 Parsing `.dat` file in python directly. and 4 times faster than matlab when 
 parsing. the csiread tool only works when setting `connector_log=0x1, 0x4, 0x5`,
-and just works on Linux and Windows
+and just works on Linux and Windows, use [linux-80211n-csitool-supplementary]
+(https://github.com/dhalperi/linux-80211n-csitool-supplementary) to get data.
 
 ## Install 
 
@@ -38,7 +39,12 @@ or
 
 `sample_0x5_64_3000.dat`: connector_log=0x5, channel_number=64, packets_count=3000
 
+`Makefile`: injection makefile
+
 ## Tip:
+snrs:
+    log snrs: `./nl_bf_to_eff csi.dat > snrs.txt`
+
 ap mode:
 
     sudo stop network-manager

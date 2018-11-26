@@ -1,0 +1,56 @@
+#! /bin/bash
+# 倒计时脚本
+
+# $1 保存文件名
+# $2 每秒发的数据包数量
+arg=$1
+arg2=$2
+
+# 参数配置
+lasttime=00:10									# 数据采集持续时间
+delay=1										# 脚本延迟启动时间
+rate=$(echo "scale=5;1/${arg2}" | bc)		# rate 发包率，在suhecheng-desktop里rate最小值为0.2
+
+# 检查权限
+if [[ $(whoami) != "root" ]]; then
+	echo "sorry, you are nor root~"
+	exit
+fi
+
+# 配置网络
+
+# 启动记录程序
+cd /home/csi403/softpaper/csitools/linux-80211n-csitool-supplementary/netlink 
+./log_to_file $arg > /dev/null 2>&1 &
+
+# 脚本延迟启动
+echo "数据将在${delay}s后开始采集..."
+sleep $delay
+
+# ping脚本启动
+ping 192.168.1.1 -i ${rate} > /dev/null 2>&1 &
+PID=$(pgrep -f ping)
+PID2=$(pgrep -f ./log_to_file)
+
+# 判断是否到了截止时间
+while [[ true ]]; do
+
+	x=$(ps -eo pid,etime | grep ${PID})
+	y=$(echo $x | cut -d ' ' -f 2)
+	echo $y
+	if [[ $y = $lasttime ]]; then
+		#statements
+		echo "stop"
+		kill -SIGINT ${PID}
+		kill -SIGINT ${PID2}
+		break
+	fi
+	sleep 1
+done
+
+echo -e "[\033[033m 时间戳文件位置 \033[0m]：   dataset/${arg}stp"
+echo -e "[\033[033m CSI数据包文件位置 \033[0m]：dataset/${arg}"
+echo -e "[\033[033m 采集持续时间 \033[0m]：     ${lasttime}"
+echo -e "[\033[033m 发包率 \033[0m]：          ${rate}"
+exit
+
