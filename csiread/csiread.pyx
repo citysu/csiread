@@ -176,7 +176,7 @@ cdef class CSI:
         cdef int count_0xc1 = 0
         cdef unsigned short field_len
         cdef unsigned char code
-        cdef unsigned char buf[500]
+        cdef unsigned char buf[1024]
         cdef unsigned char temp[3]
         cdef size_t l
         cdef iwl5000_bfee_notif *bfee
@@ -312,7 +312,7 @@ cdef class CSI:
         del payload_mem
 
         self.timestamp_low = self.timestamp_low[:count_0xbb]
-        self.bfee_count = self.bfee_count[:count_0xbb,]
+        self.bfee_count = self.bfee_count[:count_0xbb]
         self.Nrx = self.Nrx[:count_0xbb]
         self.Ntx = self.Ntx[:count_0xbb]
         self.rssiA = self.rssiA[:count_0xbb]

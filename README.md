@@ -41,6 +41,8 @@ or
 
 `Makefile`: injection makefile
 
+`csi-get`: a shell script to log csi and stop in ap mode
+
 ## Tip:
 snrs:
     log snrs: `./nl_bf_to_eff csi.dat > snrs.txt`
