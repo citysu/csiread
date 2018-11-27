@@ -125,9 +125,9 @@ cdef class CSI:
         btype = None
         if sys.platform == 'linux':
             if platform.architecture()[0] == "64bit":
-            	btype = np.int64
+                btype = np.int64
             else:
-            	btype = np.int32
+                btype = np.int32
         elif sys.platform == 'win32':
             btype = np.int32
         else:
