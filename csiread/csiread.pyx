@@ -6,6 +6,7 @@ from libc.string cimport strcpy, strlen
 
 import os
 import sys
+import platform
 import struct
 import numpy as np 
 cimport numpy as np
@@ -123,7 +124,10 @@ cdef class CSI:
 
         btype = None
         if sys.platform == 'linux':
-            btype = np.int64
+            if platform.architecture()[0] == "64bit":
+            	btype = np.int64
+            else:
+            	btype = np.int32
         elif sys.platform == 'win32':
             btype = np.int32
         else:
