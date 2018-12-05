@@ -106,7 +106,8 @@ cdef class CSI:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, filepath, int Nrxnum=3, int Ntxnum=2, pl_size=0, if_report=True):
+    def __init__(self, filepath, int Nrxnum=3, int Ntxnum=2, pl_size=0, 
+                 if_report=True):
         """Parameter initialization
 
         Args:
