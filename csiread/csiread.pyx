@@ -1,4 +1,4 @@
-"""A tool to parse channel state infomation received by csitools"""
+"""A tool to parse channel state infomation received by csitools."""
 
 from libc.stdlib cimport realloc, free, malloc
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
@@ -42,7 +42,14 @@ cdef packed struct lorcon_packet:
 cdef float complex Imag = 1j
 
 cdef class CSI:
-    """A tool to parse channel state infomation received by csitools
+    """A tool to parse channel state infomation received by csitools.
+
+    Args:
+        filepath: the file name of csi .dat
+        Nrxnum: the set number of receive antennas, default=3
+        Ntxnum: the set number of transmit antennas, default=2
+        pl_size: the payload size, default=0
+        if_report: report parsed result, default=True
 
     Attributes:
         filepath: data file path
@@ -108,15 +115,7 @@ cdef class CSI:
 
     def __init__(self, filepath, int Nrxnum=3, int Ntxnum=2, pl_size=0, 
                  if_report=True):
-        """Parameter initialization
-
-        Args:
-            filepath: the file name of csi .dat
-            Nrxnum: the set number of receive antennas, default=3
-            Ntxnum: the set number of transmit antennas, default=2
-            pl_size: the payload size, default=0
-            if_report: report parsed result, default=True
-        """
+        """Parameter initialization."""
         self.filepath = filepath
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
@@ -127,7 +126,7 @@ cdef class CSI:
             raise Exception("error: file does not exist, Stop!\n")
 
     cpdef read(self):
-        """parse data only if code=0xbb or code=0xc1
+        """parse data only if code=0xbb or code=0xc1.
 
         Note:
             1. all Initialized value of members are set zero,
@@ -143,7 +142,7 @@ cdef class CSI:
                 >>for s in csidata.addr_src[0]:
                 >>    ss = ss+(hex(s))
 
-                the last 4 bytes are CRC and noe be parsed
+                the last 4 bytes are CRC and not be parsed.
         """
         cdef FILE *f
 
@@ -359,7 +358,7 @@ cdef class CSI:
         self.payload = self.payload[:count_0xc1]
 
     def readstp(self):
-        """parse timestamp when packet was received
+        """parse timestamp when packet was received.
 
         Note:
             `file.dat` and `file.datstp` must be in the same directory.
@@ -381,7 +380,7 @@ cdef class CSI:
         return self.stp[0]
 
     def __report(self, count_0xbb, count_0xc1):
-        """report parsed result"""
+        """report parsed result."""
         if count_0xbb == 0:
             self.count = count_0xc1
             print("connector_log=" + hex(4))
