@@ -1,11 +1,10 @@
-"""A tool to parse channel state infomation received by csitools."""
+"""A tool to parse channel state infomation received by 'Linux 802.11n CSI Tool'
+or 'Atheros CSI Tool'."""
 
-from libc.stdlib cimport realloc, free, malloc
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
 from libc.stdio cimport FILE, SEEK_END, SEEK_SET, SEEK_CUR
 from libc.stddef cimport size_t
 from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t
-from libc.string cimport strcpy, strlen
 
 import os
 import sys
@@ -15,8 +14,8 @@ import struct
 import numpy as np
 cimport numpy as np
 
-__version__ = "1.2.0"
-__all__ = ['CSI']
+__version__ = "1.3.0"
+__all__ = ['CSI', 'Atheros']
 
 cdef packed struct iwl5000_bfee_notif:
     uint32_t timestamp_low
@@ -42,18 +41,18 @@ cdef packed struct lorcon_packet:
 cdef float complex Imag = 1j
 
 cdef class CSI:
-    """A tool to parse channel state infomation received by csitools.
+    """Parse channel state infomation received by 'Linux 802.11n CSI Tool'.
 
     Args:
-        filepath: the file name of csi .dat
+        filepath: the file path of csi '.dat'
         Nrxnum: the set number of receive antennas, default=3
         Ntxnum: the set number of transmit antennas, default=2
-        pl_size: the payload size, default=0
-        if_report: report parsed result, default=True
+        pl_size: the size of payload that will be used, default=0
+        if_report: report the parsed result, default=True
 
     Attributes:
         filepath: data file path
-        count: count of packets were parsed
+        count: count of packets(0xbb) were parsed
 
         timestamp_low: timestamp
         bfee_count: packet count
@@ -113,7 +112,7 @@ cdef class CSI:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, filepath, int Nrxnum=3, int Ntxnum=2, pl_size=0, 
+    def __init__(self, filepath, Nrxnum=3, Ntxnum=2, pl_size=0, 
                  if_report=True):
         """Parameter initialization."""
         self.filepath = filepath
@@ -134,15 +133,10 @@ cdef class CSI:
             2. when `connector_log=0x4, 0x5`,
                the max size of payload is [500-28]
             3. read the payload or addr_src, e.g.
-                >>ss = ''
-                >>for s in csidata.payload[0]:
-                >>    ss = ss+(chr(s))
+                >>> index = 10
+                >>> payload = " ".join([hex(per)[2:] for per in csidata.payload[index]])
 
-                >>ss = ''
-                >>for s in csidata.addr_src[0]:
-                >>    ss = ss+(hex(s))
-
-                the last 4 bytes are CRC and not be parsed.
+                the last 4 bytes are CRC and will always be parsed.
         """
         cdef FILE *f
 
@@ -159,16 +153,7 @@ cdef class CSI:
         cdef long len = ftell(f)
         fseek(f, 0, SEEK_SET)
 
-        btype = None
-        if sys.platform == 'linux':
-            if platform.architecture()[0] == "64bit":
-                btype = np.int64
-            else:
-                btype = np.int32
-        elif sys.platform == 'win32':
-            btype = np.int32
-        else:
-            raise Exception("error: Only works on linux and windows !\n")
+        btype = __btype()
 
         self.timestamp_low = np.zeros([len//95], dtype=btype)
         self.bfee_count = np.zeros([len//95], dtype=btype)
@@ -305,9 +290,7 @@ cdef class CSI:
                 count_0xc1 = count_0xc1 + 1
 
             else:
-                fseek(f, field_len, SEEK_CUR)
-                count_0xbb = count_0xbb + 1
-                count_0xc1 = count_0xc1 + 1
+                fseek(f, field_len - 1, SEEK_CUR)
                 cur = cur + field_len - 1
 
         fclose(f)
@@ -348,6 +331,7 @@ cdef class CSI:
         self.perm = self.perm[:count_0xbb, :]
         self.rate = self.rate[:count_0xbb]
         self.csi = self.csi[:count_0xbb, :, :, :]
+        self.count = count_0xbb
 
         self.fc = self.fc[:count_0xc1]
         self.dur = self.dur[:count_0xc1]
@@ -373,39 +357,381 @@ cdef class CSI:
         f.seek(0, os.SEEK_SET)
         self.stp = np.zeros(len//8 - 1)
         for i in range(len//8 - 1):
-            a = struct.unpack("<L", f.read(4))[0]
-            b = struct.unpack("<L", f.read(4))[0]
+            a, b = struct.unpack("<LL", f.read(8))
             self.stp[i] = a + b / 1000000
         f.close()
         return self.stp[0]
 
+    def get_scaled_csi(self):
+        """Converts CSI to channel matrix H"""
+        csi_sq = np.abs(self.csi * self.csi.conjugate())
+        csi_pwr = np.sum(csi_sq, axis=(1, 2, 3))
+        rssi_pwr = self.__dbinv(self.get_total_rss())
+
+        scale = rssi_pwr / (csi_pwr / 30)
+
+        noise_db = self.noise
+        noise_db[noise_db == -127] = -92
+        thermal_noise_pwr = self.__dbinv(noise_db)
+
+        quant_error_pwr = scale * (self.Nrx * self.Ntx)
+        total_noise_pwr = thermal_noise_pwr + quant_error_pwr
+
+        ret = self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
+        ret[self.Ntx == 2] = ret[self.Ntx == 2] * np.sqrt(2)
+        ret[self.Ntx == 3] = ret[self.Ntx == 3] * np.sqrt(self.__dbinv(4.5))
+        return ret
+
+    def get_scaled_csi_sm(self, index):
+        """Converts CSI to channel matrix H(This dose not work at present)
+        
+        This version undoes Intel's spatial mapping to return the pure
+        MIMO channel matrix H.
+
+        Just calculate index packet's scaled_csi_sm at present
+        """
+        ret = self.get_scaled_csi()
+        ret = self.__remove_sm(ret, index)
+        return ret
+
+    def get_total_rss(self):
+        """Calculates the Received Signal Strength (RSS) in dBm from CSI"""
+        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
+        rssi_mag += self.__dbinvs(self.rssiA)
+        rssi_mag += self.__dbinvs(self.rssiB)
+        rssi_mag += self.__dbinvs(self.rssiC)
+        ret = self.__db(rssi_mag) - 44 - self.agc
+        return ret
+
     def __report(self, count_0xbb, count_0xc1):
         """report parsed result."""
         if count_0xbb == 0:
-            self.count = count_0xc1
             print("connector_log=" + hex(4))
-            print(str(count_0xc1) + " packets " + "parsed")
+            print(str(count_0xc1) + " 0xc1 packets " + "parsed")
         elif count_0xc1 == 0:
-            self.count = count_0xbb
             print("connector_log=" + hex(1))
-            print(str(count_0xbb) + " packets " + "parsed")
+            print(str(count_0xbb) + " 0xbb packets " + "parsed")
         else:
-            c = count_0xbb - count_0xc1
-            if c < 0:
-                self.count = count_0xc1
-                print(str(-c),
-                      " 0xbb packets have been lossed in user space,",
-                      " count:0xc1")
-                print("Waring: maybe Set incorrectly, ",
-                      "e.g. too hgih transmitter rate")
-            elif c > 0:
-                self.count = count_0xbb
-                print(str(c),
-                      " 0xc1 packets have been lossed in user space,",
-                      " count:0xbb")
-                print("Waring: maybe Set incorrectly, ",
-                      "e.g. too hgih transmitter rate")
+            print("connector_log=" + hex(1 | 4))
+            print(str(count_0xc1) + " 0xc1 packets " + "parsed")
+            print(str(count_0xbb) + " 0xbb packets " + "parsed")
+            print("0xbb packet and 0xc1 packet maybe not corresponding, BE CAREFUL!")
+
+    def __dbinvs(self, x):
+        """Convert from decibels specially"""
+        ret = np.power(10, x/10)
+        ret[ret == 1] = 0
+        return ret
+
+    def __dbinv(self, x):
+        """Convert from decibels"""
+        ret = np.power(10, x/10)
+        return ret
+
+    def __db(self, x):
+        """Calculates decibels"""
+        ret = 10*np.log10(x)
+        return ret
+
+    def __remove_sm(self, scaled_csi, index):
+        """Actually undo the input spatial mapping"""
+        sm_1 = 1
+        sm_2_20 = np.array([[1, 1],
+                            [1, -1]])/np.sqrt(2)
+        sm_2_40 = np.array([[1, 1j],
+                            [1j, 1]])/np.sqrt(2)
+        sm_3_20 = np.array([[-2*np.pi/16, -2*np.pi/(80/33), 2*np.pi/(80/3)],
+                            [ 2*np.pi/(80/23), 2*np.pi*(48/13), 2*np.pi*(240/13)],
+                            [-2*np.pi/(80/13), 2*np.pi*(240/37), 2*np.pi*(48/13)]])
+        sm_3_20 = np.square(np.exp(1), 1j*sm_3_20)/np.sqrt(3)
+        sm_3_40 = np.array([[-2*np.pi/16, -2*np.pi/(80/13), 2*np.pi/(80/23)],
+                            [-2*np.pi/(80/37), -2*np.pi*(48/11), -2*np.pi*(240/107)],
+                            [ 2*np.pi/(80/7), -2*np.pi*(240/83), -2*np.pi*(48/11)]])
+        sm_3_40 = np.square(np.exp(1), 1j*sm_3_40)/np.sqrt(3)
+        
+        M = self.Ntx[index]
+        ret = scaled_csi[index]
+
+        if M == 1:
+            return ret
+
+        if (int(self.rate[index]) & 2048) == 2048:
+            if M == 3:
+                sm = sm_3_40
+            elif M == 2:
+                sm = sm_2_40
             else:
-                self.count = count_0xbb
-            print("connector_log=", hex(1 | 4))
-            print(str(self.count), " packets " + "parsed")
+                sm = sm_1
+        else:
+            if M == 3:
+                sm = sm_3_20
+            elif M == 2:
+                sm = sm_2_20
+            else:
+                sm = sm_1   
+        
+        ret = np.dot(ret, np.transpose(sm))
+        return ret
+        
+
+
+cdef class Atheros:
+    """Parse channel state infomation received by 'Atheros CSI Tool'.""""
+    cdef readonly str filepath
+    cdef readonly int count
+
+    cdef public np.ndarray timestamp
+    cdef public np.ndarray csi_len
+    cdef public np.ndarray tx_channel
+    cdef public np.ndarray err_info
+    cdef public np.ndarray noise_floor
+    cdef public np.ndarray Rate
+    cdef public np.ndarray bandWidth
+    cdef public np.ndarray num_tones
+    cdef public np.ndarray nr
+    cdef public np.ndarray nc
+    cdef public np.ndarray rssi
+    cdef public np.ndarray rssi_1
+    cdef public np.ndarray rssi_2
+    cdef public np.ndarray rssi_3
+    cdef public np.ndarray payload_len
+    cdef public np.ndarray csi
+    cdef public np.ndarray payload
+
+    cdef int Nrxnum
+    cdef int Ntxnum
+    cdef int Tones
+    cdef int pl_size
+    cdef int if_report
+
+    def __init__(self, filepath, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
+                 if_report=True):
+        """Parameter initialization."""
+        self.filepath = filepath
+        self.Nrxnum = Nrxnum
+        self.Ntxnum = Ntxnum
+        self.Tones = Tones
+        self.pl_size = pl_size
+        self.if_report = if_report
+
+        if Tones not in [56, 114]:
+            raise Exception("error: Tones can only take 56 or 114, Stop!\n")
+
+        if not os.path.isfile(filepath):
+            raise Exception("error: file does not exist, Stop!\n")
+
+    cpdef read(self):
+        cdef FILE *f
+
+        filepath_b = self.filepath.encode(encoding="utf-8")
+        cdef char *filepath_c = filepath_b
+
+        f = fopen(filepath_c, "rb")
+        if f is NULL:
+            print("Open failed!\n")
+            fclose(f)
+            return -1
+
+        fseek(f, 0, SEEK_END)
+        cdef long len = ftell(f)
+        fseek(f, 0, SEEK_SET)
+
+        btype = __btype()
+        self.timestamp = np.zeros([len//420])
+        self.csi_len = np.zeros([len//420], dtype=btype)
+        self.tx_channel = np.zeros([len//420], dtype=btype)
+        self.err_info = np.zeros([len//420], dtype=btype)
+        self.noise_floor = np.zeros([len//420], dtype=btype)
+        self.Rate = np.zeros([len//420], dtype=btype)
+        self.bandWidth = np.zeros([len//420], dtype=btype)
+        self.num_tones = np.zeros([len//420], dtype=btype)
+        self.nr = np.zeros([len//420], dtype=btype)
+        self.nc = np.zeros([len//420], dtype=btype)
+        self.rssi = np.zeros([len//420], dtype=btype)
+        self.rssi_1 = np.zeros([len//420], dtype=btype)
+        self.rssi_2 = np.zeros([len//420], dtype=btype)
+        self.rssi_3 = np.zeros([len//420], dtype=btype)
+        self.payload_len = np.zeros([len//420], dtype=btype)
+        self.csi = np.zeros([len//420, self.Tones, self.Nrxnum, self.Ntxnum],
+                            dtype=np.complex128)
+        self.payload = np.zeros([len//420, self.pl_size], dtype=btype)
+
+        cdef double[:] timestamp_mem = self.timestamp
+        cdef long[:] csi_len_mem = self.csi_len
+        cdef long[:] tx_channel_mem = self.tx_channel
+        cdef long[:] err_info_mem = self.err_info
+        cdef long[:] noise_floor_mem = self.noise_floor
+        cdef long[:] Rate_mem = self.Rate
+        cdef long[:] bandWidth_mem = self.bandWidth
+        cdef long[:] num_tones_mem = self.num_tones
+        cdef long[:] nr_mem = self.nr
+        cdef long[:] nc_mem = self.nc
+        cdef long[:] rssi_mem = self.rssi
+        cdef long[:] rssi_1_mem = self.rssi_1
+        cdef long[:] rssi_2_mem = self.rssi_2
+        cdef long[:] rssi_3_mem = self.rssi_3
+        cdef long[:] payload_len_mem = self.payload_len
+        cdef complex[:, :, :, :] csi_mem = self.csi
+        cdef long[:, :] payload_mem = self.payload
+
+        border = sys.byteorder
+        cdef int cur = 0
+        cdef int count = 0
+        cdef int c_len, pl_len
+
+        cdef int bits_left
+        cdef int bitmask
+        cdef int idx
+        cdef int h_data
+        cdef int curren_data
+        cdef int k, nc_idx, nr_idx
+        cdef int imag
+        cdef int real
+        cdef unsigned char buf[4096]
+        cdef unsigned char csi_buf[4096]
+
+        while cur < (len - 4):
+            fread(&buf, sizeof(unsigned char), 2, f)
+            field_len = int.from_bytes(buf[:2], byteorder=border)
+            cur += 2
+            if (cur + field_len) > len:
+                break
+            
+            fread(&buf, sizeof(unsigned char), 25, f)
+            timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=border)
+            csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=border)
+            tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=border)
+            err_info_mem[count] = buf[12]
+            noise_floor_mem[count] = buf[13]
+            Rate_mem[count] = buf[14]
+            bandWidth_mem[count] = buf[15]
+            num_tones_mem[count] = buf[16]
+            nr_mem[count] = buf[17]
+            nc_mem[count] = buf[18]
+            rssi_mem[count] = buf[19]
+            rssi_1_mem[count] = buf[20]
+            rssi_2_mem[count] = buf[21]
+            rssi_3_mem[count] = buf[22]
+            payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=border)
+            cur += 25
+
+            c_len = csi_len_mem[count]
+            csi_mem[count] = np.nan
+            if c_len > 0:
+                fread(&csi_buf, sizeof(unsigned char), c_len, f)
+                bits_left = 16
+                bitmask = (1 << 10) - 1
+
+                idx = 0
+                h_data = csi_buf[idx]
+                idx += 1
+                h_data += (csi_buf[idx] << 8)
+                idx += 1
+                curren_data = h_data & ((1 << 16) - 1)
+
+                for k in range(num_tones_mem[count]):
+                    for nr_idx in range(nr_mem[count]):
+                        for nc_idx in range(nc_mem[count]):
+                            # imag
+                            if (bits_left - 10) < 0:
+                                h_data = csi_buf[idx]
+                                idx += 1
+                                h_data += (csi_buf[idx] << 8)
+                                idx += 1
+                                curren_data += h_data << bits_left
+                                bits_left += 16
+                            imag = curren_data & bitmask
+                            if imag & (1 << 9):
+                                imag -= (1 << 10)
+
+                            bits_left -= 10
+                            curren_data = curren_data >> 10
+                            # real
+                            if (bits_left - 10) < 0:
+                                h_data = csi_buf[idx]
+                                idx += 1
+                                h_data += (csi_buf[idx] << 8)
+                                idx += 1
+                                curren_data += h_data << bits_left
+                                bits_left += 16
+                            real = curren_data & bitmask
+                            if real & (1 << 9):
+                                real -= (1 << 10)
+
+                            bits_left -= 10
+                            curren_data = curren_data >> 10
+                            # csi
+                            csi_mem[count, k, nr_idx, nc_idx] = real + imag * 1j
+                cur += c_len
+
+            pl_len = payload_len_mem[count]
+            if pl_len > 0:
+                fread(&buf, sizeof(unsigned char), pl_len, f)
+                self.payload[count, :self.pl_size] = bytearray(buf[:self.pl_size])
+                cur += pl_len
+
+            if (cur + 420 > len):
+                count -= 1
+                break
+
+            count += 1
+
+        fclose(f)
+
+        if self.if_report:
+            self.__report(count)
+
+        del timestamp_mem
+        del csi_len_mem
+        del tx_channel_mem
+        del err_info_mem
+        del noise_floor_mem
+        del Rate_mem
+        del bandWidth_mem
+        del num_tones_mem
+        del nr_mem
+        del nc_mem
+        del rssi_mem
+        del rssi_1_mem
+        del rssi_2_mem
+        del rssi_3_mem
+        del payload_len_mem
+        del csi_mem
+        del payload_mem
+
+        self.timestamp = self.timestamp[:count]
+        self.csi_len = self.csi_len[:count]
+        self.tx_channel = self.tx_channel[:count]
+        self.err_info = self.err_info[:count]
+        self.noise_floor = self.noise_floor[:count]
+        self.Rate = self.Rate[:count]
+        self.bandWidth = self.bandWidth[:count]
+        self.num_tones = self.num_tones[:count]
+        self.nr = self.nr[:count]
+        self.nc = self.nc[:count]
+        self.rssi = self.rssi[:count]
+        self.rssi_1 = self.rssi_1[:count]
+        self.rssi_2 = self.rssi_2[:count]
+        self.rssi_3 = self.rssi_3[:count]
+        self.payload_len = self.payload_len[:count]
+        self.csi = self.csi[:count]
+        self.payload = self.payload[:count]
+        self.count = count
+
+    def __report(self, count):
+        """report parsed result."""
+        print(str(count) + " packets " + "parsed")
+
+
+cpdef __btype():
+    btype = None
+    if sys.platform == 'linux':
+        if platform.architecture()[0] == "64bit":
+            btype = np.int64
+        else:
+            btype = np.int32
+    elif sys.platform == 'win32':
+        btype = np.int32
+    else:
+        raise Exception("error: Only works on linux and windows !\n")
+    return btype

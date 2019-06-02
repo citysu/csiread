@@ -1,3 +1,2 @@
 include example/*
-include material/*
 include csiread/*.pyx

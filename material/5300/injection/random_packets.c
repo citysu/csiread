@@ -33,7 +33,7 @@ struct lorcon_packet 	*packet;
 
 uint8_t 				*payload_buffer;
 int32_t 				ret;
-uint32_t 				index;
+uint32_t 				i;
 
 uint32_t 				num_packets;
 uint32_t 				packet_size;	
@@ -115,36 +115,36 @@ int main(int argc, char** argv)
 static void handle()
 {
 	payload_memcpy(packet->payload, packet_size, (i*packet_size) % PAYLOAD_SIZE);
-	packet->seq = index;
+	packet->seq = i;
 	ret = tx80211_txpacket(&tx, &tx_packet);
 
 	if (ret < 0) {
 		fprintf(stderr, "Unable to transmit packet: %s\n", tx.errstr);
 		exit(1);
 	}
-	if (((index+1) % 1000) == 0) {
+	if (((i+1) % 1000) == 0) {
 		printf(".");
 		fflush(stdout);
 	}
-	if (((index+1) % 50000) == 0) {
-		printf("%dk\n", (index+1)/1000);
+	if (((i+1) % 50000) == 0) {
+		printf("%dk\n", (i+1)/1000);
 		fflush(stdout);
 	}
-	if (index >= num_packets){
+	if (i >= num_packets){
 		exit(0);
 	}
 
-	index++;
+	i++;
 }
 
 static void timerThread()
 {
+	timer_t timer;
+	
 	struct sigevent evp;
 	evp.sigev_value.sival_ptr = &timer;
 	evp.sigev_notify = SIGEV_SIGNAL;
 	evp.sigev_signo = SIGUSR1;
-
-	timer_t timer;
 
 	struct itimerspec ts;
 	ts.it_interval.tv_sec = 0;   
@@ -152,7 +152,7 @@ static void timerThread()
 	ts.it_value.tv_sec = 1;  
 	ts.it_value.tv_nsec = 0;
 
-	signal(evp.sigev_signo, SignHandler);
+	signal(evp.sigev_signo, handle);
 
 	ret = timer_create(CLOCK_REALTIME, &evp, &timer);
 	if (ret) {

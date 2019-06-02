@@ -14,12 +14,12 @@ EXTENSIONS = [
     Extension(
         "csiread", ["csiread/csiread.pyx"],
         include_dirs=[numpy.get_include()],
-        extra_compile_args=['-w']
+        extra_compile_args=['-w', '-O3']
     ),
 ]
 setup(
     name="csiread",
-    version="1.2.0",
+    version="1.3.0",
 
     author="Hecheng Su",
     author_email="2215523266@qq.com",
@@ -34,8 +34,7 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'numpy',
-        'cython'
+        'numpy'
     ],
     python_requires='>=3',
 
@@ -47,5 +46,4 @@ setup(
                  "Operating System :: POSIX :: Linux",
                  "Operating System :: Microsoft :: Windows",
                  "License :: OSI Approved :: MIT License"],
-
 )

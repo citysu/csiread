@@ -58,3 +58,5 @@ docs/_build/
 target/
 
 csiread/csiread\.c
+.vscode/
+.pytest_cache
