@@ -364,7 +364,9 @@ cdef class CSI:
 
     def get_scaled_csi(self):
         """Converts CSI to channel matrix H"""
-        csi_sq = np.abs(self.csi * self.csi.conjugate())
+        csi = self.csi
+        csi[np.isnan(csi)] = 0
+        csi_sq = np.abs(csi * csi.conjugate())
         csi_pwr = np.sum(csi_sq, axis=(1, 2, 3))
         rssi_pwr = self.__dbinv(self.get_total_rss())
 
@@ -476,7 +478,7 @@ cdef class CSI:
 
 
 cdef class Atheros:
-    """Parse channel state infomation received by 'Atheros CSI Tool'.""""
+    """Parse channel state infomation received by 'Atheros CSI Tool'."""
     cdef readonly str filepath
     cdef readonly int count
 
