@@ -25,7 +25,7 @@ def csitool_ap():
     print('-'*40)
 
     lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("Methods: ", lmember[:3], lmember[5])
+    print("Methods: ", lmember[:3] + lmember[4:5])
     print("Total time: ", now - last, "s")
 
     index = 10
@@ -67,7 +67,7 @@ def csitool_mon():
     print('-'*40)
 
     lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("Methods: ", lmember[:3], lmember[5])
+    print("Methods: ", lmember[:3] + lmember[4:5])
     print("Total time: ", now - last, "s")
 
     index = 10
