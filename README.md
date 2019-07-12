@@ -7,7 +7,7 @@ Parse channel state information obtained by
 Parse `.dat` file in python directly, the code has been optimized with
 `Cython`, and it just works on Linux and Windows,
 
-If using CSITool, csiread can work when setting `connector_log=0x1, 0x4, 0x5`.
+If using Linux 802.11n CSI Tool, csiread can work when setting `connector_log=0x1, 0x4, 0x5`.
 
 ## Install
 
