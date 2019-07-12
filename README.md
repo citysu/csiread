@@ -64,34 +64,3 @@ __recvCSI/main.c__: Record the timestamp when the csi packet was received in use
 __sendData/sendData.c__: Control the time interval more precisely when sending packets.
 
 __dataset/ath_csi_1.dat__: Sample data of atheros.
-
-## Log
-
-### v1.3.1
-
-1. fix bug: 在32bit计算机上运行时，csi部分子载波出现数值错误
-2. add feature: 添加example/csishow.py, 用于快速观察数据的脚本
-3. add feature: 添加example/csisplit.py, 用于分割数据文件
-4. fix bug: len -> lens， 避免内置关键字
-
-### v1.3.0
-
-1. fix bug: report 的格式错误
-2. fix bug: count 以后将仅仅是0xbb数据包的个数
-3. fix bug: count 大于正确数值的错误
-4. new feature: 添加 atheros数据解析支持
-5. new feature: 添加 csitool处理函数 get_scaled_csi(), get_total_rss()
-6. new example
-
-## Issues
-
-### ValueError: numpy.ufunc size changed
-
-```bash
-Traceback (most recent call last):
-  File "<stdin>", line 1, in <module>
-  File "__init__.pxd", line 918, in init csiread
-ValueError: numpy.ufunc size changed, may indicate binary incompatibility. Expected 216 from C header, got 192 from PyObject
-```
-
-Make sure `numpy>=1.6.0` or compile the source code as above
