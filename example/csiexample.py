@@ -25,11 +25,11 @@ def csitool_ap():
     print('-'*40)
 
     lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("成员方法: ", lmember[:5])
-    print("解析耗时: ", now - last, "s")
+    print("Methods: ", lmember[:3], lmember[5])
+    print("Total time: ", now - last, "s")
 
     index = 10
-    print("第%d个数据包: " % index)
+    print("%dth packet: " % index)
     print(" filepath        ", csidata.filepath)
     print(" count           ", csidata.count)
     print(" timestamp_low   ", csidata.timestamp_low[index])
@@ -49,7 +49,7 @@ def csitool_ap():
     print(" total_rss       ", csidata.get_total_rss()[index])
     print(" scaled_csi      ", csidata.get_scaled_csi()[index].shape)
     print('-'*40)
-    # print("帮助文档: \n", csidata.__doc__)
+    # print("help: \n", csidata.__doc__)
 
 
 def csitool_mon():
@@ -67,14 +67,14 @@ def csitool_mon():
     print('-'*40)
 
     lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("成员方法: ", lmember[:5])
-    print("解析耗时: ", now - last, "s")
+    print("Methods: ", lmember[:3], lmember[5])
+    print("Total time: ", now - last, "s")
 
     index = 10
     addr_src = ''
     for per_addr in csidata.addr_src[index]:
         addr_src += hex(per_addr)[2:] + ":"
-    print("第%d个数据包: " % index)
+    print("%dth packet: " % index)
     print(" filepath        ", csidata.filepath)
     print(" count           ", csidata.count)
     print(" timestamp_low   ", csidata.timestamp_low[index])
@@ -98,7 +98,7 @@ def csitool_mon():
     print(" seq             ", csidata.seq[index])
     print(" payload         ", " ".join([hex(per_load)[2:] for per_load in csidata.payload[index]]))
     print('-'*40)
-    # print("帮助文档: \n", csidata.__doc__)
+    # print("help: \n", csidata.__doc__)
 
 
 def atheros():
@@ -116,11 +116,11 @@ def atheros():
     print('-'*40)
 
     lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("成员方法: ", lmember[:1])
-    print("解析耗时: ", now - last, "s")
+    print("Methods: ", lmember[:1])
+    print("Total time: ", now - last, "s")
 
     index = 10
-    print("第%d个数据包: " % index)
+    print("%dth packet: " % index)
     print(" filepath        ", csidata.filepath)
     print(" count           ", csidata.count)
     print(" timestamp       ", csidata.timestamp[index])
@@ -141,7 +141,7 @@ def atheros():
     print(" csi             ", csidata.csi[index].shape)
     print(" payload         ", csidata.payload[index])
     print('-'*40)
-    # print("帮助文档: \n", csidata.__doc__)
+    # print("help: \n", csidata.__doc__)
 
 
 if __name__ == "__main__":

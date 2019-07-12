@@ -152,7 +152,7 @@ if __name__ == "__main__":
     """
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument('file', type=str, help='数据文件')
+    parser.add_argument('file', type=str, help='data file')
     parser.add_argument('-t', type=int, default=0, help=helpinfo)
     p = parser.parse_args()
 
