@@ -14,7 +14,7 @@ import struct
 import numpy as np
 cimport numpy as np
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 __all__ = ['CSI', 'Atheros']
 
 cdef packed struct iwl5000_bfee_notif:
@@ -25,7 +25,7 @@ cdef packed struct iwl5000_bfee_notif:
     uint8_t rssiA, rssiB, rssiC
     int8_t noise
     uint8_t agc, antenna_sel
-    uint16_t len
+    uint16_t lens
     uint16_t fake_rate_n_flags
     uint8_t payload[0]
 
@@ -150,23 +150,23 @@ cdef class CSI:
             return -1
 
         fseek(f, 0, SEEK_END)
-        cdef long len = ftell(f)
+        cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
 
         btype = __btype()
 
-        self.timestamp_low = np.zeros([len//95], dtype=btype)
-        self.bfee_count = np.zeros([len//95], dtype=btype)
-        self.Nrx = np.zeros([len//95], dtype=btype)
-        self.Ntx = np.zeros([len//95], dtype=btype)
-        self.rssiA = np.zeros([len//95], dtype=btype)
-        self.rssiB = np.zeros([len//95], dtype=btype)
-        self.rssiC = np.zeros([len//95], dtype=btype)
-        self.noise = np.zeros([len//95], dtype=btype)
-        self.agc = np.zeros([len//95], dtype=btype)
-        self.perm = np.zeros([len//95, 3], dtype=btype)
-        self.rate = np.zeros([len//95], dtype=btype)
-        self.csi = np.zeros([len//95, 30, self.Nrxnum, self.Ntxnum],
+        self.timestamp_low = np.zeros([lens//95], dtype=btype)
+        self.bfee_count = np.zeros([lens//95], dtype=btype)
+        self.Nrx = np.zeros([lens//95], dtype=btype)
+        self.Ntx = np.zeros([lens//95], dtype=btype)
+        self.rssiA = np.zeros([lens//95], dtype=btype)
+        self.rssiB = np.zeros([lens//95], dtype=btype)
+        self.rssiC = np.zeros([lens//95], dtype=btype)
+        self.noise = np.zeros([lens//95], dtype=btype)
+        self.agc = np.zeros([lens//95], dtype=btype)
+        self.perm = np.zeros([lens//95, 3], dtype=btype)
+        self.rate = np.zeros([lens//95], dtype=btype)
+        self.csi = np.zeros([lens//95, 30, self.Nrxnum, self.Ntxnum],
                             dtype=np.complex128)
 
         cdef long[:] timestamp_low_mem = self.timestamp_low
@@ -182,13 +182,13 @@ cdef class CSI:
         cdef long[:] rate_mem = self.rate
         cdef complex[:, :, :, :] csi_mem = self.csi
 
-        self.fc = np.zeros([len//95], dtype=btype)
-        self.dur = np.zeros([len//95], dtype=btype)
-        self.addr_des = np.zeros([len//95, 6], dtype=btype)
-        self.addr_src = np.zeros([len//95, 6], dtype=btype)
-        self.addr_bssid = np.zeros([len//95, 6], dtype=btype)
-        self.seq = np.zeros([len//95], dtype=btype)
-        self.payload = np.zeros([len//95, self.pl_size + 4], dtype=btype)
+        self.fc = np.zeros([lens//95], dtype=btype)
+        self.dur = np.zeros([lens//95], dtype=btype)
+        self.addr_des = np.zeros([lens//95, 6], dtype=btype)
+        self.addr_src = np.zeros([lens//95, 6], dtype=btype)
+        self.addr_bssid = np.zeros([lens//95, 6], dtype=btype)
+        self.seq = np.zeros([lens//95], dtype=btype)
+        self.payload = np.zeros([lens//95, self.pl_size + 4], dtype=btype)
 
         cdef long[:] fc_mem = self.fc
         cdef long[:] dur_mem = self.dur
@@ -213,7 +213,7 @@ cdef class CSI:
         cdef int i, j, k, g
         cdef int remainder = 0
 
-        while cur < (len-3):
+        while cur < (lens-3):
             if fread(&temp, sizeof(unsigned char), 3, f) is False:
                 print("Open failed!\n")
                 fclose(f)
@@ -253,13 +253,13 @@ cdef class CSI:
                         for k in range(bfee.Ntx):
                             tmp = (bfee.payload[index/8] >> remainder) \
                                 | (bfee.payload[index/8+1] << (8-remainder))
-                            a = <double>tmp
-                            a = <char>a
+                            a = <char>(tmp & 0xFF)
+                            a = <double>a
 
                             tmp = (bfee.payload[index/8+1] >> remainder) \
                                 | (bfee.payload[index/8+2] << (8-remainder))
-                            b = <double>tmp
-                            b = <char>b
+                            b = <char>(tmp & 0xFF)
+                            b = <double>b
 
                             csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k]\
                                 = a + b * Imag
@@ -353,10 +353,10 @@ cdef class CSI:
             f.close()
             raise Exception("error: file does not exist\n")
         f.seek(0, os.SEEK_END)
-        len = f.tell()
+        lens = f.tell()
         f.seek(0, os.SEEK_SET)
-        self.stp = np.zeros(len//8 - 1)
-        for i in range(len//8 - 1):
+        self.stp = np.zeros(lens//8 - 1)
+        for i in range(lens//8 - 1):
             a, b = struct.unpack("<LL", f.read(8))
             self.stp[i] = a + b / 1000000
         f.close()
@@ -535,28 +535,28 @@ cdef class Atheros:
             return -1
 
         fseek(f, 0, SEEK_END)
-        cdef long len = ftell(f)
+        cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
 
         btype = __btype()
-        self.timestamp = np.zeros([len//420])
-        self.csi_len = np.zeros([len//420], dtype=btype)
-        self.tx_channel = np.zeros([len//420], dtype=btype)
-        self.err_info = np.zeros([len//420], dtype=btype)
-        self.noise_floor = np.zeros([len//420], dtype=btype)
-        self.Rate = np.zeros([len//420], dtype=btype)
-        self.bandWidth = np.zeros([len//420], dtype=btype)
-        self.num_tones = np.zeros([len//420], dtype=btype)
-        self.nr = np.zeros([len//420], dtype=btype)
-        self.nc = np.zeros([len//420], dtype=btype)
-        self.rssi = np.zeros([len//420], dtype=btype)
-        self.rssi_1 = np.zeros([len//420], dtype=btype)
-        self.rssi_2 = np.zeros([len//420], dtype=btype)
-        self.rssi_3 = np.zeros([len//420], dtype=btype)
-        self.payload_len = np.zeros([len//420], dtype=btype)
-        self.csi = np.zeros([len//420, self.Tones, self.Nrxnum, self.Ntxnum],
+        self.timestamp = np.zeros([lens//420])
+        self.csi_len = np.zeros([lens//420], dtype=btype)
+        self.tx_channel = np.zeros([lens//420], dtype=btype)
+        self.err_info = np.zeros([lens//420], dtype=btype)
+        self.noise_floor = np.zeros([lens//420], dtype=btype)
+        self.Rate = np.zeros([lens//420], dtype=btype)
+        self.bandWidth = np.zeros([lens//420], dtype=btype)
+        self.num_tones = np.zeros([lens//420], dtype=btype)
+        self.nr = np.zeros([lens//420], dtype=btype)
+        self.nc = np.zeros([lens//420], dtype=btype)
+        self.rssi = np.zeros([lens//420], dtype=btype)
+        self.rssi_1 = np.zeros([lens//420], dtype=btype)
+        self.rssi_2 = np.zeros([lens//420], dtype=btype)
+        self.rssi_3 = np.zeros([lens//420], dtype=btype)
+        self.payload_len = np.zeros([lens//420], dtype=btype)
+        self.csi = np.zeros([lens//420, self.Tones, self.Nrxnum, self.Ntxnum],
                             dtype=np.complex128)
-        self.payload = np.zeros([len//420, self.pl_size], dtype=btype)
+        self.payload = np.zeros([lens//420, self.pl_size], dtype=btype)
 
         cdef double[:] timestamp_mem = self.timestamp
         cdef long[:] csi_len_mem = self.csi_len
@@ -592,11 +592,11 @@ cdef class Atheros:
         cdef unsigned char buf[4096]
         cdef unsigned char csi_buf[4096]
 
-        while cur < (len - 4):
+        while cur < (lens - 4):
             fread(&buf, sizeof(unsigned char), 2, f)
             field_len = int.from_bytes(buf[:2], byteorder=border)
             cur += 2
-            if (cur + field_len) > len:
+            if (cur + field_len) > lens:
                 break
             
             fread(&buf, sizeof(unsigned char), 25, f)
@@ -672,7 +672,7 @@ cdef class Atheros:
                 self.payload[count, :self.pl_size] = bytearray(buf[:self.pl_size])
                 cur += pl_len
 
-            if (cur + 420 > len):
+            if (cur + 420 > lens):
                 count -= 1
                 break
 
@@ -725,7 +725,7 @@ cdef class Atheros:
         print(str(count) + " packets " + "parsed")
 
 
-cpdef __btype():
+cdef __btype():
     btype = None
     if sys.platform == 'linux':
         if platform.architecture()[0] == "64bit":

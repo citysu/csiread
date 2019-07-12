@@ -19,12 +19,12 @@ EXTENSIONS = [
 ]
 setup(
     name="csiread",
-    version="1.3.0",
+    version="1.3.1",
 
     author="Hecheng Su",
     author_email="2215523266@qq.com",
     url="https://github.com/citysu/csiread",
-    description="Parse channel state information obtained by csitools",
+    description="Parse channel state information obtained by Linux 802.11n CSI Tool and Atheros CSI Tool",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
 
@@ -34,7 +34,10 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'numpy'
+        'setuptools',
+        'wheel',
+        'numpy',
+        'Cython'
     ],
     python_requires='>=3',
 
