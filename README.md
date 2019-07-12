@@ -1,6 +1,6 @@
 # csiread
 
-Parse channel state information obtained by
+Parse channel state information from raw CSI data file obtained by
 [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and
 [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/)
 
