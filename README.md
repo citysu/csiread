@@ -36,8 +36,7 @@ Read `example/*.py` and `csiread/csiread.pyx` for more detail.
 
 1. `example/csiexample.py` is an example to view the contents of a packet
 2. `example/csishow.py` is a script to help you observe csi quickly
-3. `example/csisplit.py` is a script to split the data file of 
-linux-80211n-tool into small pieces
+3. `example/csisplit.py` is a script to split the data file of linux-80211n-tool into small pieces
 
 ## Material
 
@@ -69,11 +68,11 @@ __dataset/ath_csi_1.dat__: Sample data of atheros.
 
 ### v1.3.2
 
-1. fix bug: choose big endian or little endian when uing Atheros, e.g. csidata.read(endian='big')
+1. fix bug: choose big endian or little endian when using Atheros, e.g. csidata.read(endian='big')
 
 ### v1.3.1
 
-1. fix bug: some value errer on 32-bit computer
+1. fix bug: some value error on 32-bit computer
 2. add feature: add `example/csishow.py` to plot data
 3. add feature: add `example/csisplit.py` to split the data file of linux-80211n-tool into small pieces
 4. fix bug: avoid built-in keyword， len -> lens
