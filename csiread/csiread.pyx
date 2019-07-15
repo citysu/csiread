@@ -522,7 +522,12 @@ cdef class Atheros:
         if not os.path.isfile(filepath):
             raise Exception("error: file does not exist, Stop!\n")
 
-    cpdef read(self):
+    cpdef read(self, endian='little'):
+        """read
+
+        Args:
+            endian: ['little', 'big']
+        """
         cdef FILE *f
 
         filepath_b = self.filepath.encode(encoding="utf-8")
@@ -576,7 +581,6 @@ cdef class Atheros:
         cdef complex[:, :, :, :] csi_mem = self.csi
         cdef long[:, :] payload_mem = self.payload
 
-        border = sys.byteorder
         cdef int cur = 0
         cdef int count = 0
         cdef int c_len, pl_len
@@ -594,15 +598,15 @@ cdef class Atheros:
 
         while cur < (lens - 4):
             fread(&buf, sizeof(unsigned char), 2, f)
-            field_len = int.from_bytes(buf[:2], byteorder=border)
+            field_len = int.from_bytes(buf[:2], byteorder=endian)
             cur += 2
             if (cur + field_len) > lens:
                 break
             
             fread(&buf, sizeof(unsigned char), 25, f)
-            timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=border)
-            csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=border)
-            tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=border)
+            timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=endian)
+            csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=endian)
+            tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=endian)
             err_info_mem[count] = buf[12]
             noise_floor_mem[count] = buf[13]
             Rate_mem[count] = buf[14]
@@ -614,7 +618,7 @@ cdef class Atheros:
             rssi_1_mem[count] = buf[20]
             rssi_2_mem[count] = buf[21]
             rssi_3_mem[count] = buf[22]
-            payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=border)
+            payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=endian)
             cur += 25
 
             c_len = csi_len_mem[count]

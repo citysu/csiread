@@ -19,7 +19,7 @@ EXTENSIONS = [
 ]
 setup(
     name="csiread",
-    version="1.3.1",
+    version="1.3.2",
 
     author="Hecheng Su",
     author_email="2215523266@qq.com",
@@ -50,3 +50,4 @@ setup(
                  "Operating System :: Microsoft :: Windows",
                  "License :: OSI Approved :: MIT License"],
 )
+

@@ -13,7 +13,7 @@ If using Linux 802.11n CSI Tool, csiread can work when setting `connector_log=0x
 
     cd csiread
     python3 setup.py sdist bdist_wheel
-    sudo pip3 install dist/csiread*.whl
+    sudo pip3 install -U dist/csiread*.whl
 
 ## Usage
 
@@ -29,7 +29,7 @@ If using Linux 802.11n CSI Tool, csiread can work when setting `connector_log=0x
     # Atheros CSI Tool
     csipath = "../material/atheros/dataset/ath_csi_1.dat"
     csidata = csiread.Atheros(csipath, Nrxnum=3, Ntxnum=3, pl_size=14, Tones=56)
-    csidata.read()
+    csidata.read(endian='little')
     print(csidata.csi.shape)
 
 Read `example/*.py` and `csiread/csiread.pyx` for more detail.
@@ -64,3 +64,25 @@ __recvCSI/main.c__: Record the timestamp when the csi packet was received in use
 __sendData/sendData.c__: Control the time interval more precisely when sending packets.
 
 __dataset/ath_csi_1.dat__: Sample data of atheros.
+
+## Log
+
+### v1.3.2
+
+1. fix bug: choose big endian or little endian when uing Atheros, e.g. csidata.read(endian='big')
+
+### v1.3.1
+
+1. fix bug: some value errer on 32-bit computer
+2. add feature: add `example/csishow.py` to plot data
+3. add feature: add `example/csisplit.py` to split the data file of linux-80211n-tool into small pieces
+4. fix bug: avoid built-in keyword， len -> lens
+
+### v1.3.0
+
+1. fix bug: report format error
+2. fix bug: `count` value error
+3. new feature: add suppport for atheros
+4. new feature: add processing function of intel 5300: get_scaled_csi(), get_total_rss()
+5. new example
+
