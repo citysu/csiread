@@ -34,10 +34,7 @@ setup(
     packages=find_packages(),
 
     install_requires=[
-        'setuptools',
-        'wheel',
         'numpy',
-        'Cython'
     ],
     python_requires='>=3',
 

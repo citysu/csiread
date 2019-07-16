@@ -12,8 +12,9 @@ If using Linux 802.11n CSI Tool, csiread can work when setting `connector_log=0x
 ## Install
 
     cd csiread
+    pip3 install -r requirements.txt
     python3 setup.py sdist bdist_wheel
-    sudo pip3 install -U dist/csiread*.whl
+    pip3 install -U dist/csiread*.whl
 
 ## Usage
 

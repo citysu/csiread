@@ -14,7 +14,7 @@ import struct
 import numpy as np
 cimport numpy as np
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"
 __all__ = ['CSI', 'Atheros']
 
 cdef packed struct iwl5000_bfee_notif:
