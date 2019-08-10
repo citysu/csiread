@@ -1,4 +1,4 @@
-#!/usr/bin python3
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 # define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
@@ -7,7 +7,7 @@ from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
 
-with open("README.md", "r") as fh:
+with open("README.md", "r" encoding='UTF-8') as fh:
     LONG_DESCRIPTION = fh.read()
 
 EXTENSIONS = [
@@ -47,4 +47,3 @@ setup(
                  "Operating System :: Microsoft :: Windows",
                  "License :: OSI Approved :: MIT License"],
 )
-
