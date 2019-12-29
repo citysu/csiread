@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-csiread example
+csiread example: view the contents of a packet
 """
 
 import csiread

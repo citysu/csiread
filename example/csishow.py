@@ -1,6 +1,6 @@
-# ！/usr/bin/python3
+#！/usr/bin/python3
 """
-Plot csi of Linux 802.11n CSI Tool
+Plot csi of Linux 802.11n CSI Tool, observe csi quickly
 """
 import argparse
 
@@ -147,7 +147,7 @@ others = r"""功能不完善，可能存在错误。
 
 if __name__ == "__main__":
     """example
-    
+
     python3 csishow.py ../material/5300/dataset/sample_0x1_ap.dat -t 1
     """
     parser = argparse.ArgumentParser(
@@ -159,6 +159,6 @@ if __name__ == "__main__":
     csidata = csiread.CSI(p.file, Nrxnum=3, Ntxnum=3)
     csidata.read()
     if p.t > 5 :
-        raise ValueError('the value of t can be 1, 2, 3, 4, 5')
+        raise ValueError('the value of `t` can be 1, 2, 3, 4, 5')
     func = eval('func_' + str(p.t))
     func(csidata)

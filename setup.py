@@ -7,7 +7,7 @@ from setuptools.extension import Extension
 from Cython.Build import cythonize
 import numpy
 
-with open("README.md", "r" encoding='UTF-8') as fh:
+with open("README.md", "r", encoding='UTF-8') as fh:
     LONG_DESCRIPTION = fh.read()
 
 EXTENSIONS = [
@@ -19,12 +19,12 @@ EXTENSIONS = [
 ]
 setup(
     name="csiread",
-    version="1.3.2",
+    version="1.3.3",
 
     author="Hecheng Su",
     author_email="2215523266@qq.com",
     url="https://github.com/citysu/csiread",
-    description="Parse channel state information obtained by Linux 802.11n CSI Tool and Atheros CSI Tool",
+    description="Parse channel state information from raw CSI data file in Python.",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
 

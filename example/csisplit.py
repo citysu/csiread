@@ -1,5 +1,5 @@
 """
-Split the data file of linux-80211n-tool into small pieces
+Split the large data file of linux-80211n-tool into small pieces
 """
 
 import os

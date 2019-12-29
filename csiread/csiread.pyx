@@ -14,7 +14,7 @@ import struct
 import numpy as np
 cimport numpy as np
 
-__version__ = "1.3.2"
+__version__ = "1.3.3"
 __all__ = ['CSI', 'Atheros']
 
 cdef packed struct iwl5000_bfee_notif:
@@ -44,14 +44,14 @@ cdef class CSI:
     """Parse channel state infomation received by 'Linux 802.11n CSI Tool'.
 
     Args:
-        filepath: the file path of csi '.dat'
+        file: the file path of csi '.dat'
         Nrxnum: the set number of receive antennas, default=3
         Ntxnum: the set number of transmit antennas, default=2
         pl_size: the size of payload that will be used, default=0
         if_report: report the parsed result, default=True
 
     Attributes:
-        filepath: data file path
+        file: data file path
         count: count of packets(0xbb) were parsed
 
         timestamp_low: timestamp
@@ -82,7 +82,7 @@ cdef class CSI:
         csidata.readstp()
         print(csidata.count)
     """
-    cdef readonly str filepath
+    cdef readonly str file
     cdef readonly int count
 
     cdef public np.ndarray timestamp_low
@@ -112,38 +112,55 @@ cdef class CSI:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, filepath, Nrxnum=3, Ntxnum=2, pl_size=0, 
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, 
                  if_report=True):
         """Parameter initialization."""
-        self.filepath = filepath
+        self.file = file
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
         self.pl_size = pl_size
         self.if_report = if_report
 
-        if not os.path.isfile(filepath):
-            raise Exception("error: file does not exist, Stop!\n")
+        if not os.path.isfile(file):
+            raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
+
+    def __getitem__(self, index):
+        """Only return 0xbb context to avoid count_0xc1 != count_0xbb"""
+        ret = {
+            "timestamp_low": self.timestamp_low[index],
+            "bfee_count": self.bfee_count[index],
+            "Nrx": self.Nrx[index],
+            "Ntx": self.Ntx[index],
+            "rssiA": self.rssiA[index],
+            "rssiB": self.rssiB[index],
+            "rssiC": self.rssiC[index],
+            "noise": self.noise[index],
+            "agc": self.agc[index],
+            "perm": self.perm[index],
+            "rate": self.rate[index],
+            "csi": self.csi[index]
+        }
+        return ret
 
     cpdef read(self):
-        """parse data only if code=0xbb or code=0xc1.
+        """Parse data only if code=0xbb or code=0xc1.
 
         Note:
-            1. all Initialized value of members are set zero,
-               and csi set np.nan
-            2. when `connector_log=0x4, 0x5`,
-               the max size of payload is [500-28]
+            1. All members are initialized to zero
+            2. when `connector_log=0x4, 0x5`, max(payload size) = 500
             3. read the payload or addr_src, e.g.
-                >>> index = 10
-                >>> payload = " ".join([hex(per)[2:] for per in csidata.payload[index]])
-
-                the last 4 bytes are CRC and will always be parsed.
+                ```python
+                index = 10
+                payload = " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]])
+                ```
+                the 4 bytes after payload are CRC and will not be parsed.
         """
         cdef FILE *f
 
-        filepath_b = self.filepath.encode(encoding="utf-8")
-        cdef char *filepath_c = filepath_b
+        tempfile = self.file.encode(encoding="utf-8")
+        cdef char *datafile = tempfile
 
-        f = fopen(filepath_c, "rb")
+        f = fopen(datafile, "rb")
         if f is NULL:
             print("Open failed!\n")
             fclose(f)
@@ -188,7 +205,7 @@ cdef class CSI:
         self.addr_src = np.zeros([lens//95, 6], dtype=btype)
         self.addr_bssid = np.zeros([lens//95, 6], dtype=btype)
         self.seq = np.zeros([lens//95], dtype=btype)
-        self.payload = np.zeros([lens//95, self.pl_size + 4], dtype=btype)
+        self.payload = np.zeros([lens//95, min(self.pl_size, 500)], dtype=btype)
 
         cdef long[:] fc_mem = self.fc
         cdef long[:] dur_mem = self.dur
@@ -224,8 +241,8 @@ cdef class CSI:
             cur = cur + 3
 
             if code == 0xbb:
-                l = fread(buf, sizeof(unsigned char), field_len-1, f)
-                if l != (field_len-1):
+                l = fread(buf, sizeof(unsigned char), field_len - 1, f)
+                if l != (field_len - 1):
                     break  # finished
                 bfee = <iwl5000_bfee_notif*> &buf
 
@@ -243,7 +260,7 @@ cdef class CSI:
                 perm_mem[count_0xbb, 0] = (bfee.antenna_sel & 0x3)
                 perm_mem[count_0xbb, 1] = ((bfee.antenna_sel >> 2) & 0x3)
                 perm_mem[count_0xbb, 2] = ((bfee.antenna_sel >> 4) & 0x3)
-                csi_mem[count_0xbb] = np.nan
+                csi_mem[count_0xbb] = 0
 
                 index = 0
                 for i in range(30):
@@ -251,25 +268,25 @@ cdef class CSI:
                     remainder = index % 8
                     for j in range(bfee.Nrx):
                         for k in range(bfee.Ntx):
-                            tmp = (bfee.payload[index/8] >> remainder) \
-                                | (bfee.payload[index/8+1] << (8-remainder))
+                            tmp = (bfee.payload[index / 8] >> remainder) \
+                                | (bfee.payload[index / 8 + 1] << (8 - remainder))
                             a = <char>(tmp & 0xFF)
                             a = <double>a
 
-                            tmp = (bfee.payload[index/8+1] >> remainder) \
-                                | (bfee.payload[index/8+2] << (8-remainder))
+                            tmp = (bfee.payload[index / 8 + 1] >> remainder) \
+                                | (bfee.payload[index / 8 + 2] << (8 - remainder))
                             b = <char>(tmp & 0xFF)
                             b = <double>b
 
-                            csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k]\
+                            csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k] \
                                 = a + b * Imag
                             index = index + 16
                 cur = cur + field_len - 1
                 count_0xbb = count_0xbb + 1
 
             elif code == 0xc1:
-                l = fread(buf, sizeof(unsigned char), field_len-1, f)
-                if l != (field_len-1):
+                l = fread(buf, sizeof(unsigned char), field_len - 1, f)
+                if l != (field_len - 1):
                     break  # finished
                 mpdu = <lorcon_packet*>&buf
 
@@ -283,7 +300,8 @@ cdef class CSI:
 
                 seq_mem[count_0xc1] = mpdu.seq
 
-                for g in range(self.pl_size + 4):
+                payload_mem[count_0xc1] = 0
+                for g in range(min(self.pl_size, field_len - 1 - 24 - 4)):
                     payload_mem[count_0xc1, g] = mpdu.payload[g]
 
                 cur = cur + field_len - 1
@@ -347,7 +365,7 @@ cdef class CSI:
         Note:
             `file.dat` and `file.datstp` must be in the same directory.
         """
-        stppath = self.filepath + "stp"
+        stppath = self.file + "stp"
         f = open(stppath, "rb")
         if f is None:
             f.close()
@@ -355,17 +373,25 @@ cdef class CSI:
         f.seek(0, os.SEEK_END)
         lens = f.tell()
         f.seek(0, os.SEEK_SET)
-        self.stp = np.zeros(lens//8 - 1)
-        for i in range(lens//8 - 1):
+        self.stp = np.zeros(lens // 8 - 1)
+        for i in range(lens // 8 - 1):
             a, b = struct.unpack("<LL", f.read(8))
             self.stp[i] = a + b / 1000000
         f.close()
         return self.stp[0]
 
+    def get_total_rss(self):
+        """Calculates the Received Signal Strength (RSS) in dBm from CSI"""
+        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
+        rssi_mag += self.__dbinvs(self.rssiA)
+        rssi_mag += self.__dbinvs(self.rssiB)
+        rssi_mag += self.__dbinvs(self.rssiC)
+        ret = self.__db(rssi_mag) - 44 - self.agc
+        return ret
+
     def get_scaled_csi(self):
         """Converts CSI to channel matrix H"""
         csi = self.csi
-        csi[np.isnan(csi)] = 0
         csi_sq = np.abs(csi * csi.conjugate())
         csi_pwr = np.sum(csi_sq, axis=(1, 2, 3))
         rssi_pwr = self.__dbinv(self.get_total_rss())
@@ -384,26 +410,17 @@ cdef class CSI:
         ret[self.Ntx == 3] = ret[self.Ntx == 3] * np.sqrt(self.__dbinv(4.5))
         return ret
 
-    def get_scaled_csi_sm(self, index):
-        """Converts CSI to channel matrix H(This dose not work at present)
-        
+    def get_scaled_csi_sm(self):
+        """Converts CSI to channel matrix H(Not test this method)
+
         This version undoes Intel's spatial mapping to return the pure
         MIMO channel matrix H.
 
-        Just calculate index packet's scaled_csi_sm at present
         """
         ret = self.get_scaled_csi()
-        ret = self.__remove_sm(ret, index)
+        ret = self.__remove_sm(ret)
         return ret
 
-    def get_total_rss(self):
-        """Calculates the Received Signal Strength (RSS) in dBm from CSI"""
-        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
-        rssi_mag += self.__dbinvs(self.rssiA)
-        rssi_mag += self.__dbinvs(self.rssiB)
-        rssi_mag += self.__dbinvs(self.rssiC)
-        ret = self.__db(rssi_mag) - 44 - self.agc
-        return ret
 
     def __report(self, count_0xbb, count_0xc1):
         """report parsed result."""
@@ -421,65 +438,61 @@ cdef class CSI:
 
     def __dbinvs(self, x):
         """Convert from decibels specially"""
-        ret = np.power(10, x/10)
+        ret = np.power(10, x / 10)
         ret[ret == 1] = 0
         return ret
 
     def __dbinv(self, x):
         """Convert from decibels"""
-        ret = np.power(10, x/10)
+        ret = np.power(10, x / 10)
         return ret
 
     def __db(self, x):
         """Calculates decibels"""
-        ret = 10*np.log10(x)
+        ret = 10 * np.log10(x)
         return ret
 
-    def __remove_sm(self, scaled_csi, index):
+    def __remove_sm(self, scaled_csi):
         """Actually undo the input spatial mapping"""
         sm_1 = 1
         sm_2_20 = np.array([[1, 1],
-                            [1, -1]])/np.sqrt(2)
+                            [1, -1]]) / np.sqrt(2)
         sm_2_40 = np.array([[1, 1j],
-                            [1j, 1]])/np.sqrt(2)
-        sm_3_20 = np.array([[-2*np.pi/16, -2*np.pi/(80/33), 2*np.pi/(80/3)],
-                            [ 2*np.pi/(80/23), 2*np.pi*(48/13), 2*np.pi*(240/13)],
-                            [-2*np.pi/(80/13), 2*np.pi*(240/37), 2*np.pi*(48/13)]])
-        sm_3_20 = np.square(np.exp(1), 1j*sm_3_20)/np.sqrt(3)
-        sm_3_40 = np.array([[-2*np.pi/16, -2*np.pi/(80/13), 2*np.pi/(80/23)],
-                            [-2*np.pi/(80/37), -2*np.pi*(48/11), -2*np.pi*(240/107)],
-                            [ 2*np.pi/(80/7), -2*np.pi*(240/83), -2*np.pi*(48/11)]])
-        sm_3_40 = np.square(np.exp(1), 1j*sm_3_40)/np.sqrt(3)
-        
-        M = self.Ntx[index]
-        ret = scaled_csi[index]
-
-        if M == 1:
-            return ret
-
-        if (int(self.rate[index]) & 2048) == 2048:
-            if M == 3:
-                sm = sm_3_40
-            elif M == 2:
-                sm = sm_2_40
+                            [1j, 1]]) / np.sqrt(2)
+        sm_3_20 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 33), 2 * np.pi / (80 / 3)],
+                            [ 2 * np.pi / (80 / 23), 2 * np.pi * (48 / 13), 2 * np.pi * (240 / 13)],
+                            [-2 * np.pi / (80 / 13), 2 * np.pi * (240 / 37), 2 * np.pi * (48 / 13)]])
+        sm_3_20 = np.square(np.exp(1), 1j * sm_3_20) / np.sqrt(3)
+        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 13), 2 * np.pi / (80 / 23)],
+                            [-2 * np.pi / (80 / 37), -2 * np.pi * (48 / 11), -2 * np.pi * (240 / 107)],
+                            [ 2 * np.pi / (80 / 7), -2 * np.pi * (240 / 83), -2 * np.pi * (48 / 11)]])
+        sm_3_40 = np.square(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
+    
+        ret = scaled_csi
+        for i in range(self.count):
+            M = self.Ntx[i]
+            if (int(self.rate[i]) & 2048) == 2048:
+                if M == 3:
+                    sm = sm_3_40
+                elif M == 2:
+                    sm = sm_2_40
+                else:
+                    sm = sm_1
             else:
-                sm = sm_1
-        else:
-            if M == 3:
-                sm = sm_3_20
-            elif M == 2:
-                sm = sm_2_20
-            else:
-                sm = sm_1   
-        
-        ret = np.dot(ret, np.transpose(sm))
+                if M == 3:
+                    sm = sm_3_20
+                elif M == 2:
+                    sm = sm_2_20
+                else:
+                    sm = sm_1
+            temp = np.dot(ret[i, :, :self.Nrx[i], :self.Ntx[i]], np.transpose(sm))
+            ret[i, :, :self.Nrx[i], :self.Ntx[i]] = temp
         return ret
-        
 
 
 cdef class Atheros:
     """Parse channel state infomation received by 'Atheros CSI Tool'."""
-    cdef readonly str filepath
+    cdef readonly str file
     cdef readonly int count
 
     cdef public np.ndarray timestamp
@@ -506,10 +519,10 @@ cdef class Atheros:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, filepath, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
                  if_report=True):
         """Parameter initialization."""
-        self.filepath = filepath
+        self.file = file
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
         self.Tones = Tones
@@ -519,8 +532,30 @@ cdef class Atheros:
         if Tones not in [56, 114]:
             raise Exception("error: Tones can only take 56 or 114, Stop!\n")
 
-        if not os.path.isfile(filepath):
+        if not os.path.isfile(file):
             raise Exception("error: file does not exist, Stop!\n")
+
+    def __getitem__(self, index):
+        ret = {
+            "timestamp": self.timestamp[index],
+            "csi_len": self.csi_len[index],
+            "tx_channel": self.tx_channel[index],
+            "err_info": self.err_info[index],
+            "noise_floor": self.noise_floor[index],
+            "Rate": self.Rate[index],
+            "bandWidth": self.bandWidth[index],
+            "num_tones": self.num_tones[index],
+            "nr": self.nr[index],
+            "nc": self.nc[index],
+            "rssi": self.rssi[index],
+            "rssi_1": self.rssi_1[index],
+            "rssi_2": self.rssi_2[index],
+            "rssi_3": self.rssi_3[index],
+            "payload_len": self.payload_len[index],
+            "csi": self.csi[index],
+            "payload": self.payload[index]
+        }
+        return ret
 
     cpdef read(self, endian='little'):
         """read
@@ -530,10 +565,10 @@ cdef class Atheros:
         """
         cdef FILE *f
 
-        filepath_b = self.filepath.encode(encoding="utf-8")
-        cdef char *filepath_c = filepath_b
+        tempfile = self.file.encode(encoding="utf-8")
+        cdef char *datafile = tempfile
 
-        f = fopen(filepath_c, "rb")
+        f = fopen(datafile, "rb")
         if f is NULL:
             print("Open failed!\n")
             fclose(f)
@@ -544,24 +579,24 @@ cdef class Atheros:
         fseek(f, 0, SEEK_SET)
 
         btype = __btype()
-        self.timestamp = np.zeros([lens//420])
-        self.csi_len = np.zeros([lens//420], dtype=btype)
-        self.tx_channel = np.zeros([lens//420], dtype=btype)
-        self.err_info = np.zeros([lens//420], dtype=btype)
-        self.noise_floor = np.zeros([lens//420], dtype=btype)
-        self.Rate = np.zeros([lens//420], dtype=btype)
-        self.bandWidth = np.zeros([lens//420], dtype=btype)
-        self.num_tones = np.zeros([lens//420], dtype=btype)
-        self.nr = np.zeros([lens//420], dtype=btype)
-        self.nc = np.zeros([lens//420], dtype=btype)
-        self.rssi = np.zeros([lens//420], dtype=btype)
-        self.rssi_1 = np.zeros([lens//420], dtype=btype)
-        self.rssi_2 = np.zeros([lens//420], dtype=btype)
-        self.rssi_3 = np.zeros([lens//420], dtype=btype)
-        self.payload_len = np.zeros([lens//420], dtype=btype)
-        self.csi = np.zeros([lens//420, self.Tones, self.Nrxnum, self.Ntxnum],
+        self.timestamp = np.zeros([lens // 420])
+        self.csi_len = np.zeros([lens // 420], dtype=btype)
+        self.tx_channel = np.zeros([lens // 420], dtype=btype)
+        self.err_info = np.zeros([lens // 420], dtype=btype)
+        self.noise_floor = np.zeros([lens // 420], dtype=btype)
+        self.Rate = np.zeros([lens // 420], dtype=btype)
+        self.bandWidth = np.zeros([lens // 420], dtype=btype)
+        self.num_tones = np.zeros([lens // 420], dtype=btype)
+        self.nr = np.zeros([lens // 420], dtype=btype)
+        self.nc = np.zeros([lens // 420], dtype=btype)
+        self.rssi = np.zeros([lens // 420], dtype=btype)
+        self.rssi_1 = np.zeros([lens // 420], dtype=btype)
+        self.rssi_2 = np.zeros([lens // 420], dtype=btype)
+        self.rssi_3 = np.zeros([lens // 420], dtype=btype)
+        self.payload_len = np.zeros([lens // 420], dtype=btype)
+        self.csi = np.zeros([lens // 420, self.Tones, self.Nrxnum, self.Ntxnum],
                             dtype=np.complex128)
-        self.payload = np.zeros([lens//420, self.pl_size], dtype=btype)
+        self.payload = np.zeros([lens // 420, self.pl_size], dtype=btype)
 
         cdef double[:] timestamp_mem = self.timestamp
         cdef long[:] csi_len_mem = self.csi_len
@@ -622,7 +657,7 @@ cdef class Atheros:
             cur += 25
 
             c_len = csi_len_mem[count]
-            csi_mem[count] = np.nan
+            csi_mem[count] = 0
             if c_len > 0:
                 fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
