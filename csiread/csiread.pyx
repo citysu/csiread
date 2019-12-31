@@ -146,7 +146,7 @@ cdef class CSI:
 
         Note:
             1. All members are initialized to zero
-            2. read the payload or addr_src, e.g.
+            2. Read the payload or addr_src, e.g.
                 ```python
                 index = 10
                 payload = " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]])
@@ -434,7 +434,7 @@ cdef class CSI:
             print("connector_log=" + hex(1 | 4))
             print(str(count_0xc1) + " 0xc1 packets parsed")
             print(str(count_0xbb) + " 0xbb packets parsed")
-            print("0xbb packet and 0xc1 packet maybe not corresponding, BE CAREFUL!")
+            print("0xbb packet and 0xc1 packet may be not corresponding, BE CAREFUL!")
 
     def __dbinvs(self, x):
         """Convert from decibels specially"""
