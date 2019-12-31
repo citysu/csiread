@@ -2,8 +2,7 @@
 
 Note:
     1. I haven't finished reading paper or understood the `SNR`.
-    2. The code should be rewritten with Cython
-    3. Haven't checked for correctness
+    2. Haven't checked for correctness
 
     ref: [Predictable 802.11 Packet Delivery from Wireless Channel Measurements]
     (https://www.halper.in/pubs/comm356s-halperin.pdf) and [linux-80211n-csitool-supplementary]
@@ -68,16 +67,14 @@ def qpsk_berinv(ber):
 
 def mimo2_mmse(csi):
     """csi.shape = (Ntx(2), Nrx)"""
-    csi = np.transpose(csi, (1, 0))
-    M = inv(np.dot(csi.conjugate(), csi.T) + np.eye(2))
+    M = inv(np.dot(csi.T.conjugate(), csi) + np.eye(2))
     ret = 1 / np.diag(M) - 1
     return ret.real
 
 
 def mimo3_mmse(csi):
     """csi.shape = (Ntx(3), Nrx)"""
-    csi = np.transpose(csi, (1, 0))
-    M = inv(np.dot(csi.conjugate(), csi.T) + np.eye(3))
+    M = inv(np.dot(csi.T.conjugate(), csi) + np.eye(3))
     ret = 1 / np.diag(M) - 1
     return ret.real
 
@@ -114,7 +111,13 @@ def get_mimo3_SNRs(csi):
     return ret
 
 
-def get_eff_SNRs(csi):
+def get_eff_SNRs(csi, csi_sm=None):
+    """get_eff_SNRs
+    
+    When csi_sm is given, this function is get_eff_SNRs_sm.
+    """
+    if len(csi.shape) == 3:
+        csi = np.array([csi])
 
     L, S, N, M = csi.shape
     ret = np.zeros([L, 7, 4])
@@ -138,6 +141,9 @@ def get_eff_SNRs(csi):
             bers = qam64_ber(snrs)
             mean_ber = np.mean(bers, axis=(0, 1))
             ret[j, :len(mean_ber), 3] = qam64_berinv(mean_ber)
+
+    if csi_sm is not None:
+        csi = np.array([csi_sm]) if len(csi_sm.shape) == 3 else csi_sm
 
     if k >= 2:
         for j in range(L):
@@ -186,6 +192,8 @@ def main():
     csidata = csiread.CSI('../material/5300/dataset/sample_0x5_64_3000.dat')
     csidata.read()
     scaled_csi = csidata.get_scaled_csi()
+    # scaled_csi_sm = csidata.get_scaled_csi_sm()
+    # scaled_csi_sm = csidata.apply_sm(scaled_csi)
     preNrx = max(csidata.Nrx)
     preNtx = max(csidata.Ntx)
     if max(csidata.Nrx) != min(csidata.Nrx):
@@ -196,7 +204,7 @@ def main():
         print('be careful')
         preNtx = 2  # set by yourself
         scaled_csi = scaled_csi[csidata.Ntx == preNtx]
-    scaled_csi = scaled_csi[:, :, :preNrx, :preNtx]
+    scaled_csi = scaled_csi[:100, :, :preNrx, :preNtx]
     ret = get_eff_SNRs(scaled_csi)
     print(ret[0])
     plt.figure()

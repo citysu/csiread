@@ -52,7 +52,7 @@ cdef class CSI:
 
     Attributes:
         file: data file path
-        count: count of packets(0xbb) were parsed
+        count: count of packets(0xbb) parsed
 
         timestamp_low: timestamp
         bfee_count: packet count
@@ -79,7 +79,6 @@ cdef class CSI:
     Example:
         csidata = csiread.CSI("example.dat")
         csidata.read()
-        csidata.readstp()
         print(csidata.count)
     """
     cdef readonly str file
@@ -125,7 +124,7 @@ cdef class CSI:
             raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
 
     def __getitem__(self, index):
-        """Only return 0xbb context to avoid count_0xc1 != count_0xbb"""
+        """Return contents of 0xbb packets"""
         ret = {
             "timestamp_low": self.timestamp_low[index],
             "bfee_count": self.bfee_count[index],
@@ -147,8 +146,7 @@ cdef class CSI:
 
         Note:
             1. All members are initialized to zero
-            2. when `connector_log=0x4, 0x5`, max(payload size) = 500
-            3. read the payload or addr_src, e.g.
+            2. read the payload or addr_src, e.g.
                 ```python
                 index = 10
                 payload = " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]])
@@ -205,7 +203,7 @@ cdef class CSI:
         self.addr_src = np.zeros([lens//95, 6], dtype=btype)
         self.addr_bssid = np.zeros([lens//95, 6], dtype=btype)
         self.seq = np.zeros([lens//95], dtype=btype)
-        self.payload = np.zeros([lens//95, min(self.pl_size, 500)], dtype=btype)
+        self.payload = np.zeros([lens//95, self.pl_size], dtype=btype)
 
         cdef long[:] fc_mem = self.fc
         cdef long[:] dur_mem = self.dur
@@ -365,11 +363,11 @@ cdef class CSI:
         Note:
             `file.dat` and `file.datstp` must be in the same directory.
         """
-        stppath = self.file + "stp"
-        f = open(stppath, "rb")
+        stpfile = self.file + "stp"
+        f = open(stpfile, "rb")
         if f is None:
             f.close()
-            raise Exception("error: file does not exist\n")
+            raise Exception("Error: '%s' does not exist\n" % (stpfile))
         f.seek(0, os.SEEK_END)
         lens = f.tell()
         f.seek(0, os.SEEK_SET)
@@ -392,7 +390,7 @@ cdef class CSI:
     def get_scaled_csi(self):
         """Converts CSI to channel matrix H"""
         csi = self.csi
-        csi_sq = np.abs(csi * csi.conjugate())
+        csi_sq = (csi * csi.conjugate()).real
         csi_pwr = np.sum(csi_sq, axis=(1, 2, 3))
         rssi_pwr = self.__dbinv(self.get_total_rss())
 
@@ -406,34 +404,36 @@ cdef class CSI:
         total_noise_pwr = thermal_noise_pwr + quant_error_pwr
 
         ret = self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
-        ret[self.Ntx == 2] = ret[self.Ntx == 2] * np.sqrt(2)
-        ret[self.Ntx == 3] = ret[self.Ntx == 3] * np.sqrt(self.__dbinv(4.5))
+        ret[self.Ntx == 2] *= np.sqrt(2)
+        ret[self.Ntx == 3] *= np.sqrt(self.__dbinv(4.5))
         return ret
 
     def get_scaled_csi_sm(self):
-        """Converts CSI to channel matrix H(Not test this method)
+        """Converts CSI to channel matrix H
 
         This version undoes Intel's spatial mapping to return the pure
         MIMO channel matrix H.
-
         """
         ret = self.get_scaled_csi()
         ret = self.__remove_sm(ret)
         return ret
 
+    def apply_sm(self, scaled_csi):
+        """Undo the input spatial mapping"""
+        return self.__remove_sm(scaled_csi.copy())
 
     def __report(self, count_0xbb, count_0xc1):
         """report parsed result."""
         if count_0xbb == 0:
             print("connector_log=" + hex(4))
-            print(str(count_0xc1) + " 0xc1 packets " + "parsed")
+            print(str(count_0xc1) + " 0xc1 packets parsed")
         elif count_0xc1 == 0:
             print("connector_log=" + hex(1))
-            print(str(count_0xbb) + " 0xbb packets " + "parsed")
+            print(str(count_0xbb) + " 0xbb packets parsed")
         else:
             print("connector_log=" + hex(1 | 4))
-            print(str(count_0xc1) + " 0xc1 packets " + "parsed")
-            print(str(count_0xbb) + " 0xbb packets " + "parsed")
+            print(str(count_0xc1) + " 0xc1 packets parsed")
+            print(str(count_0xbb) + " 0xbb packets parsed")
             print("0xbb packet and 0xc1 packet maybe not corresponding, BE CAREFUL!")
 
     def __dbinvs(self, x):
@@ -452,9 +452,9 @@ cdef class CSI:
         ret = 10 * np.log10(x)
         return ret
 
-    def __remove_sm(self, scaled_csi):
+    cdef __remove_sm(self, scaled_csi):
         """Actually undo the input spatial mapping"""
-        sm_1 = 1
+        sm_1 = np.array([[1]])
         sm_2_20 = np.array([[1, 1],
                             [1, -1]]) / np.sqrt(2)
         sm_2_40 = np.array([[1, 1j],
@@ -469,6 +469,8 @@ cdef class CSI:
         sm_3_40 = np.square(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
     
         ret = scaled_csi
+
+        # Ntx is not a constant array
         for i in range(self.count):
             M = self.Ntx[i]
             if (int(self.rate[i]) & 2048) == 2048:
@@ -485,8 +487,7 @@ cdef class CSI:
                     sm = sm_2_20
                 else:
                     sm = sm_1
-            temp = np.dot(ret[i, :, :self.Nrx[i], :self.Ntx[i]], np.transpose(sm))
-            ret[i, :, :self.Nrx[i], :self.Ntx[i]] = temp
+            ret[i, :, :, :M] = ret[i, :, :, :M].dot(sm.T)
         return ret
 
 
@@ -530,12 +531,13 @@ cdef class Atheros:
         self.if_report = if_report
 
         if Tones not in [56, 114]:
-            raise Exception("error: Tones can only take 56 or 114, Stop!\n")
+            raise Exception("Error: Tones can only take 56 or 114, Stop!\n")
 
         if not os.path.isfile(file):
-            raise Exception("error: file does not exist, Stop!\n")
+            raise Exception("Error: '%s' does not exist, Stop!\n" % (file))
 
     def __getitem__(self, index):
+        """Return contents of packets"""
         ret = {
             "timestamp": self.timestamp[index],
             "csi_len": self.csi_len[index],
@@ -761,7 +763,7 @@ cdef class Atheros:
 
     def __report(self, count):
         """report parsed result."""
-        print(str(count) + " packets " + "parsed")
+        print(str(count) + " packets parsed")
 
 
 cdef __btype():
@@ -774,5 +776,5 @@ cdef __btype():
     elif sys.platform == 'win32':
         btype = np.int32
     else:
-        raise Exception("error: Only works on linux and windows !\n")
+        raise Exception("Error: Only work on linux and windows !\n")
     return btype
