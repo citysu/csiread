@@ -13,8 +13,9 @@ import struct
 
 import numpy as np
 cimport numpy as np
+cimport cython
 
-__version__ = "1.3.3"
+__version__ = "1.3.4"
 __all__ = ['CSI', 'Atheros']
 
 cdef packed struct iwl5000_bfee_notif:
@@ -37,8 +38,6 @@ cdef packed struct lorcon_packet:
     uint8_t addr_bssid[6]
     uint16_t seq
     uint8_t payload[0]
-
-cdef float complex Imag = 1j
 
 cdef class CSI:
     """Parse channel state infomation received by 'Linux 802.11n CSI Tool'.
@@ -195,7 +194,7 @@ cdef class CSI:
         cdef long[:] agc_mem = self.agc
         cdef long[:, :] perm_mem = self.perm
         cdef long[:] rate_mem = self.rate
-        cdef complex[:, :, :, :] csi_mem = self.csi
+        cdef double complex[:, :, :, :] csi_mem = self.csi
 
         self.fc = np.zeros([lens//95], dtype=btype)
         self.dur = np.zeros([lens//95], dtype=btype)
@@ -224,9 +223,10 @@ cdef class CSI:
         cdef iwl5000_bfee_notif *bfee
         cdef lorcon_packet *mpdu
 
-        cdef int index
+        cdef int index, index_step
         cdef int i, j, k, g
         cdef int remainder = 0
+        cdef double a, b
 
         while cur < (lens-3):
             if fread(&temp, sizeof(unsigned char), 3, f) is False:
@@ -258,26 +258,24 @@ cdef class CSI:
                 perm_mem[count_0xbb, 0] = (bfee.antenna_sel & 0x3)
                 perm_mem[count_0xbb, 1] = ((bfee.antenna_sel >> 2) & 0x3)
                 perm_mem[count_0xbb, 2] = ((bfee.antenna_sel >> 4) & 0x3)
-                csi_mem[count_0xbb] = 0
 
                 index = 0
                 for i in range(30):
                     index = index + 3
-                    remainder = index % 8
+                    remainder = index & 0x7
                     for j in range(bfee.Nrx):
                         for k in range(bfee.Ntx):
-                            tmp = (bfee.payload[index / 8] >> remainder) \
-                                | (bfee.payload[index / 8 + 1] << (8 - remainder))
-                            a = <char>(tmp & 0xFF)
-                            a = <double>a
+                            index_step = index >> 3
 
-                            tmp = (bfee.payload[index / 8 + 1] >> remainder) \
-                                | (bfee.payload[index / 8 + 2] << (8 - remainder))
-                            b = <char>(tmp & 0xFF)
-                            b = <double>b
+                            tmp = (bfee.payload[index_step] >> remainder) \
+                                | (bfee.payload[index_step + 1] << (8 - remainder))
+                            a = <int8_t>(tmp & 0xFF)
 
-                            csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k] \
-                                = a + b * Imag
+                            tmp = (bfee.payload[index_step + 1] >> remainder) \
+                                | (bfee.payload[index_step + 2] << (8 - remainder))
+                            b = <int8_t>(tmp & 0xFF)
+
+                            intel_set_csi_mem(csi_mem, perm_mem, count_0xbb, i, j, k, a, b)
                             index = index + 16
                 cur = cur + field_len - 1
                 count_0xbb = count_0xbb + 1
@@ -298,7 +296,6 @@ cdef class CSI:
 
                 seq_mem[count_0xc1] = mpdu.seq
 
-                payload_mem[count_0xc1] = 0
                 for g in range(min(self.pl_size, field_len - 1 - 24 - 4)):
                     payload_mem[count_0xc1, g] = mpdu.payload[g]
 
@@ -358,7 +355,7 @@ cdef class CSI:
         self.payload = self.payload[:count_0xc1]
 
     def readstp(self):
-        """parse timestamp when packet was received.
+        """Parse timestamp when packet was received.
 
         Note:
             `file.dat` and `file.datstp` must be in the same directory.
@@ -387,11 +384,25 @@ cdef class CSI:
         ret = self.__db(rssi_mag) - 44 - self.agc
         return ret
 
-    def get_scaled_csi(self):
+    cpdef get_scaled_csi(self):
         """Converts CSI to channel matrix H"""
+        cdef int i, j
+        cdef int flat = 30 * self.Nrxnum * self.Ntxnum
+        cdef double constant2 = 2
+        cdef double constant4_5 = np.power(10, 0.45)
+        cdef double temp_sum
+
         csi = self.csi
-        csi_sq = (csi * csi.conjugate()).real
-        csi_pwr = np.sum(csi_sq, axis=(1, 2, 3))
+        csi_pwr = np.zeros(self.count)
+        cdef double[:] csi_pwr_mem = csi_pwr
+        cdef double complex[:, :] csi_mem = csi.reshape(self.count, flat)
+        for i in range(self.count):
+            temp_sum = 0
+            for j in range(flat):
+                temp_sum = temp_sum + csi_mem[i, j].real * csi_mem[i, j].real + csi_mem[i, j].imag * csi_mem[i, j].imag
+            csi_pwr_mem[i] = temp_sum
+        del csi_pwr_mem
+        del csi_mem
         rssi_pwr = self.__dbinv(self.get_total_rss())
 
         scale = rssi_pwr / (csi_pwr / 30)
@@ -403,9 +414,18 @@ cdef class CSI:
         quant_error_pwr = scale * (self.Nrx * self.Ntx)
         total_noise_pwr = thermal_noise_pwr + quant_error_pwr
 
+        cdef double [:] total_noise_pwr_mem = total_noise_pwr
+        cdef long[:] Ntx_mem = self.Ntx
+        for i in range(self.count):
+            if Ntx_mem[i] == 2:
+                total_noise_pwr_mem[i] = total_noise_pwr_mem[i] / constant2
+            if Ntx_mem[i] == 3:
+                total_noise_pwr_mem[i] = total_noise_pwr_mem[i] / constant4_5
+        del Ntx_mem
+        del total_noise_pwr_mem
+
         ret = self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
-        ret[self.Ntx == 2] *= np.sqrt(2)
-        ret[self.Ntx == 3] *= np.sqrt(self.__dbinv(4.5))
+
         return ret
 
     def get_scaled_csi_sm(self):
@@ -414,16 +434,14 @@ cdef class CSI:
         This version undoes Intel's spatial mapping to return the pure
         MIMO channel matrix H.
         """
-        ret = self.get_scaled_csi()
-        ret = self.__remove_sm(ret)
-        return ret
+        return self.__remove_sm(self.get_scaled_csi())
 
     def apply_sm(self, scaled_csi):
         """Undo the input spatial mapping"""
-        return self.__remove_sm(scaled_csi.copy())
+        return self.__remove_sm(scaled_csi)
 
     def __report(self, count_0xbb, count_0xc1):
-        """report parsed result."""
+        """Report parsed result."""
         if count_0xbb == 0:
             print("connector_log=" + hex(4))
             print(str(count_0xc1) + " 0xc1 packets parsed")
@@ -454,42 +472,67 @@ cdef class CSI:
 
     cdef __remove_sm(self, scaled_csi):
         """Actually undo the input spatial mapping"""
-        sm_1 = np.array([[1]])
+        sm_1 = 1
         sm_2_20 = np.array([[1, 1],
-                            [1, -1]]) / np.sqrt(2)
+                            [1, -1]], dtype=np.complex128) / np.sqrt(2)
         sm_2_40 = np.array([[1, 1j],
-                            [1j, 1]]) / np.sqrt(2)
-        sm_3_20 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 33), 2 * np.pi / (80 / 3)],
-                            [ 2 * np.pi / (80 / 23), 2 * np.pi * (48 / 13), 2 * np.pi * (240 / 13)],
-                            [-2 * np.pi / (80 / 13), 2 * np.pi * (240 / 37), 2 * np.pi * (48 / 13)]])
+                            [1j, 1]], dtype=np.complex128) / np.sqrt(2)
+        sm_3_20 = np.array([[-2 * np.pi / 16, 2 * np.pi / (80 / 23), -2 * np.pi / (80 / 13)],
+                            [-2 * np.pi / (80 / 33), 2 * np.pi * (48 / 13), 2 * np.pi * (240 / 37)],
+                            [ 2 * np.pi / (80 / 3), 2 * np.pi * (240 / 13), 2 * np.pi * (48 / 13)]], dtype=np.complex128)
         sm_3_20 = np.square(np.exp(1), 1j * sm_3_20) / np.sqrt(3)
-        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 13), 2 * np.pi / (80 / 23)],
-                            [-2 * np.pi / (80 / 37), -2 * np.pi * (48 / 11), -2 * np.pi * (240 / 107)],
-                            [ 2 * np.pi / (80 / 7), -2 * np.pi * (240 / 83), -2 * np.pi * (48 / 11)]])
+        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 37), 2 * np.pi / (80 / 7)],
+                            [-2 * np.pi / (80 / 13), -2 * np.pi * (48 / 11), -2 * np.pi * (240 / 83)],
+                            [ 2 * np.pi / (80 / 23), -2 * np.pi * (240 / 107), -2 * np.pi * (48 / 11)]], dtype=np.complex128)
         sm_3_40 = np.square(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
-    
-        ret = scaled_csi
 
         # Ntx is not a constant array
+        ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
+
+        cdef int i, N, M, B
+        cdef long[:] Ntx_mem = self.Ntx
+        cdef long[:] Nrx_mem = self.Nrx
+        cdef long[:] rate_mem = self.rate
+        cdef double complex[:, :, :, :] scaled_csi_mem = scaled_csi
+        cdef double complex[:, :, :, :] ret_mem = ret
+        cdef double complex[:, :] sm_2_20_mem = sm_2_20
+        cdef double complex[:, :] sm_2_40_mem = sm_2_40
+        cdef double complex[:, :] sm_3_20_mem = sm_3_20
+        cdef double complex[:, :] sm_3_40_mem = sm_3_40
+
         for i in range(self.count):
-            M = self.Ntx[i]
-            if (int(self.rate[i]) & 2048) == 2048:
+            M = Ntx_mem[i]
+            N = Nrx_mem[i]
+            B = (rate_mem[i] & 0x800) == 0x800
+            if B:
                 if M == 3:
-                    sm = sm_3_40
+                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
+                                    sm_3_40_mem, N, M)
                 elif M == 2:
-                    sm = sm_2_40
+                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
+                                    sm_2_40_mem, N, M)
                 else:
-                    sm = sm_1
+                    ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
             else:
                 if M == 3:
-                    sm = sm_3_20
+                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
+                                    sm_3_20_mem, N, M)
                 elif M == 2:
-                    sm = sm_2_20
+                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
+                                    sm_2_20_mem, N, M)
                 else:
-                    sm = sm_1
-            ret[i, :, :, :M] = ret[i, :, :, :M].dot(sm.T)
-        return ret
+                    ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
+        del Ntx_mem 
+        del Nrx_mem
+        del rate_mem
+        del scaled_csi_mem
+        del ret_mem
+        del sm_2_20_mem
+        del sm_2_40_mem
+        del sm_3_20_mem
+        del sm_3_40_mem
 
+        return ret
 
 cdef class Atheros:
     """Parse channel state infomation received by 'Atheros CSI Tool'."""
@@ -560,7 +603,7 @@ cdef class Atheros:
         return ret
 
     cpdef read(self, endian='little'):
-        """read
+        """Parse data
 
         Args:
             endian: ['little', 'big']
@@ -615,12 +658,12 @@ cdef class Atheros:
         cdef long[:] rssi_2_mem = self.rssi_2
         cdef long[:] rssi_3_mem = self.rssi_3
         cdef long[:] payload_len_mem = self.payload_len
-        cdef complex[:, :, :, :] csi_mem = self.csi
+        cdef double complex[:, :, :, :] csi_mem = self.csi
         cdef long[:, :] payload_mem = self.payload
 
         cdef int cur = 0
         cdef int count = 0
-        cdef int c_len, pl_len
+        cdef int c_len, pl_len, pl_stop
 
         cdef int bits_left
         cdef int bitmask
@@ -659,7 +702,6 @@ cdef class Atheros:
             cur += 25
 
             c_len = csi_len_mem[count]
-            csi_mem[count] = 0
             if c_len > 0:
                 fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
@@ -672,9 +714,9 @@ cdef class Atheros:
                 idx += 1
                 curren_data = h_data & ((1 << 16) - 1)
 
-                for k in range(num_tones_mem[count]):
-                    for nr_idx in range(nr_mem[count]):
-                        for nc_idx in range(nc_mem[count]):
+                for k in range(buf[16]):
+                    for nr_idx in range(buf[17]):
+                        for nc_idx in range(buf[18]):
                             # imag
                             if (bits_left - 10) < 0:
                                 h_data = csi_buf[idx]
@@ -704,13 +746,14 @@ cdef class Atheros:
                             bits_left -= 10
                             curren_data = curren_data >> 10
                             # csi
-                            csi_mem[count, k, nr_idx, nc_idx] = real + imag * 1j
+                            atheros_set_csi_mem(csi_mem, count, k, nr_idx, nc_idx, real, imag)
                 cur += c_len
 
             pl_len = payload_len_mem[count]
+            pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
                 fread(&buf, sizeof(unsigned char), pl_len, f)
-                self.payload[count, :self.pl_size] = bytearray(buf[:self.pl_size])
+                self.payload[count, :pl_stop] = bytearray(buf[:pl_stop])
                 cur += pl_len
 
             if (cur + 420 > lens):
@@ -764,6 +807,33 @@ cdef class Atheros:
     def __report(self, count):
         """report parsed result."""
         print(str(count) + " packets parsed")
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void intel_remove_sm(double complex[:, :, :] ret_mem,
+                                 double complex[:, :, :] scaled_csi_mem,
+                                 double complex[:, :] sm, int N, int M):
+    cdef int i, j, k, g
+    for i in range(30):
+        for j in range(N):
+            for k in range(M):
+                for g in range(M):
+                    ret_mem[i, j, k] = ret_mem[i, j, k] + scaled_csi_mem[i, j, g] * sm[g, k]
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void intel_set_csi_mem(double complex[:, :, :, :] csi_mem, long[:, :] perm_mem,
+                                   int count_0xbb, int i, int j, int k, double a, double b):
+    csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k] = a + b * 1.j
+
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void atheros_set_csi_mem(double complex[:, :, :, :] csi_mem, int count, int k,
+                                     int nr_idx, int nc_idx, double real, double imag):
+    csi_mem[count, k, nr_idx, nc_idx] = real + imag * 1.j
 
 
 cdef __btype():

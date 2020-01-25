@@ -36,6 +36,12 @@ Read `example/*.py` and `csiread/csiread.pyx` for more detail.
 
 ## Log
 
+### v1.3.4
+
+1. process data faster
+2. new example: add `example/csiviewer.py` to plot data, it is a PyQt5 program and focuses on speed
+3. reduce the size of the binary module on Linux
+
 ### v1.3.3
 
 1. update example
