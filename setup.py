@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 from setuptools import setup, find_packages
 from setuptools import distutils
 from setuptools.extension import Extension
@@ -9,6 +8,12 @@ from Cython.Build import cythonize
 import numpy
 
 default_compiler = distutils.ccompiler.get_default_compiler()
+if default_compiler == 'msvc':
+    EXTRA_COMPILE_ARGS = ['/W3', '/O2']
+elif default_compiler== 'unix':
+    EXTRA_COMPILE_ARGS = ['-w', '-O3', '-g1']
+else:
+    EXTRA_COMPILE_ARGS = []
 
 with open("README.md", "r", encoding='UTF-8') as fh:
     LONG_DESCRIPTION = fh.read()
@@ -17,8 +22,8 @@ EXTENSIONS = [
     Extension(
         "csiread", ["csiread/csiread.pyx"],
         include_dirs=[numpy.get_include()],
-        define_macros = [('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
-        extra_compile_args=['-w', '-O3', '-g1' if default_compiler == 'unix' else '']
+        define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
+        extra_compile_args=EXTRA_COMPILE_ARGS,
     ),
 ]
 setup(

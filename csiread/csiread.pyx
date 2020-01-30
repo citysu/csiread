@@ -224,7 +224,7 @@ cdef class CSI:
         cdef lorcon_packet *mpdu
 
         cdef int index, index_step
-        cdef int i, j, k, g
+        cdef int i, j, k, g, perm_j
         cdef int remainder = 0
         cdef double a, b
 
@@ -259,11 +259,17 @@ cdef class CSI:
                 perm_mem[count_0xbb, 1] = ((bfee.antenna_sel >> 2) & 0x3)
                 perm_mem[count_0xbb, 2] = ((bfee.antenna_sel >> 4) & 0x3)
 
+                if bfee.Nrx > self.Nrxnum:
+                    raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+                if bfee.Ntx > self.Ntxnum:
+                    raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+
                 index = 0
                 for i in range(30):
                     index = index + 3
                     remainder = index & 0x7
                     for j in range(bfee.Nrx):
+                        perm_j = perm_mem[count_0xbb, j]
                         for k in range(bfee.Ntx):
                             index_step = index >> 3
 
@@ -275,7 +281,7 @@ cdef class CSI:
                                 | (bfee.payload[index_step + 2] << (8 - remainder))
                             b = <int8_t>(tmp & 0xFF)
 
-                            intel_set_csi_mem(csi_mem, perm_mem, count_0xbb, i, j, k, a, b)
+                            intel_set_csi_mem(csi_mem, count_0xbb, i, perm_j, k, a, b)
                             index = index + 16
                 cur = cur + field_len - 1
                 count_0xbb = count_0xbb + 1
@@ -506,20 +512,16 @@ cdef class CSI:
             B = (rate_mem[i] & 0x800) == 0x800
             if B:
                 if M == 3:
-                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
-                                    sm_3_40_mem, N, M)
+                    intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_3_40_mem, N, M)
                 elif M == 2:
-                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
-                                    sm_2_40_mem, N, M)
+                    intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_2_40_mem, N, M)
                 else:
                     ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
             else:
                 if M == 3:
-                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
-                                    sm_3_20_mem, N, M)
+                    intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_3_20_mem, N, M)
                 elif M == 2:
-                    intel_remove_sm(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M],
-                                    sm_2_20_mem, N, M)
+                    intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_2_20_mem, N, M)
                 else:
                     ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
         del Ntx_mem 
@@ -701,6 +703,11 @@ cdef class Atheros:
             payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=endian)
             cur += 25
 
+            if buf[17] > self.Nrxnum:
+                raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+            if buf[18] > self.Ntxnum:
+                raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+
             c_len = csi_len_mem[count]
             if c_len > 0:
                 fread(&csi_buf, sizeof(unsigned char), c_len, f)
@@ -811,22 +818,49 @@ cdef class Atheros:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void intel_remove_sm(double complex[:, :, :] ret_mem,
-                                 double complex[:, :, :] scaled_csi_mem,
-                                 double complex[:, :] sm, int N, int M):
+cdef inline void intel_mm_o3(double complex[:, :, :] ret_mem,
+                             double complex[:, :, :] scaled_csi_mem,
+                             double complex[:, :] sm, int N, int M):
+    """Matrix multiplication of O^3
+    
+    the function uses a trick of GEMM. It can be faster by using OPENMP and BLAS, but
+    needs more dependencies.
+    """
     cdef int i, j, k, g
+    cdef double complex temp_sum_0
+    cdef double complex temp_sum_1
+    cdef double complex temp_sum_2
+    cdef double complex r
     for i in range(30):
         for j in range(N):
-            for k in range(M):
+            if M == 2:
+                temp_sum_0 = 0 + 0j
+                temp_sum_1 = 0 + 0j
                 for g in range(M):
-                    ret_mem[i, j, k] = ret_mem[i, j, k] + scaled_csi_mem[i, j, g] * sm[g, k]
+                    r = scaled_csi_mem[i, j, g]
+                    temp_sum_0 = temp_sum_0 + r * sm[g, 0]
+                    temp_sum_1 = temp_sum_1 + r * sm[g, 1]
+                ret_mem[i, j, 0] = temp_sum_0
+                ret_mem[i, j, 1] = temp_sum_1
+            if M == 3:
+                temp_sum_0 = 0 + 0j
+                temp_sum_1 = 0 + 0j
+                temp_sum_2 = 0 + 0j
+                for g in range(M):
+                    r = scaled_csi_mem[i, j, g]
+                    temp_sum_0 = temp_sum_0 + r * sm[g, 0]
+                    temp_sum_1 = temp_sum_1 + r * sm[g, 1]
+                    temp_sum_2 = temp_sum_2 + r * sm[g, 2]
+                ret_mem[i, j, 0] = temp_sum_0
+                ret_mem[i, j, 1] = temp_sum_1
+                ret_mem[i, j, 2] = temp_sum_2
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void intel_set_csi_mem(double complex[:, :, :, :] csi_mem, long[:, :] perm_mem,
-                                   int count_0xbb, int i, int j, int k, double a, double b):
-    csi_mem[count_0xbb, i, perm_mem[count_0xbb, j], k] = a + b * 1.j
+cdef inline void intel_set_csi_mem(double complex[:, :, :, :] csi_mem, int count_0xbb,
+                                   int i, int j, int k, double a, double b):
+    csi_mem[count_0xbb, i, j, k] = a + b * 1.j
 
 
 @cython.boundscheck(False)
