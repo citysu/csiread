@@ -32,7 +32,7 @@ csidata.read(endian='little')
 print(csidata.csi.shape)
 ```
 
-Read `example/*.py` and `csiread/csiread.pyx` for more detail.
+Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 ## Log
 
@@ -40,7 +40,8 @@ Read `example/*.py` and `csiread/csiread.pyx` for more detail.
 
 1. process data faster
 2. new example: add `example/csiviewer.py` to plot data, it is a PyQt5 program and focuses on speed
-3. reduce the size of the binary module on Linux
+3. new feature: add in-place operation in csiread.CSI
+4. reduce the size of the binary module on Linux
 
 ### v1.3.3
 

@@ -1,6 +1,7 @@
-"""
-Split the large data file of linux-80211n-tool into small pieces
-"""
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""Split the large data file of linux-80211n-tool into small pieces"""
 
 import os
 

@@ -1,8 +1,7 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-csi viewer: Advanced version of csishow.py
+"""CSI viewer: Advanced version of csishow.py
 
 You maybe need reading the docs of PyQtGraph and PyQt5
 

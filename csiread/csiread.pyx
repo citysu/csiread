@@ -49,9 +49,11 @@ cdef class CSI:
         pl_size: the size of payload that will be used, default=0
         if_report: report the parsed result, default=True
 
+        (file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True)
+
     Attributes:
         file: data file path
-        count: count of packets(0xbb) parsed
+        count: count of 0xbb packets parsed
 
         timestamp_low: timestamp
         bfee_count: packet count
@@ -110,8 +112,7 @@ cdef class CSI:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, 
-                 if_report=True):
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True):
         """Parameter initialization."""
         self.file = file
         self.Nrxnum = Nrxnum
@@ -121,6 +122,48 @@ cdef class CSI:
 
         if not os.path.isfile(file):
             raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
+
+        # Estimate the number of packets
+        # ----------------------------------------------------------------------
+        # | packet type | filed_len | code | header |       payload      | CRC |
+        # |     0xbb    |     2     |   1  |   20   | 8 + 60 * Ntx * Nrx |  4  |
+        # |     0xc1    |     2     |   1  | 4 + 20 |       pl_size      |  4  |
+        # ----------------------------------------------------------------------
+        # packet_number = csifile_size // packet_size
+
+        # Important
+        # ----------------------------------------------------------------------
+        # packet_size is set to a constant value of 95. it is not a good choice. 
+        # There are two known limitations here: 1. packet size >= 95 is necessary,
+        # otherwise it will throw `IndexError: Out of bounds on buffer access
+        # (axis 0)`. 2. if packet size > 95, the more packets, the more excess
+        # memory allocated. Excess memory is so large that MemoryError is throwed.
+        # csiread.Atheros has the same issue.
+
+        lens = os.path.getsize(file)
+        pk_num = lens // (35 + 60 * 1 * 1)
+        btype = __btype()
+
+        self.timestamp_low = np.zeros([pk_num], dtype=btype)
+        self.bfee_count = np.zeros([pk_num], dtype=btype)
+        self.Nrx = np.zeros([pk_num], dtype=btype)
+        self.Ntx = np.zeros([pk_num], dtype=btype)
+        self.rssiA = np.zeros([pk_num], dtype=btype)
+        self.rssiB = np.zeros([pk_num], dtype=btype)
+        self.rssiC = np.zeros([pk_num], dtype=btype)
+        self.noise = np.zeros([pk_num], dtype=btype)
+        self.agc = np.zeros([pk_num], dtype=btype)
+        self.perm = np.zeros([pk_num, 3], dtype=btype)
+        self.rate = np.zeros([pk_num], dtype=btype)
+        self.csi = np.zeros([pk_num, 30, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+
+        self.fc = np.zeros([pk_num], dtype=btype)
+        self.dur = np.zeros([pk_num], dtype=btype)
+        self.addr_des = np.zeros([pk_num, 6], dtype=btype)
+        self.addr_src = np.zeros([pk_num, 6], dtype=btype)
+        self.addr_bssid = np.zeros([pk_num, 6], dtype=btype)
+        self.seq = np.zeros([pk_num], dtype=btype)
+        self.payload = np.zeros([pk_num, self.pl_size], dtype=btype)
 
     def __getitem__(self, index):
         """Return contents of 0xbb packets"""
@@ -145,12 +188,7 @@ cdef class CSI:
 
         Note:
             1. All members are initialized to zero
-            2. Read the payload or addr_src, e.g.
-                ```python
-                index = 10
-                payload = " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]])
-                ```
-                the 4 bytes after payload are CRC and will not be parsed.
+            2. The 4 bytes after payload are CRC and will not be parsed.
         """
         cdef FILE *f
 
@@ -167,22 +205,6 @@ cdef class CSI:
         cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
 
-        btype = __btype()
-
-        self.timestamp_low = np.zeros([lens//95], dtype=btype)
-        self.bfee_count = np.zeros([lens//95], dtype=btype)
-        self.Nrx = np.zeros([lens//95], dtype=btype)
-        self.Ntx = np.zeros([lens//95], dtype=btype)
-        self.rssiA = np.zeros([lens//95], dtype=btype)
-        self.rssiB = np.zeros([lens//95], dtype=btype)
-        self.rssiC = np.zeros([lens//95], dtype=btype)
-        self.noise = np.zeros([lens//95], dtype=btype)
-        self.agc = np.zeros([lens//95], dtype=btype)
-        self.perm = np.zeros([lens//95, 3], dtype=btype)
-        self.rate = np.zeros([lens//95], dtype=btype)
-        self.csi = np.zeros([lens//95, 30, self.Nrxnum, self.Ntxnum],
-                            dtype=np.complex128)
-
         cdef long[:] timestamp_low_mem = self.timestamp_low
         cdef long[:] bfee_count_mem = self.bfee_count
         cdef long[:] Nrx_mem = self.Nrx
@@ -195,14 +217,6 @@ cdef class CSI:
         cdef long[:, :] perm_mem = self.perm
         cdef long[:] rate_mem = self.rate
         cdef double complex[:, :, :, :] csi_mem = self.csi
-
-        self.fc = np.zeros([lens//95], dtype=btype)
-        self.dur = np.zeros([lens//95], dtype=btype)
-        self.addr_des = np.zeros([lens//95, 6], dtype=btype)
-        self.addr_src = np.zeros([lens//95, 6], dtype=btype)
-        self.addr_bssid = np.zeros([lens//95, 6], dtype=btype)
-        self.seq = np.zeros([lens//95], dtype=btype)
-        self.payload = np.zeros([lens//95, self.pl_size], dtype=btype)
 
         cdef long[:] fc_mem = self.fc
         cdef long[:] dur_mem = self.dur
@@ -281,7 +295,7 @@ cdef class CSI:
                                 | (bfee.payload[index_step + 2] << (8 - remainder))
                             b = <int8_t>(tmp & 0xFF)
 
-                            intel_set_csi_mem(csi_mem, count_0xbb, i, perm_j, k, a, b)
+                            set_csi_mem(csi_mem, count_0xbb, i, perm_j, k, a, b)
                             index = index + 16
                 cur = cur + field_len - 1
                 count_0xbb = count_0xbb + 1
@@ -382,7 +396,7 @@ cdef class CSI:
         return self.stp[0]
 
     def get_total_rss(self):
-        """Calculates the Received Signal Strength (RSS) in dBm from CSI"""
+        """Calculates the Received Signal Strength [RSS] in dBm from CSI"""
         rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
         rssi_mag += self.__dbinvs(self.rssiA)
         rssi_mag += self.__dbinvs(self.rssiB)
@@ -390,8 +404,14 @@ cdef class CSI:
         ret = self.__db(rssi_mag) - 44 - self.agc
         return ret
 
-    cpdef get_scaled_csi(self):
-        """Converts CSI to channel matrix H"""
+    cpdef get_scaled_csi(self, inplace=False):
+        """Converts CSI to channel matrix H
+
+        Args:
+            inplace: optionally do the operation in-place. default=False
+
+            (inplace=False)
+        """
         cdef int i, j
         cdef int flat = 30 * self.Nrxnum * self.Ntxnum
         cdef double constant2 = 2
@@ -430,20 +450,34 @@ cdef class CSI:
         del Ntx_mem
         del total_noise_pwr_mem
 
-        ret = self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
+        if inplace:
+            self.csi *= np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
+            return self.csi
+        else:
+            return self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
 
-        return ret
-
-    def get_scaled_csi_sm(self):
+    def get_scaled_csi_sm(self, inplace=False):
         """Converts CSI to channel matrix H
 
         This version undoes Intel's spatial mapping to return the pure
         MIMO channel matrix H.
+
+        Args:
+            inplace: optionally do the operation in-place. default=False
+            
+            (inplace=False)
         """
-        return self.__remove_sm(self.get_scaled_csi())
+        if inplace:
+            return self.__remove_sm(self.get_scaled_csi(True), True)
+        else:
+            return self.__remove_sm(self.get_scaled_csi(False), False)
 
     def apply_sm(self, scaled_csi):
-        """Undo the input spatial mapping"""
+        """Undo the input spatial mapping
+
+        Args:
+            (scaled_csi)
+        """
         return self.__remove_sm(scaled_csi)
 
     def __report(self, count_0xbb, count_0xc1):
@@ -476,9 +510,8 @@ cdef class CSI:
         ret = 10 * np.log10(x)
         return ret
 
-    cdef __remove_sm(self, scaled_csi):
+    cdef __remove_sm(self, scaled_csi, inplace=False):
         """Actually undo the input spatial mapping"""
-        sm_1 = 1
         sm_2_20 = np.array([[1, 1],
                             [1, -1]], dtype=np.complex128) / np.sqrt(2)
         sm_2_40 = np.array([[1, 1j],
@@ -493,7 +526,10 @@ cdef class CSI:
         sm_3_40 = np.square(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
 
         # Ntx is not a constant array
-        ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
+        if inplace:
+            ret = scaled_csi
+        else:
+            ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
 
         cdef int i, N, M, B
         cdef long[:] Ntx_mem = self.Ntx
@@ -516,14 +552,16 @@ cdef class CSI:
                 elif M == 2:
                     intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_2_40_mem, N, M)
                 else:
-                    ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
+                    if inplace is False:
+                        ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
             else:
                 if M == 3:
                     intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_3_20_mem, N, M)
                 elif M == 2:
                     intel_mm_o3(ret_mem[i, :, :N, :M], scaled_csi_mem[i, :, :N, :M], sm_2_20_mem, N, M)
                 else:
-                    ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
+                    if inplace is False:
+                        ret_mem[i, :, :N, :M] = scaled_csi_mem[i, :, :N, :M]
         del Ntx_mem 
         del Nrx_mem
         del rate_mem
@@ -537,7 +575,11 @@ cdef class CSI:
         return ret
 
 cdef class Atheros:
-    """Parse channel state infomation received by 'Atheros CSI Tool'."""
+    """Parse channel state infomation received by 'Atheros CSI Tool'.
+    
+    Args:
+        (file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True)
+    """
     cdef readonly str file
     cdef readonly int count
 
@@ -565,8 +607,7 @@ cdef class Atheros:
     cdef int pl_size
     cdef int if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
-                 if_report=True):
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True):
         """Parameter initialization."""
         self.file = file
         self.Nrxnum = Nrxnum
@@ -576,10 +617,31 @@ cdef class Atheros:
         self.if_report = if_report
 
         if Tones not in [56, 114]:
-            raise Exception("Error: Tones can only take 56 or 114, Stop!\n")
+            raise Exception("Error: Tones can only take 56 and 114, Stop!\n")
 
         if not os.path.isfile(file):
             raise Exception("Error: '%s' does not exist, Stop!\n" % (file))
+
+        lens = os.path.getsize(file)
+        pk_num = lens // 420
+        btype = __btype()
+        self.timestamp = np.zeros([pk_num])
+        self.csi_len = np.zeros([pk_num], dtype=btype)
+        self.tx_channel = np.zeros([pk_num], dtype=btype)
+        self.err_info = np.zeros([pk_num], dtype=btype)
+        self.noise_floor = np.zeros([pk_num], dtype=btype)
+        self.Rate = np.zeros([pk_num], dtype=btype)
+        self.bandWidth = np.zeros([pk_num], dtype=btype)
+        self.num_tones = np.zeros([pk_num], dtype=btype)
+        self.nr = np.zeros([pk_num], dtype=btype)
+        self.nc = np.zeros([pk_num], dtype=btype)
+        self.rssi = np.zeros([pk_num], dtype=btype)
+        self.rssi_1 = np.zeros([pk_num], dtype=btype)
+        self.rssi_2 = np.zeros([pk_num], dtype=btype)
+        self.rssi_3 = np.zeros([pk_num], dtype=btype)
+        self.payload_len = np.zeros([pk_num], dtype=btype)
+        self.csi = np.zeros([pk_num, self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+        self.payload = np.zeros([pk_num, self.pl_size], dtype=btype)
 
     def __getitem__(self, index):
         """Return contents of packets"""
@@ -609,7 +671,12 @@ cdef class Atheros:
 
         Args:
             endian: ['little', 'big']
+
+            (endian='little')
         """
+        if endian not in ['little', 'big']:
+            raise Exception("Error: endian can only take 'little' and 'big', Stop!\n")
+
         cdef FILE *f
 
         tempfile = self.file.encode(encoding="utf-8")
@@ -624,26 +691,6 @@ cdef class Atheros:
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
-
-        btype = __btype()
-        self.timestamp = np.zeros([lens // 420])
-        self.csi_len = np.zeros([lens // 420], dtype=btype)
-        self.tx_channel = np.zeros([lens // 420], dtype=btype)
-        self.err_info = np.zeros([lens // 420], dtype=btype)
-        self.noise_floor = np.zeros([lens // 420], dtype=btype)
-        self.Rate = np.zeros([lens // 420], dtype=btype)
-        self.bandWidth = np.zeros([lens // 420], dtype=btype)
-        self.num_tones = np.zeros([lens // 420], dtype=btype)
-        self.nr = np.zeros([lens // 420], dtype=btype)
-        self.nc = np.zeros([lens // 420], dtype=btype)
-        self.rssi = np.zeros([lens // 420], dtype=btype)
-        self.rssi_1 = np.zeros([lens // 420], dtype=btype)
-        self.rssi_2 = np.zeros([lens // 420], dtype=btype)
-        self.rssi_3 = np.zeros([lens // 420], dtype=btype)
-        self.payload_len = np.zeros([lens // 420], dtype=btype)
-        self.csi = np.zeros([lens // 420, self.Tones, self.Nrxnum, self.Ntxnum],
-                            dtype=np.complex128)
-        self.payload = np.zeros([lens // 420, self.pl_size], dtype=btype)
 
         cdef double[:] timestamp_mem = self.timestamp
         cdef long[:] csi_len_mem = self.csi_len
@@ -753,7 +800,7 @@ cdef class Atheros:
                             bits_left -= 10
                             curren_data = curren_data >> 10
                             # csi
-                            atheros_set_csi_mem(csi_mem, count, k, nr_idx, nc_idx, real, imag)
+                            set_csi_mem(csi_mem, count, k, nr_idx, nc_idx, real, imag)
                 cur += c_len
 
             pl_len = payload_len_mem[count]
@@ -827,47 +874,45 @@ cdef inline void intel_mm_o3(double complex[:, :, :] ret_mem,
     needs more dependencies.
     """
     cdef int i, j, k, g
-    cdef double complex temp_sum_0
-    cdef double complex temp_sum_1
-    cdef double complex temp_sum_2
-    cdef double complex r
-    for i in range(30):
-        for j in range(N):
-            if M == 2:
-                temp_sum_0 = 0 + 0j
-                temp_sum_1 = 0 + 0j
-                for g in range(M):
-                    r = scaled_csi_mem[i, j, g]
-                    temp_sum_0 = temp_sum_0 + r * sm[g, 0]
-                    temp_sum_1 = temp_sum_1 + r * sm[g, 1]
-                ret_mem[i, j, 0] = temp_sum_0
-                ret_mem[i, j, 1] = temp_sum_1
-            if M == 3:
-                temp_sum_0 = 0 + 0j
-                temp_sum_1 = 0 + 0j
-                temp_sum_2 = 0 + 0j
-                for g in range(M):
-                    r = scaled_csi_mem[i, j, g]
-                    temp_sum_0 = temp_sum_0 + r * sm[g, 0]
-                    temp_sum_1 = temp_sum_1 + r * sm[g, 1]
-                    temp_sum_2 = temp_sum_2 + r * sm[g, 2]
-                ret_mem[i, j, 0] = temp_sum_0
-                ret_mem[i, j, 1] = temp_sum_1
-                ret_mem[i, j, 2] = temp_sum_2
+    cdef double complex sm00, sm01, sm02, sm10, sm11, sm12, sm20, sm21, sm22
+    cdef double complex r0, r1, r2
+
+    if M == 2:
+        sm00 = sm[0, 0]
+        sm01 = sm[0, 1]
+        sm10 = sm[1, 0]
+        sm11 = sm[1, 1]
+        for i in range(30):
+            for j in range(N):
+                r0 = scaled_csi_mem[i, j, 0]
+                r1 = scaled_csi_mem[i, j, 1]
+                ret_mem[i, j, 0] = r0 * sm00 + r1 * sm10
+                ret_mem[i, j, 1] = r0 * sm01 + r1 * sm11
+    if M == 3:
+        sm00 = sm[0, 0]
+        sm01 = sm[0, 1]
+        sm02 = sm[0, 2]
+        sm10 = sm[1, 0]
+        sm11 = sm[1, 1]
+        sm12 = sm[1, 2]
+        sm20 = sm[2, 0]
+        sm21 = sm[2, 1]
+        sm22 = sm[2, 2]
+        for i in range(30):
+            for j in range(N):
+                r0 = scaled_csi_mem[i, j, 0]
+                r1 = scaled_csi_mem[i, j, 1]
+                r2 = scaled_csi_mem[i, j, 2]
+                ret_mem[i, j, 0] = r0 * sm00 + r1 * sm10 + r2 * sm20
+                ret_mem[i, j, 1] = r0 * sm01 + r1 * sm11 + r2 * sm21
+                ret_mem[i, j, 2] = r0 * sm02 + r1 * sm12 + r2 * sm22
 
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void intel_set_csi_mem(double complex[:, :, :, :] csi_mem, int count_0xbb,
-                                   int i, int j, int k, double a, double b):
-    csi_mem[count_0xbb, i, j, k] = a + b * 1.j
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef inline void atheros_set_csi_mem(double complex[:, :, :, :] csi_mem, int count, int k,
-                                     int nr_idx, int nc_idx, double real, double imag):
-    csi_mem[count, k, nr_idx, nc_idx] = real + imag * 1.j
+cdef inline void set_csi_mem(double complex[:, :, :, :] csi_mem, int count,
+							 int s, int r, int t, double real, double imag):
+    csi_mem[count, s, r, t] = real + imag * 1.j
 
 
 cdef __btype():

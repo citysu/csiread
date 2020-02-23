@@ -1,8 +1,10 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-csiread example: view the contents of a packet
+"""csiread example: view the contents of a packet
+
+Note: If the csi file is stored in HDD instead of SSD, it will take
+      a little longer to read it for the first time.
 """
 
 import csiread
@@ -16,9 +18,9 @@ def csitool_ap():
     print("="*40)
     print("csitool ap")
 
+    last = time.time()
     csifile = "../material/5300/dataset/sample_0x1_ap.dat"
     csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=2, pl_size=10)
-    last = time.time()
     csidata.read()
     now = time.time()
     csidata.readstp()
@@ -38,6 +40,7 @@ def csitool_ap():
     print(" get_scaled_csi      ", now - last, "s")
     last = time.time()
     scaled_csi_sm = csidata.get_scaled_csi_sm()
+    # scaled_csi_sm = csidata.apply_sm(scaled_csi)
     now = time.time()
     print(" get_scaled_csi_sm   ", now - last, "s")
     print('-'*40)
@@ -73,9 +76,9 @@ def csitool_mon():
     print("="*40)
     print("csitool monitor")
 
+    last = time.time()
     csifile = "../material/5300/dataset/sample_0x5_64_3000.dat"
     csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10)
-    last = time.time()
     csidata.read()
     now = time.time()
 
@@ -94,8 +97,22 @@ def csitool_mon():
     print(" get_scaled_csi      ", now - last, "s")
     last = time.time()
     scaled_csi_sm = csidata.get_scaled_csi_sm()
+    # scaled_csi_sm = csidata.apply_sm(scaled_csi)
     now = time.time()
     print(" get_scaled_csi_sm   ", now - last, "s")
+    # Setting inplace to True may be dangerous but more efficient.
+    csidata_temp = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10, if_report=False)
+    csidata_temp.read()
+    last = time.time()
+    _ = csidata_temp.get_scaled_csi(inplace=True)       # _ is csidata_temp.csi = True
+    now = time.time()
+    print(" get_scaled_csi(T)   ", now - last, "s")
+    csidata_temp = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10, if_report=False)
+    csidata_temp.read()
+    last = time.time()
+    _ = csidata_temp.get_scaled_csi_sm(inplace=True)    # _ is csidata_temp.csi = True
+    now = time.time()
+    print(" get_scaled_csi_sm(T)", now - last, "s")
     print('-'*40)
 
     index = 10
@@ -126,6 +143,7 @@ def csitool_mon():
     print(" seq                 ", csidata.seq[index])
     print(" payload             ", " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]]))
     print('-'*40)
+    # print("a limitation: csidata.rate.size %d, csidata.rate.base.size %d" % (csidata.rate.size, csidata.rate.base.size))
     # print("help: \n", csidata.__doc__)
 
 
@@ -136,9 +154,9 @@ def atheros():
     print("="*40)
     print("atheros")
 
+    last = time.time()
     csifile = "../material/atheros/dataset/ath_csi_1.dat"
     csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=10, Tones=56)
-    last = time.time()
     csidata.read()
     now = time.time()
     print('-'*40)

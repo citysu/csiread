@@ -13,7 +13,7 @@ rate=$(echo "scale=5;1/${arg2}" | bc)		# rate 发包率，在suhecheng-desktop�
 
 # 检查权限
 if [[ $(whoami) != "root" ]]; then
-	echo "sorry, you are nor root~"
+	echo "sorry, you are not root~"
 	exit
 fi
 

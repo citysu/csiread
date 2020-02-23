@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """Calculate SNR based on CSI
 
 Note:
-    1. I haven't finished reading paper or understood the `SNR`.
-    2. Haven't checked for correctness
+    1. Haven't checked for correctness
 
-    ref: [Predictable 802.11 Packet Delivery from Wireless Channel Measurements]
+Ref: [Predictable 802.11 Packet Delivery from Wireless Channel Measurements]
     (https://www.halper.in/pubs/comm356s-halperin.pdf) and [linux-80211n-csitool-supplementary]
     (https://github.com/dhalperi/linux-80211n-csitool-supplementary)
 """
