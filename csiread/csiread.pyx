@@ -43,11 +43,11 @@ cdef class CSI:
     """Parse channel state infomation received by 'Linux 802.11n CSI Tool'.
 
     Args:
-        file: the file path of csi '.dat'
-        Nrxnum: the set number of receive antennas, default=3
-        Ntxnum: the set number of transmit antennas, default=2
-        pl_size: the size of payload that will be used, default=0
-        if_report: report the parsed result, default=True
+        file: the file path of csi '.dat', None: real time mode
+        Nrxnum: the set number of receive antennas, default: 3
+        Ntxnum: the set number of transmit antennas, default: 2
+        pl_size: the size of payload that will be used, default: 0
+        if_report: report the parsed result, default: True
 
         (file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True)
 
@@ -120,28 +120,33 @@ cdef class CSI:
         self.pl_size = pl_size
         self.if_report = if_report
 
-        if not os.path.isfile(file):
-            raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
+        if file is None:
+            self.count = 1
+            pk_num = 1
+        else:
+            if not os.path.isfile(file):
+                raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
 
-        # Estimate the number of packets
-        # ----------------------------------------------------------------------
-        # | packet type | filed_len | code | header |       payload      | CRC |
-        # |     0xbb    |     2     |   1  |   20   | 8 + 60 * Ntx * Nrx |  4  |
-        # |     0xc1    |     2     |   1  | 4 + 20 |       pl_size      |  4  |
-        # ----------------------------------------------------------------------
-        # packet_number = csifile_size // packet_size
+            # Estimate the number of packets
+            # ----------------------------------------------------------------------
+            # | packet type | filed_len | code | header |       payload      | CRC |
+            # |     0xbb    |     2     |   1  |   20   | 8 + 60 * Ntx * Nrx |  4  |
+            # |     0xc1    |     2     |   1  | 4 + 20 |       pl_size      |  4  |
+            # ----------------------------------------------------------------------
+            # packet_number = csifile_size // packet_size
 
-        # Important
-        # ----------------------------------------------------------------------
-        # packet_size is set to a constant value of 95. it is not a good choice. 
-        # There are two known limitations here: 1. packet size >= 95 is necessary,
-        # otherwise it will throw `IndexError: Out of bounds on buffer access
-        # (axis 0)`. 2. if packet size > 95, the more packets, the more excess
-        # memory allocated. Excess memory is so large that MemoryError is throwed.
-        # csiread.Atheros has the same issue.
+            # Important
+            # ----------------------------------------------------------------------
+            # packet_size is set to a constant value of 95. it is not a good choice. 
+            # There are two known limitations here: 1. packet size >= 95 is necessary,
+            # otherwise it will throw `IndexError: Out of bounds on buffer access
+            # (axis 0)`. 2. if packet size > 95, the more packets, the more excess
+            # memory allocated. Excess memory is so large that MemoryError is throwed.
+            # csiread.Atheros has the same issue.
 
-        lens = os.path.getsize(file)
-        pk_num = lens // (35 + 60 * 1 * 1)
+            lens = os.path.getsize(file)
+            pk_num = lens // (35 + 60 * 1 * 1)
+
         btype = __btype()
 
         self.timestamp_low = np.zeros([pk_num], dtype=btype)
@@ -234,8 +239,6 @@ cdef class CSI:
         cdef unsigned char buf[1024]
         cdef unsigned char temp[3]
         cdef size_t l
-        cdef iwl5000_bfee_notif *bfee
-        cdef lorcon_packet *mpdu
 
         cdef int index, index_step
         cdef int i, j, k, g, perm_j
@@ -297,7 +300,6 @@ cdef class CSI:
 
                             set_csi_mem(csi_mem, count_0xbb, i, perm_j, k, a, b)
                             index = index + 16
-                cur = cur + field_len - 1
                 count_0xbb = count_0xbb + 1
 
             elif code == 0xc1:
@@ -319,12 +321,11 @@ cdef class CSI:
                 for g in range(min(self.pl_size, field_len - 1 - 24 - 4)):
                     payload_mem[count_0xc1, g] = mpdu.payload[g]
 
-                cur = cur + field_len - 1
                 count_0xc1 = count_0xc1 + 1
 
             else:
                 fseek(f, field_len - 1, SEEK_CUR)
-                cur = cur + field_len - 1
+            cur = cur + field_len - 1
 
         fclose(f)
 
@@ -374,6 +375,128 @@ cdef class CSI:
         self.seq = self.seq[:count_0xc1]
         self.payload = self.payload[:count_0xc1]
 
+    cpdef pmsg(self, data):
+        """Parse message in real time
+
+        Args:
+            data: buffer
+
+            (data)
+        """
+        cdef long[:] timestamp_low_mem = self.timestamp_low
+        cdef long[:] bfee_count_mem = self.bfee_count
+        cdef long[:] Nrx_mem = self.Nrx
+        cdef long[:] Ntx_mem = self.Ntx
+        cdef long[:] rssiA_mem = self.rssiA
+        cdef long[:] rssiB_mem = self.rssiB
+        cdef long[:] rssiC_mem = self.rssiC
+        cdef long[:] noise_mem = self.noise
+        cdef long[:] agc_mem = self.agc
+        cdef long[:, :] perm_mem = self.perm
+        cdef long[:] rate_mem = self.rate
+        cdef double complex[:, :, :, :] csi_mem = self.csi
+
+        cdef long[:] fc_mem = self.fc
+        cdef long[:] dur_mem = self.dur
+        cdef long[:, :] addr_des_mem = self.addr_des
+        cdef long[:, :] addr_src_mem = self.addr_src
+        cdef long[:, :] addr_bssid_mem = self.addr_bssid
+        cdef long[:] seq_mem = self.seq
+        cdef long[:, :] payload_mem = self.payload
+
+        cdef unsigned char code
+        cdef unsigned char buf[1024]
+
+        cdef int index, index_step
+        cdef int i, j, k, g, perm_j
+        cdef int remainder = 0
+        cdef double a, b
+
+        code = data[0]
+        for i in range(len(data)-1):
+            buf[i] = data[1+i]
+
+        if code == 0xbb:
+            bfee = <iwl5000_bfee_notif*> &buf
+
+            timestamp_low_mem[0] = bfee.timestamp_low
+            bfee_count_mem[0] = bfee.bfee_count
+            Nrx_mem[0] = bfee.Nrx
+            Ntx_mem[0] = bfee.Ntx
+            rssiA_mem[0] = bfee.rssiA
+            rssiB_mem[0] = bfee.rssiB
+            rssiC_mem[0] = bfee.rssiC
+            noise_mem[0] = bfee.noise
+            agc_mem[0] = bfee.agc
+            rate_mem[0] = bfee.fake_rate_n_flags
+
+            perm_mem[0, 0] = (bfee.antenna_sel & 0x3)
+            perm_mem[0, 1] = ((bfee.antenna_sel >> 2) & 0x3)
+            perm_mem[0, 2] = ((bfee.antenna_sel >> 4) & 0x3)
+
+            if bfee.Nrx > self.Nrxnum:
+                raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+            if bfee.Ntx > self.Ntxnum:
+                raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+
+            index = 0
+            for i in range(30):
+                index = index + 3
+                remainder = index & 0x7
+                for j in range(bfee.Nrx):
+                    perm_j = perm_mem[0, j]
+                    for k in range(bfee.Ntx):
+                        index_step = index >> 3
+
+                        tmp = (bfee.payload[index_step] >> remainder) \
+                            | (bfee.payload[index_step + 1] << (8 - remainder))
+                        a = <int8_t>(tmp & 0xFF)
+
+                        tmp = (bfee.payload[index_step + 1] >> remainder) \
+                            | (bfee.payload[index_step + 2] << (8 - remainder))
+                        b = <int8_t>(tmp & 0xFF)
+
+                        set_csi_mem(csi_mem, 0, i, perm_j, k, a, b)
+                        index = index + 16
+        if code == 0xc1:
+            mpdu = <lorcon_packet*>&buf
+
+            fc_mem[0] = mpdu.fc
+            dur_mem[0] = mpdu.dur
+
+            for g in range(6):
+                addr_des_mem[0, g] = mpdu.addr_des[g]
+                addr_src_mem[0, g] = mpdu.addr_src[g]
+                addr_bssid_mem[0, g] = mpdu.addr_bssid[g]
+
+            seq_mem[0] = mpdu.seq
+
+            for g in range(min(self.pl_size, len(data) - 1 - 24 - 4)):
+                payload_mem[0, g] = mpdu.payload[g]
+
+        del timestamp_low_mem
+        del bfee_count_mem
+        del Nrx_mem
+        del Ntx_mem
+        del rssiA_mem
+        del rssiB_mem
+        del rssiC_mem
+        del noise_mem
+        del agc_mem
+        del perm_mem
+        del rate_mem
+        del csi_mem
+
+        del fc_mem
+        del dur_mem
+        del addr_des_mem
+        del addr_src_mem
+        del addr_bssid_mem
+        del seq_mem
+        del payload_mem
+
+        return code
+
     def readstp(self):
         """Parse timestamp when packet was received.
 
@@ -408,7 +531,7 @@ cdef class CSI:
         """Converts CSI to channel matrix H
 
         Args:
-            inplace: optionally do the operation in-place. default=False
+            inplace: optionally do the operation in-place. default: False
 
             (inplace=False)
         """
@@ -463,7 +586,7 @@ cdef class CSI:
         MIMO channel matrix H.
 
         Args:
-            inplace: optionally do the operation in-place. default=False
+            inplace: optionally do the operation in-place. default: False
             
             (inplace=False)
         """

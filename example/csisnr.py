@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Calculate SNR based on CSI
+"""Calculate SNR based on CSI(Linux 802.11n CSI Tool)
 
 Note:
     1. Haven't checked for correctness

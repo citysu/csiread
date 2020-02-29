@@ -26,8 +26,8 @@ def csitool_ap():
     csidata.readstp()
 
     print('-'*40)
-    lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("Methods: \n", lmember[:6])
+    lmember = [s for s in csidata.__dir__() if s[:2] != "__" and callable(getattr(csidata, s))]
+    print("Methods: \n", lmember)
     print('Time:')
     print(" read                ", now - last, "s")
     last = time.time()
@@ -83,8 +83,8 @@ def csitool_mon():
     now = time.time()
 
     print('-'*40)
-    lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("Methods: \n", lmember[:6])
+    lmember = [s for s in csidata.__dir__() if s[:2] != "__" and callable(getattr(csidata, s))]
+    print("Methods: \n", lmember)
     print('Time:')
     print(" read                ", now - last, "s")
     last = time.time()

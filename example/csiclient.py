@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""CSI client: log_to_file(Linux 802.11n CSI Tool)"""
+
 import socket
 import struct
 
@@ -54,5 +56,3 @@ def log_to_file(csifile='csifile.dat'):
 
 if __name__ == "__main__":
     create_large_csifile(csifile='csifile.dat')
-
-

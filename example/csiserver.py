@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""CSI server: simulation of real-time packet sending
+"""CSI server: simulation of real-time packet sending(Linux 802.11n CSI Tool)
 
 Usage:
     python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 1000

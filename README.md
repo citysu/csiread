@@ -42,6 +42,8 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 2. new example: add `example/csiviewer.py` to plot data, it is a PyQt5 program and focuses on speed
 3. new feature: add in-place operation in csiread.CSI
 4. reduce the size of the binary module on Linux
+5. new feature: add pmsg() to parse message in real time.
+6. new example: add `example/csirealtime.py` to plot csi in real time
 
 ### v1.3.3
 
