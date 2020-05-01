@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""Calculate SNR based on CSI(Linux 802.11n CSI Tool)
-
-Note:
-    1. Haven't checked for correctness
+"""Calculate effective SNR based on CSI(Linux 802.11n CSI Tool)
 
 Ref: [Predictable 802.11 Packet Delivery from Wireless Channel Measurements]
     (https://www.halper.in/pubs/comm356s-halperin.pdf) and [linux-80211n-csitool-supplementary]
@@ -12,11 +9,11 @@ Ref: [Predictable 802.11 Packet Delivery from Wireless Channel Measurements]
 """
 
 
-from scipy.special import erf, erfc, erfcinv
+import csiread
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import inv
-import matplotlib.pyplot as plt
-import csiread
+from scipy.special import erfc, erfcinv
 
 
 def dbinv(x):
@@ -115,7 +112,7 @@ def get_mimo3_SNRs(csi):
 
 def get_eff_SNRs(csi, csi_sm=None):
     """get_eff_SNRs
-    
+
     When csi_sm is given, this function is get_eff_SNRs_sm.
     """
     if len(csi.shape) == 3:

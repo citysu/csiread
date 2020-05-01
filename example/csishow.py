@@ -9,12 +9,9 @@ Usage:
 import argparse
 
 import csiread
-import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
 import numpy as np
-from scipy.fftpack import ifft, fftshift, ifftshift
-import scipy.signal as signal
-
 
 carriers_seq_30 = np.array([-28, -26, -24, -22, -20, -18, -16, -14, -12,
                             -10, -8, -6, -4, -2, -1, 1, 3, 5, 7, 9, 11, 13,
@@ -22,10 +19,14 @@ carriers_seq_30 = np.array([-28, -26, -24, -22, -20, -18, -16, -14, -12,
 
 
 def calib(phase):
-    """Phase calibration
+    """Phase calibration(Lite version)
 
-    ref: [Enabling Contactless Detection of Moving Humans with Dynamic Speeds
-    Using CSI](http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
+    Note:
+        Work with BW(bandwidth)=20MHz and Ns(number of subcarriers)=30 here.
+
+    ref:
+        [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
+        (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
     """
     k_n = carriers_seq_30[-1]
     k_1 = carriers_seq_30[0]
@@ -144,7 +145,7 @@ if __name__ == "__main__":
 
     csidata = csiread.CSI(p.file, Nrxnum=3, Ntxnum=3)
     csidata.read()
-    if p.t > 5 :
+    if p.t > 5:
         raise ValueError('the value of `t` can be 1, 2, 3, 4, 5')
     func = eval('func_' + str(p.t))
     func(csidata)

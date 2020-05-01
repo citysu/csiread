@@ -9,3 +9,9 @@ do
 done
 iw wlan0 set channel $1 $2
 ifconfig wlan0 up
+
+# Increase the UDP socket buffer size to aviod 'No buffer space' at the receiver.
+# sysctl net.core.rmem_default
+# sysctl net.core.rmem_max
+sysctl -w net.core.rmem_default 1638400
+sysctl -w net.core.rmem_max 1638400

@@ -7,115 +7,54 @@ Note: If the csi file is stored in HDD instead of SSD, it will take
       a little longer to read it for the first time.
 """
 
+from timeit import default_timer
+
 import csiread
-import time
 
 
-def csitool_ap():
-    """
-    csitool - ap
-    """
-    print("="*40)
-    print("csitool ap")
+def stringify(array, space=':'):
+    return space.join([hex(element)[2:].zfill(2) for element in array])
 
-    last = time.time()
-    csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-    csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=2, pl_size=10)
-    csidata.read()
-    now = time.time()
-    csidata.readstp()
 
-    print('-'*40)
-    lmember = [s for s in csidata.__dir__() if s[:2] != "__" and callable(getattr(csidata, s))]
-    print("Methods: \n", lmember)
+def intel(csifile, index, Ntxnum=2):
+    """csitool"""
+    print("="*40+"[intel]")
+    members = [s for s in dir(csiread.CSI) if not s.startswith("__") and callable(getattr(csiread.CSI, s))]
+    print("Methods: \n", members)
+
     print('Time:')
-    print(" read                ", now - last, "s")
-    last = time.time()
+    last = default_timer()
+    csidata = csiread.CSI(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
+    csidata.read()
+    print(" read                ", default_timer() - last, "s")
+
+    last = default_timer()
     total_rss = csidata.get_total_rss()
-    now = time.time()
-    print(" get_total_rss       ", now - last, "s")
-    last = time.time()
+    print(" get_total_rss       ", default_timer() - last, "s")
+
+    last = default_timer()
     scaled_csi = csidata.get_scaled_csi()
-    now = time.time()
-    print(" get_scaled_csi      ", now - last, "s")
-    last = time.time()
+    print(" get_scaled_csi      ", default_timer() - last, "s")
+
+    last = default_timer()
     scaled_csi_sm = csidata.get_scaled_csi_sm()
     # scaled_csi_sm = csidata.apply_sm(scaled_csi)
-    now = time.time()
-    print(" get_scaled_csi_sm   ", now - last, "s")
-    print('-'*40)
+    print(" get_scaled_csi_sm   ", default_timer() - last, "s")
 
-    index = 10
-    print("%dth packet: " % index)
-    print(" file                ", csidata.file)
-    print(" count               ", csidata.count)
-    print(" timestamp_low       ", csidata.timestamp_low[index])
-    print(" bfee_count          ", csidata.bfee_count[index])
-    print(" Nrx                 ", csidata.Nrx[index])
-    print(" Ntx                 ", csidata.Ntx[index])
-    print(" rssiA               ", csidata.rssiA[index])
-    print(" rssiB               ", csidata.rssiB[index])
-    print(" rssiC               ", csidata.rssiC[index])
-    print(" noise               ", csidata.noise[index])
-    print(" agc                 ", csidata.agc[index])
-    print(" perm                ", csidata.perm[index])
-    print(" rate                ", csidata.rate[index])
-    print(" csi                 ", csidata.csi[index].shape)
-    print(" stp                 ", csidata.stp[index])
-    print(" total_rss           ", total_rss[index])
-    print(" scaled_csi.shape    ", scaled_csi[index].shape)
-    print(" scaled_csi_sm.shape ", scaled_csi_sm[index].shape)
-    print('-'*40)
-    # print("help: \n", csidata.__doc__)
-
-
-def csitool_mon():
-    """
-    csitool - monitor
-    """
-    print("="*40)
-    print("csitool monitor")
-
-    last = time.time()
-    csifile = "../material/5300/dataset/sample_0x5_64_3000.dat"
-    csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10)
-    csidata.read()
-    now = time.time()
-
-    print('-'*40)
-    lmember = [s for s in csidata.__dir__() if s[:2] != "__" and callable(getattr(csidata, s))]
-    print("Methods: \n", lmember)
-    print('Time:')
-    print(" read                ", now - last, "s")
-    last = time.time()
-    total_rss = csidata.get_total_rss()
-    now = time.time()
-    print(" get_total_rss       ", now - last, "s")
-    last = time.time()
-    scaled_csi = csidata.get_scaled_csi()
-    now = time.time()
-    print(" get_scaled_csi      ", now - last, "s")
-    last = time.time()
-    scaled_csi_sm = csidata.get_scaled_csi_sm()
-    # scaled_csi_sm = csidata.apply_sm(scaled_csi)
-    now = time.time()
-    print(" get_scaled_csi_sm   ", now - last, "s")
     # Setting inplace to True may be dangerous but more efficient.
-    csidata_temp = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10, if_report=False)
-    csidata_temp.read()
-    last = time.time()
-    _ = csidata_temp.get_scaled_csi(inplace=True)       # _ is csidata_temp.csi = True
-    now = time.time()
-    print(" get_scaled_csi(T)   ", now - last, "s")
-    csidata_temp = csiread.CSI(csifile, Nrxnum=3, Ntxnum=1, pl_size=10, if_report=False)
-    csidata_temp.read()
-    last = time.time()
-    _ = csidata_temp.get_scaled_csi_sm(inplace=True)    # _ is csidata_temp.csi = True
-    now = time.time()
-    print(" get_scaled_csi_sm(T)", now - last, "s")
-    print('-'*40)
+    temp = csiread.CSI(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp.read()
+    last = default_timer()
+    _ = temp.get_scaled_csi(inplace=True)       # _ is temp.csi == True
+    print(" get_scaled_csi(T)   ", default_timer() - last, "s")
 
-    index = 10
+    temp = csiread.CSI(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp.read()
+    last = default_timer()
+    _ = temp.get_scaled_csi_sm(inplace=True)    # _ is temp.csi == True
+    print(" get_scaled_csi_sm(T)", default_timer() - last, "s")
+
+    print('-'*40)
     print("%dth packet: " % index)
     print(" file                ", csidata.file)
     print(" count               ", csidata.count)
@@ -134,40 +73,32 @@ def csitool_mon():
     print(" total_rss           ", total_rss[index])
     print(" scaled_csi.shape    ", scaled_csi[index].shape)
     print(" scaled_csi_sm.shape ", scaled_csi_sm[index].shape)
-
-    print(" fc                  ", csidata.fc[index])
-    print(" dur                 ", csidata.dur[index])
-    print(" addr_src            ", ":".join([hex(per)[2:].zfill(2) for per in csidata.addr_src[index]]))
-    print(" addr_des            ", ":".join([hex(per)[2:].zfill(2) for per in csidata.addr_des[index]]))
-    print(" addr_bssid          ", ":".join([hex(per)[2:].zfill(2) for per in csidata.addr_bssid[index]]))
-    print(" seq                 ", csidata.seq[index])
-    print(" payload             ", " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]]))
-    print('-'*40)
+    if csidata.fc.size > index:
+        print(" fc                  ", csidata.fc[index])
+        print(" dur                 ", csidata.dur[index])
+        print(" addr_src            ", stringify(csidata.addr_src[index], ":"))
+        print(" addr_des            ", stringify(csidata.addr_des[index], ":"))
+        print(" addr_bssid          ", stringify(csidata.addr_bssid[index], ":"))
+        print(" seq                 ", csidata.seq[index])
+        print(" payload             ", stringify(csidata.payload[index], " "))
     # print("a limitation: csidata.rate.size %d, csidata.rate.base.size %d" % (csidata.rate.size, csidata.rate.base.size))
     # print("help: \n", csidata.__doc__)
 
 
-def atheros():
-    """
-    atheros
-    """
-    print("="*40)
-    print("atheros")
+def atheros(csifile, index, Ntxnum=2):
+    """atheros"""
+    print("="*40+"[atheros]")
 
-    last = time.time()
-    csifile = "../material/atheros/dataset/ath_csi_1.dat"
-    csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=10, Tones=56)
-    csidata.read()
-    now = time.time()
-    print('-'*40)
+    members = [s for s in dir(csiread.Atheros) if not s.startswith("__") and callable(getattr(csiread.Atheros, s))]
+    print("Methods: \n", members)
 
-    lmember = [s for s in csidata.__dir__() if s[:2] != "__"]
-    print("Methods: \n", lmember[:1])
     print('Time:')
-    print(" read                ", now - last, "s")
-    print('-'*40)
+    last = default_timer()
+    csidata = csiread.Atheros(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
+    csidata.read()
+    print(" read                ", default_timer() - last, "s")
 
-    index = 10
+    print('-'*40)
     print("%dth packet: " % index)
     print(" file                ", csidata.file)
     print(" count               ", csidata.count)
@@ -188,12 +119,11 @@ def atheros():
     print(" payload_len         ", csidata.payload_len[index])
     print(" csi                 ", csidata.csi[index].shape)
     print(" payload             ", " ".join([hex(per)[2:].zfill(2) for per in csidata.payload[index]]))
-    print('-'*40)
     # print("help: \n", csidata.__doc__)
 
 
 if __name__ == "__main__":
     print("csiread.__version__: ", csiread.__version__)
-    csitool_ap()
-    csitool_mon()
-    atheros()
+    intel("../material/5300/dataset/sample_0x1_ap.dat", 10, Ntxnum=2)
+    intel("../material/5300/dataset/sample_0x5_64_3000.dat", 10, Ntxnum=1)
+    atheros("../material/atheros/dataset/ath_csi_1.dat", 10, Ntxnum=2)

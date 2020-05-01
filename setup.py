@@ -8,10 +8,8 @@ from Cython.Build import cythonize
 import numpy
 
 default_compiler = distutils.ccompiler.get_default_compiler()
-if default_compiler == 'msvc':
-    EXTRA_COMPILE_ARGS = ['/W3', '/O2']
-elif default_compiler== 'unix':
-    EXTRA_COMPILE_ARGS = ['-w', '-O3', '-g1']
+if default_compiler == 'unix':
+    EXTRA_COMPILE_ARGS = ['-g0']
 else:
     EXTRA_COMPILE_ARGS = []
 
@@ -52,7 +50,5 @@ setup(
     classifiers=["Topic :: Scientific/Engineering",
                  "Programming Language :: Python :: 3",
                  "Programming Language :: Python :: Implementation :: CPython",
-                 "Operating System :: POSIX :: Linux",
-                 "Operating System :: Microsoft :: Windows",
                  "License :: OSI Approved :: MIT License"],
 )

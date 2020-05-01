@@ -2,7 +2,7 @@
 
 Parse channel state information from raw CSI data file in Python.
 
-csiread works on Linux and Windows. It can parse CSI received by [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/). If using Linux 802.11n CSI Tool, csiread needs `connector_log=0x1, 0x4, 0x5`.
+csiread can parse CSI obtained using [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/) fast. MPDU parsing only supports the specified frame format.
 
 ## Install
 
@@ -32,6 +32,8 @@ csidata.read(endian='little')
 print(csidata.csi.shape)
 ```
 
+Both CSI.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can parse it easily. For convenience, csiread.CSI returns the parsing result of the specified MAC header.
+
 Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 ## Log
@@ -39,15 +41,20 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ### v1.3.4
 
 1. process data faster
-2. new example: add `example/csiviewer.py` to plot data, it is a PyQt5 program and focuses on speed
-3. new feature: add in-place operation in csiread.CSI
-4. reduce the size of the binary module on Linux
-5. new feature: add pmsg() to parse message in real time.
-6. new example: add `example/csirealtime.py` to plot csi in real time
+2. new feature: add in-place operation in csiread.CSI
+3. new feature: add CSI.pmsg() to parse message in real time.
+4. new feature: both CSI.payload and Atheros.payload are MPDU and stored in np.uint8 now.
+5. fix bug: noise will change after calling get_scaled_csi()
+6. fix bug: in matlab, read_log_file drops the last two packets(Atheros), but here we keep them.
+7. fix bug: get_scaled_csi_sm() value error if Ntx is 3.
+8. fix bug: csiread.CSI may not work well on big-endian computers.
+9. new examples: plot CSI in real time
+10. new example: implement log_to_file in pure Python
+11. new example: a better solution to the MemoryError
 
 ### v1.3.3
 
-1. update example
+1. update examples
 2. new feature: add `__getitem__`
 3. new feature: add get_scaled_csi_sm(), apply_sm()
 
@@ -58,14 +65,14 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ### v1.3.1
 
 1. fix bug: some value error on 32-bit computer
-2. add feature: add `example/csishow.py` to plot data
-3. add feature: add `example/csisplit.py` to split the data file of linux-80211n-tool into small pieces
-4. fix bug: avoid built-in keyword， len -> lens
+2. fix bug: avoid built-in keyword, len -> lens
+3. new example: add `example/csishow.py` to plot data
+4. new example: add `example/csisplit.py` to split the data file of linux-80211n-tool into small pieces
 
 ### v1.3.0
 
 1. fix bug: report format error
 2. fix bug: `count` value error
 3. new feature: add suppport for atheros
-4. new feature: add processing function of intel 5300: get_scaled_csi(), get_total_rss()
+4. new feature: add processing functions of intel 5300: get_scaled_csi(), get_total_rss()
 5. new example

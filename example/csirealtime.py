@@ -6,19 +6,25 @@
 Usage:
     1. python3 csirealtime.py
     2. python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 500
+
+Note:
+    Atheros.pmsg() is experimental
+
 """
 
 import socket
+import threading
+
 import csiread
+import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-import matplotlib.animation as animation
-import threading
 
 cache_len = 1000
 cache_data1 = [np.nan] * cache_len
 cache_data2 = [np.nan] * cache_len
 cache_data3 = [np.nan] * cache_len
+mutex = threading.Lock()
 
 
 class GetDataThread(threading.Thread):
@@ -43,15 +49,18 @@ def update_background():
             code = csidata.pmsg(data)
             if code == 0xbb:
                 scaled_csi_sm = csidata.get_scaled_csi()[0]
+                mutex.acquire()
                 cache_data1.pop(0)
                 cache_data1.append(scaled_csi_sm[15, 0, 0])
                 cache_data2.pop(0)
                 cache_data2.append(scaled_csi_sm[15, 1, 0])
                 cache_data3.pop(0)
                 cache_data3.append(scaled_csi_sm[15, 2, 0])
+                mutex.release()
                 count += 1
             if count % 100 == 0:
                 print('receive %d bytes [msgcnt=%u]' % (msg_len, count))
+
 
 def realtime_plot():
     fig, ax = plt.subplots()
@@ -66,8 +75,6 @@ def realtime_plot():
     line2,  = ax.plot(x, np.abs(cache_data2), linewidth=1.0, label='subcarrier_15_1_0')
     line3,  = ax.plot(x, np.abs(cache_data3), linewidth=1.0, label='subcarrier_15_2_0')
     plt.legend()
-
-    mutex = threading.Lock()
 
     def init():
         line1.set_ydata([np.nan] * len(x))

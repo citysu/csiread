@@ -115,6 +115,7 @@ int main(int argc, char** argv)
 static void handle()
 {
 	payload_memcpy(packet->payload, packet_size, (i*packet_size) % PAYLOAD_SIZE);
+	// It is not the standard Sequence Control format
 	packet->seq = i;
 	ret = tx80211_txpacket(&tx, &tx_packet);
 

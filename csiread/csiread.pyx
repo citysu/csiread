@@ -1,5 +1,6 @@
-"""A tool to parse channel state infomation received by 'Linux 802.11n CSI Tool'
-or 'Atheros CSI Tool'."""
+"""A tool to parse channel state infomation obtained using 'Linux 802.11n CSI Tool'
+and 'Atheros CSI Tool'.
+"""
 
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
 from libc.stdio cimport FILE, SEEK_END, SEEK_SET, SEEK_CUR
@@ -7,40 +8,19 @@ from libc.stddef cimport size_t
 from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t
 
 import os
-import sys
-import platform
 import struct
 
 import numpy as np
 cimport numpy as np
 cimport cython
 
+
 __version__ = "1.3.4"
 __all__ = ['CSI', 'Atheros']
 
-cdef packed struct iwl5000_bfee_notif:
-    uint32_t timestamp_low
-    uint16_t bfee_count
-    uint16_t reserved
-    uint8_t Nrx, Ntx
-    uint8_t rssiA, rssiB, rssiC
-    int8_t noise
-    uint8_t agc, antenna_sel
-    uint16_t lens
-    uint16_t fake_rate_n_flags
-    uint8_t payload[0]
-
-cdef packed struct lorcon_packet:
-    uint16_t fc
-    uint16_t dur
-    uint8_t addr_des[6]
-    uint8_t addr_src[6]
-    uint8_t addr_bssid[6]
-    uint16_t seq
-    uint8_t payload[0]
 
 cdef class CSI:
-    """Parse channel state infomation received by 'Linux 802.11n CSI Tool'.
+    """Parse channel state infomation obtained using 'Linux 802.11n CSI Tool'.
 
     Args:
         file: the file path of csi '.dat', None: real time mode
@@ -70,12 +50,12 @@ cdef class CSI:
         stp: world timestamp when csi was received
 
         fc: frame contrl
-        dur: during life
+        dur: duration
         addr_des: destination mac address
         addr_src: source mac address
         addr_bssid: bssid mac address
         seq: serial number of packet
-        payload: payload
+        payload: MAC frame
 
     Example:
         csidata = csiread.CSI("example.dat")
@@ -110,7 +90,7 @@ cdef class CSI:
     cdef int Nrxnum
     cdef int Ntxnum
     cdef int pl_size
-    cdef int if_report
+    cdef bint if_report
 
     def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True):
         """Parameter initialization."""
@@ -124,30 +104,10 @@ cdef class CSI:
             self.count = 1
             pk_num = 1
         else:
-            if not os.path.isfile(file):
-                raise Exception("Error: `%s` does not exist, Stop!\n" % (file))
-
-            # Estimate the number of packets
-            # ----------------------------------------------------------------------
-            # | packet type | filed_len | code | header |       payload      | CRC |
-            # |     0xbb    |     2     |   1  |   20   | 8 + 60 * Ntx * Nrx |  4  |
-            # |     0xc1    |     2     |   1  | 4 + 20 |       pl_size      |  4  |
-            # ----------------------------------------------------------------------
-            # packet_number = csifile_size // packet_size
-
-            # Important
-            # ----------------------------------------------------------------------
-            # packet_size is set to a constant value of 95. it is not a good choice. 
-            # There are two known limitations here: 1. packet size >= 95 is necessary,
-            # otherwise it will throw `IndexError: Out of bounds on buffer access
-            # (axis 0)`. 2. if packet size > 95, the more packets, the more excess
-            # memory allocated. Excess memory is so large that MemoryError is throwed.
-            # csiread.Atheros has the same issue.
-
             lens = os.path.getsize(file)
             pk_num = lens // (35 + 60 * 1 * 1)
 
-        btype = __btype()
+        btype = np.int_
 
         self.timestamp_low = np.zeros([pk_num], dtype=btype)
         self.bfee_count = np.zeros([pk_num], dtype=btype)
@@ -160,7 +120,7 @@ cdef class CSI:
         self.agc = np.zeros([pk_num], dtype=btype)
         self.perm = np.zeros([pk_num, 3], dtype=btype)
         self.rate = np.zeros([pk_num], dtype=btype)
-        self.csi = np.zeros([pk_num, 30, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+        self.csi = np.zeros([pk_num, 30, self.Nrxnum, self.Ntxnum], dtype=np.complex_)
 
         self.fc = np.zeros([pk_num], dtype=btype)
         self.dur = np.zeros([pk_num], dtype=btype)
@@ -168,7 +128,7 @@ cdef class CSI:
         self.addr_src = np.zeros([pk_num, 6], dtype=btype)
         self.addr_bssid = np.zeros([pk_num, 6], dtype=btype)
         self.seq = np.zeros([pk_num], dtype=btype)
-        self.payload = np.zeros([pk_num, self.pl_size], dtype=btype)
+        self.payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
     def __getitem__(self, index):
         """Return contents of 0xbb packets"""
@@ -189,12 +149,7 @@ cdef class CSI:
         return ret
 
     cpdef read(self):
-        """Parse data only if code=0xbb or code=0xc1.
-
-        Note:
-            1. All members are initialized to zero
-            2. The 4 bytes after payload are CRC and will not be parsed.
-        """
+        """Parse data only if code=0xbb or code=0xc1"""
         cdef FILE *f
 
         tempfile = self.file.encode(encoding="utf-8")
@@ -210,26 +165,26 @@ cdef class CSI:
         cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
 
-        cdef long[:] timestamp_low_mem = self.timestamp_low
-        cdef long[:] bfee_count_mem = self.bfee_count
-        cdef long[:] Nrx_mem = self.Nrx
-        cdef long[:] Ntx_mem = self.Ntx
-        cdef long[:] rssiA_mem = self.rssiA
-        cdef long[:] rssiB_mem = self.rssiB
-        cdef long[:] rssiC_mem = self.rssiC
-        cdef long[:] noise_mem = self.noise
-        cdef long[:] agc_mem = self.agc
-        cdef long[:, :] perm_mem = self.perm
-        cdef long[:] rate_mem = self.rate
-        cdef double complex[:, :, :, :] csi_mem = self.csi
+        cdef np.int_t[:] timestamp_low_mem = self.timestamp_low
+        cdef np.int_t[:] bfee_count_mem = self.bfee_count
+        cdef np.int_t[:] Nrx_mem = self.Nrx
+        cdef np.int_t[:] Ntx_mem = self.Ntx
+        cdef np.int_t[:] rssiA_mem = self.rssiA
+        cdef np.int_t[:] rssiB_mem = self.rssiB
+        cdef np.int_t[:] rssiC_mem = self.rssiC
+        cdef np.int_t[:] noise_mem = self.noise
+        cdef np.int_t[:] agc_mem = self.agc
+        cdef np.int_t[:, :] perm_mem = self.perm
+        cdef np.int_t[:] rate_mem = self.rate
+        cdef np.complex128_t[:, :, :, :] csi_mem = self.csi
 
-        cdef long[:] fc_mem = self.fc
-        cdef long[:] dur_mem = self.dur
-        cdef long[:, :] addr_des_mem = self.addr_des
-        cdef long[:, :] addr_src_mem = self.addr_src
-        cdef long[:, :] addr_bssid_mem = self.addr_bssid
-        cdef long[:] seq_mem = self.seq
-        cdef long[:, :] payload_mem = self.payload
+        cdef np.int_t[:] fc_mem = self.fc
+        cdef np.int_t[:] dur_mem = self.dur
+        cdef np.int_t[:, :] addr_des_mem = self.addr_des
+        cdef np.int_t[:, :] addr_src_mem = self.addr_src
+        cdef np.int_t[:, :] addr_bssid_mem = self.addr_bssid
+        cdef np.int_t[:] seq_mem = self.seq
+        cdef np.uint8_t[:, :] payload_mem = self.payload
 
         cdef long cur = 0
         cdef int count_0xbb = 0
@@ -238,19 +193,16 @@ cdef class CSI:
         cdef unsigned char code
         cdef unsigned char buf[1024]
         cdef unsigned char temp[3]
+        cdef unsigned char *payload
         cdef size_t l
 
         cdef int index, index_step
         cdef int i, j, k, g, perm_j
-        cdef int remainder = 0
+        cdef uint8_t remainder = 0
         cdef double a, b
 
         while cur < (lens-3):
-            if fread(&temp, sizeof(unsigned char), 3, f) is False:
-                print("Open failed!\n")
-                fclose(f)
-                return -1
-
+            l = fread(&temp, sizeof(unsigned char), 3, f)
             field_len = temp[1] + (temp[0] << 8)
             code = temp[2]
             cur = cur + 3
@@ -259,44 +211,38 @@ cdef class CSI:
                 l = fread(buf, sizeof(unsigned char), field_len - 1, f)
                 if l != (field_len - 1):
                     break  # finished
-                bfee = <iwl5000_bfee_notif*> &buf
 
-                timestamp_low_mem[count_0xbb] = bfee.timestamp_low
-                bfee_count_mem[count_0xbb] = bfee.bfee_count
-                Nrx_mem[count_0xbb] = bfee.Nrx
-                Ntx_mem[count_0xbb] = bfee.Ntx
-                rssiA_mem[count_0xbb] = bfee.rssiA
-                rssiB_mem[count_0xbb] = bfee.rssiB
-                rssiC_mem[count_0xbb] = bfee.rssiC
-                noise_mem[count_0xbb] = bfee.noise
-                agc_mem[count_0xbb] = bfee.agc
-                rate_mem[count_0xbb] = bfee.fake_rate_n_flags
+                timestamp_low_mem[count_0xbb] = cu32(buf[0], buf[1], buf[2], buf[3])
+                bfee_count_mem[count_0xbb] = cu16(buf[4], buf[5])
+                Nrx_mem[count_0xbb] = buf[8]
+                Ntx_mem[count_0xbb] = buf[9]
+                rssiA_mem[count_0xbb] = buf[10]
+                rssiB_mem[count_0xbb] = buf[11]
+                rssiC_mem[count_0xbb] = buf[12]
+                noise_mem[count_0xbb] = <int8_t>buf[13]
+                agc_mem[count_0xbb] = buf[14]
+                rate_mem[count_0xbb] = cu16(buf[18], buf[19])
 
-                perm_mem[count_0xbb, 0] = (bfee.antenna_sel & 0x3)
-                perm_mem[count_0xbb, 1] = ((bfee.antenna_sel >> 2) & 0x3)
-                perm_mem[count_0xbb, 2] = ((bfee.antenna_sel >> 4) & 0x3)
+                perm_mem[count_0xbb, 0] = (buf[15] & 0x3)
+                perm_mem[count_0xbb, 1] = ((buf[15] >> 2) & 0x3)
+                perm_mem[count_0xbb, 2] = ((buf[15] >> 4) & 0x3)
 
-                if bfee.Nrx > self.Nrxnum:
+                if buf[8] > self.Nrxnum:
                     raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
-                if bfee.Ntx > self.Ntxnum:
+                if buf[9] > self.Ntxnum:
                     raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
 
+                payload = &buf[20]
                 index = 0
                 for i in range(30):
                     index = index + 3
                     remainder = index & 0x7
-                    for j in range(bfee.Nrx):
+                    for j in range(buf[8]):
                         perm_j = perm_mem[count_0xbb, j]
-                        for k in range(bfee.Ntx):
+                        for k in range(buf[9]):
                             index_step = index >> 3
-
-                            tmp = (bfee.payload[index_step] >> remainder) \
-                                | (bfee.payload[index_step + 1] << (8 - remainder))
-                            a = <int8_t>(tmp & 0xFF)
-
-                            tmp = (bfee.payload[index_step + 1] >> remainder) \
-                                | (bfee.payload[index_step + 2] << (8 - remainder))
-                            b = <int8_t>(tmp & 0xFF)
+                            a = ccsi(payload[index_step + 0], payload[index_step + 1], remainder)
+                            b = ccsi(payload[index_step + 1], payload[index_step + 2], remainder)
 
                             set_csi_mem(csi_mem, count_0xbb, i, perm_j, k, a, b)
                             index = index + 16
@@ -306,20 +252,19 @@ cdef class CSI:
                 l = fread(buf, sizeof(unsigned char), field_len - 1, f)
                 if l != (field_len - 1):
                     break  # finished
-                mpdu = <lorcon_packet*>&buf
 
-                fc_mem[count_0xc1] = mpdu.fc
-                dur_mem[count_0xc1] = mpdu.dur
+                fc_mem[count_0xc1] = cu16(buf[0], buf[1])
+                dur_mem[count_0xc1] = cu16(buf[2], buf[3])
 
                 for g in range(6):
-                    addr_des_mem[count_0xc1, g] = mpdu.addr_des[g]
-                    addr_src_mem[count_0xc1, g] = mpdu.addr_src[g]
-                    addr_bssid_mem[count_0xc1, g] = mpdu.addr_bssid[g]
+                    addr_des_mem[count_0xc1, g] = buf[4+g]
+                    addr_src_mem[count_0xc1, g] = buf[10+g]
+                    addr_bssid_mem[count_0xc1, g] = buf[16+g]
 
-                seq_mem[count_0xc1] = mpdu.seq
+                seq_mem[count_0xc1] = cu16(buf[22], buf[23])
 
-                for g in range(min(self.pl_size, field_len - 1 - 24 - 4)):
-                    payload_mem[count_0xc1, g] = mpdu.payload[g]
+                for g in range(min(self.pl_size, field_len - 1)):
+                    payload_mem[count_0xc1, g] = buf[g]
 
                 count_0xc1 = count_0xc1 + 1
 
@@ -383,33 +328,34 @@ cdef class CSI:
 
             (data)
         """
-        cdef long[:] timestamp_low_mem = self.timestamp_low
-        cdef long[:] bfee_count_mem = self.bfee_count
-        cdef long[:] Nrx_mem = self.Nrx
-        cdef long[:] Ntx_mem = self.Ntx
-        cdef long[:] rssiA_mem = self.rssiA
-        cdef long[:] rssiB_mem = self.rssiB
-        cdef long[:] rssiC_mem = self.rssiC
-        cdef long[:] noise_mem = self.noise
-        cdef long[:] agc_mem = self.agc
-        cdef long[:, :] perm_mem = self.perm
-        cdef long[:] rate_mem = self.rate
-        cdef double complex[:, :, :, :] csi_mem = self.csi
+        cdef np.int_t[:] timestamp_low_mem = self.timestamp_low
+        cdef np.int_t[:] bfee_count_mem = self.bfee_count
+        cdef np.int_t[:] Nrx_mem = self.Nrx
+        cdef np.int_t[:] Ntx_mem = self.Ntx
+        cdef np.int_t[:] rssiA_mem = self.rssiA
+        cdef np.int_t[:] rssiB_mem = self.rssiB
+        cdef np.int_t[:] rssiC_mem = self.rssiC
+        cdef np.int_t[:] noise_mem = self.noise
+        cdef np.int_t[:] agc_mem = self.agc
+        cdef np.int_t[:, :] perm_mem = self.perm
+        cdef np.int_t[:] rate_mem = self.rate
+        cdef np.complex128_t[:, :, :, :] csi_mem = self.csi
 
-        cdef long[:] fc_mem = self.fc
-        cdef long[:] dur_mem = self.dur
-        cdef long[:, :] addr_des_mem = self.addr_des
-        cdef long[:, :] addr_src_mem = self.addr_src
-        cdef long[:, :] addr_bssid_mem = self.addr_bssid
-        cdef long[:] seq_mem = self.seq
-        cdef long[:, :] payload_mem = self.payload
+        cdef np.int_t[:] fc_mem = self.fc
+        cdef np.int_t[:] dur_mem = self.dur
+        cdef np.int_t[:, :] addr_des_mem = self.addr_des
+        cdef np.int_t[:, :] addr_src_mem = self.addr_src
+        cdef np.int_t[:, :] addr_bssid_mem = self.addr_bssid
+        cdef np.int_t[:] seq_mem = self.seq
+        cdef np.uint8_t[:, :] payload_mem = self.payload
 
         cdef unsigned char code
         cdef unsigned char buf[1024]
+        cdef unsigned char *payload
 
         cdef int index, index_step
         cdef int i, j, k, g, perm_j
-        cdef int remainder = 0
+        cdef uint8_t remainder = 0
         cdef double a, b
 
         code = data[0]
@@ -417,62 +363,53 @@ cdef class CSI:
             buf[i] = data[1+i]
 
         if code == 0xbb:
-            bfee = <iwl5000_bfee_notif*> &buf
+            timestamp_low_mem[0] = cu32(buf[0], buf[1], buf[2], buf[3])
+            bfee_count_mem[0] = cu16(buf[4], buf[5])
+            Nrx_mem[0] = buf[8]
+            Ntx_mem[0] = buf[9]
+            rssiA_mem[0] = buf[10]
+            rssiB_mem[0] = buf[11]
+            rssiC_mem[0] = buf[12]
+            noise_mem[0] = <int8_t>buf[13]
+            agc_mem[0] = buf[14]
+            rate_mem[0] = cu16(buf[18], buf[19])
 
-            timestamp_low_mem[0] = bfee.timestamp_low
-            bfee_count_mem[0] = bfee.bfee_count
-            Nrx_mem[0] = bfee.Nrx
-            Ntx_mem[0] = bfee.Ntx
-            rssiA_mem[0] = bfee.rssiA
-            rssiB_mem[0] = bfee.rssiB
-            rssiC_mem[0] = bfee.rssiC
-            noise_mem[0] = bfee.noise
-            agc_mem[0] = bfee.agc
-            rate_mem[0] = bfee.fake_rate_n_flags
+            perm_mem[0, 0] = (buf[15] & 0x3)
+            perm_mem[0, 1] = ((buf[15] >> 2) & 0x3)
+            perm_mem[0, 2] = ((buf[15] >> 4) & 0x3)
 
-            perm_mem[0, 0] = (bfee.antenna_sel & 0x3)
-            perm_mem[0, 1] = ((bfee.antenna_sel >> 2) & 0x3)
-            perm_mem[0, 2] = ((bfee.antenna_sel >> 4) & 0x3)
-
-            if bfee.Nrx > self.Nrxnum:
+            if buf[8] > self.Nrxnum:
                 raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
-            if bfee.Ntx > self.Ntxnum:
+            if buf[9] > self.Ntxnum:
                 raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
 
+            payload = &buf[20]
             index = 0
             for i in range(30):
                 index = index + 3
                 remainder = index & 0x7
-                for j in range(bfee.Nrx):
+                for j in range(buf[8]):
                     perm_j = perm_mem[0, j]
-                    for k in range(bfee.Ntx):
+                    for k in range(buf[9]):
                         index_step = index >> 3
-
-                        tmp = (bfee.payload[index_step] >> remainder) \
-                            | (bfee.payload[index_step + 1] << (8 - remainder))
-                        a = <int8_t>(tmp & 0xFF)
-
-                        tmp = (bfee.payload[index_step + 1] >> remainder) \
-                            | (bfee.payload[index_step + 2] << (8 - remainder))
-                        b = <int8_t>(tmp & 0xFF)
+                        a = ccsi(payload[index_step + 0], payload[index_step + 1], remainder)
+                        b = ccsi(payload[index_step + 1], payload[index_step + 2], remainder)
 
                         set_csi_mem(csi_mem, 0, i, perm_j, k, a, b)
                         index = index + 16
         if code == 0xc1:
-            mpdu = <lorcon_packet*>&buf
-
-            fc_mem[0] = mpdu.fc
-            dur_mem[0] = mpdu.dur
+            fc_mem[0] = cu16(buf[0], buf[1])
+            dur_mem[0] = cu16(buf[2], buf[3])
 
             for g in range(6):
-                addr_des_mem[0, g] = mpdu.addr_des[g]
-                addr_src_mem[0, g] = mpdu.addr_src[g]
-                addr_bssid_mem[0, g] = mpdu.addr_bssid[g]
+                addr_des_mem[0, g] = buf[4+g]
+                addr_src_mem[0, g] = buf[10+g]
+                addr_bssid_mem[0, g] = buf[16+g]
 
-            seq_mem[0] = mpdu.seq
+            seq_mem[0] = cu16(buf[22], buf[23])
 
-            for g in range(min(self.pl_size, len(data) - 1 - 24 - 4)):
-                payload_mem[0, g] = mpdu.payload[g]
+            for g in range(min(self.pl_size, len(data) - 1)):
+                payload_mem[0, g] = buf[g]
 
         del timestamp_low_mem
         del bfee_count_mem
@@ -497,25 +434,22 @@ cdef class CSI:
 
         return code
 
-    def readstp(self):
+    def readstp(self, endian='little'):
         """Parse timestamp when packet was received.
 
         Note:
             `file.dat` and `file.datstp` must be in the same directory.
+
+            (endian='little')
         """
         stpfile = self.file + "stp"
-        f = open(stpfile, "rb")
-        if f is None:
-            f.close()
-            raise Exception("Error: '%s' does not exist\n" % (stpfile))
-        f.seek(0, os.SEEK_END)
-        lens = f.tell()
-        f.seek(0, os.SEEK_SET)
-        self.stp = np.zeros(lens // 8 - 1)
-        for i in range(lens // 8 - 1):
-            a, b = struct.unpack("<LL", f.read(8))
-            self.stp[i] = a + b / 1000000
-        f.close()
+        lens = os.path.getsize(stpfile)
+        self.stp = np.zeros(lens // 8)
+        format_string = '<LL' if endian == 'little' else '>LL'
+        with open(stpfile, "rb") as f:
+            for i in range(lens // 8):
+                a, b = struct.unpack(format_string, f.read(8))
+                self.stp[i] = a + b / 1000000
         return self.stp[0]
 
     def get_total_rss(self):
@@ -543,8 +477,8 @@ cdef class CSI:
 
         csi = self.csi
         csi_pwr = np.zeros(self.count)
-        cdef double[:] csi_pwr_mem = csi_pwr
-        cdef double complex[:, :] csi_mem = csi.reshape(self.count, flat)
+        cdef np.float64_t[:] csi_pwr_mem = csi_pwr
+        cdef np.complex128_t[:, :] csi_mem = csi.reshape(self.count, flat)
         for i in range(self.count):
             temp_sum = 0
             for j in range(flat):
@@ -557,14 +491,14 @@ cdef class CSI:
         scale = rssi_pwr / (csi_pwr / 30)
 
         noise_db = self.noise
-        noise_db[noise_db == -127] = -92
         thermal_noise_pwr = self.__dbinv(noise_db)
+        thermal_noise_pwr[noise_db == -127] = self.__dbinv(-92)
 
         quant_error_pwr = scale * (self.Nrx * self.Ntx)
         total_noise_pwr = thermal_noise_pwr + quant_error_pwr
 
-        cdef double [:] total_noise_pwr_mem = total_noise_pwr
-        cdef long[:] Ntx_mem = self.Ntx
+        cdef np.float64_t[:] total_noise_pwr_mem = total_noise_pwr
+        cdef np.int_t[:] Ntx_mem = self.Ntx
         for i in range(self.count):
             if Ntx_mem[i] == 2:
                 total_noise_pwr_mem[i] = total_noise_pwr_mem[i] / constant2
@@ -636,34 +570,34 @@ cdef class CSI:
     cdef __remove_sm(self, scaled_csi, inplace=False):
         """Actually undo the input spatial mapping"""
         sm_2_20 = np.array([[1, 1],
-                            [1, -1]], dtype=np.complex128) / np.sqrt(2)
+                            [1, -1]], dtype=np.complex_) / np.sqrt(2)
         sm_2_40 = np.array([[1, 1j],
-                            [1j, 1]], dtype=np.complex128) / np.sqrt(2)
-        sm_3_20 = np.array([[-2 * np.pi / 16, 2 * np.pi / (80 / 23), -2 * np.pi / (80 / 13)],
-                            [-2 * np.pi / (80 / 33), 2 * np.pi * (48 / 13), 2 * np.pi * (240 / 37)],
-                            [ 2 * np.pi / (80 / 3), 2 * np.pi * (240 / 13), 2 * np.pi * (48 / 13)]], dtype=np.complex128)
-        sm_3_20 = np.square(np.exp(1), 1j * sm_3_20) / np.sqrt(3)
-        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 37), 2 * np.pi / (80 / 7)],
-                            [-2 * np.pi / (80 / 13), -2 * np.pi * (48 / 11), -2 * np.pi * (240 / 83)],
-                            [ 2 * np.pi / (80 / 23), -2 * np.pi * (240 / 107), -2 * np.pi * (48 / 11)]], dtype=np.complex128)
-        sm_3_40 = np.square(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
+                            [1j, 1]], dtype=np.complex_) / np.sqrt(2)
+        sm_3_20 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 33), 2 * np.pi / (80 / 3)],
+                            [ 2 * np.pi / (80 / 23), 2 * np.pi / (48 / 13), 2 * np.pi / (240 / 13)],
+                            [-2 * np.pi / (80 / 13), 2 * np.pi / (240 / 37), 2 * np.pi / (48 / 13)]], dtype=np.complex_)
+        sm_3_20 = np.power(np.exp(1), 1j * sm_3_20) / np.sqrt(3)
+        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 13), 2 * np.pi / (80 / 23)],
+                            [-2 * np.pi / (80 / 37), -2 * np.pi / (48 / 11), -2 * np.pi / (240 / 107)],
+                            [ 2 * np.pi / (80 / 7), -2 * np.pi / (240 / 83), -2 * np.pi / (48 / 11)]], dtype=np.complex_)
+        sm_3_40 = np.power(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
 
         # Ntx is not a constant array
         if inplace:
             ret = scaled_csi
         else:
-            ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex128)
+            ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex_)
 
         cdef int i, N, M, B
-        cdef long[:] Ntx_mem = self.Ntx
-        cdef long[:] Nrx_mem = self.Nrx
-        cdef long[:] rate_mem = self.rate
-        cdef double complex[:, :, :, :] scaled_csi_mem = scaled_csi
-        cdef double complex[:, :, :, :] ret_mem = ret
-        cdef double complex[:, :] sm_2_20_mem = sm_2_20
-        cdef double complex[:, :] sm_2_40_mem = sm_2_40
-        cdef double complex[:, :] sm_3_20_mem = sm_3_20
-        cdef double complex[:, :] sm_3_40_mem = sm_3_40
+        cdef np.int_t[:] Ntx_mem = self.Ntx
+        cdef np.int_t[:] Nrx_mem = self.Nrx
+        cdef np.int_t[:] rate_mem = self.rate
+        cdef np.complex128_t[:, :, :, :] scaled_csi_mem = scaled_csi
+        cdef np.complex128_t[:, :, :, :] ret_mem = ret
+        cdef np.complex128_t[:, :] sm_2_20_mem = sm_2_20
+        cdef np.complex128_t[:, :] sm_2_40_mem = sm_2_40
+        cdef np.complex128_t[:, :] sm_3_20_mem = sm_3_20
+        cdef np.complex128_t[:, :] sm_3_40_mem = sm_3_40
 
         for i in range(self.count):
             M = Ntx_mem[i]
@@ -697,8 +631,9 @@ cdef class CSI:
 
         return ret
 
+
 cdef class Atheros:
-    """Parse channel state infomation received by 'Atheros CSI Tool'.
+    """Parse channel state infomation obtained using 'Atheros CSI Tool'.
     
     Args:
         (file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True)
@@ -728,7 +663,7 @@ cdef class Atheros:
     cdef int Ntxnum
     cdef int Tones
     cdef int pl_size
-    cdef int if_report
+    cdef bint if_report
 
     def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True):
         """Parameter initialization."""
@@ -742,13 +677,15 @@ cdef class Atheros:
         if Tones not in [56, 114]:
             raise Exception("Error: Tones can only take 56 and 114, Stop!\n")
 
-        if not os.path.isfile(file):
-            raise Exception("Error: '%s' does not exist, Stop!\n" % (file))
+        if file is None:
+            self.count = 1
+            pk_num = 1
+        else:
+            lens = os.path.getsize(file)
+            pk_num = int(lens / 420)
 
-        lens = os.path.getsize(file)
-        pk_num = lens // 420
-        btype = __btype()
-        self.timestamp = np.zeros([pk_num])
+        btype = np.int_
+        self.timestamp = np.zeros([pk_num], dtype=np.int64)
         self.csi_len = np.zeros([pk_num], dtype=btype)
         self.tx_channel = np.zeros([pk_num], dtype=btype)
         self.err_info = np.zeros([pk_num], dtype=btype)
@@ -763,8 +700,8 @@ cdef class Atheros:
         self.rssi_2 = np.zeros([pk_num], dtype=btype)
         self.rssi_3 = np.zeros([pk_num], dtype=btype)
         self.payload_len = np.zeros([pk_num], dtype=btype)
-        self.csi = np.zeros([pk_num, self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
-        self.payload = np.zeros([pk_num, self.pl_size], dtype=btype)
+        self.csi = np.zeros([pk_num, self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex_)
+        self.payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
     def __getitem__(self, index):
         """Return contents of packets"""
@@ -797,9 +734,6 @@ cdef class Atheros:
 
             (endian='little')
         """
-        if endian not in ['little', 'big']:
-            raise Exception("Error: endian can only take 'little' and 'big', Stop!\n")
-
         cdef FILE *f
 
         tempfile = self.file.encode(encoding="utf-8")
@@ -815,47 +749,42 @@ cdef class Atheros:
         cdef long lens = ftell(f)
         fseek(f, 0, SEEK_SET)
 
-        cdef double[:] timestamp_mem = self.timestamp
-        cdef long[:] csi_len_mem = self.csi_len
-        cdef long[:] tx_channel_mem = self.tx_channel
-        cdef long[:] err_info_mem = self.err_info
-        cdef long[:] noise_floor_mem = self.noise_floor
-        cdef long[:] Rate_mem = self.Rate
-        cdef long[:] bandWidth_mem = self.bandWidth
-        cdef long[:] num_tones_mem = self.num_tones
-        cdef long[:] nr_mem = self.nr
-        cdef long[:] nc_mem = self.nc
-        cdef long[:] rssi_mem = self.rssi
-        cdef long[:] rssi_1_mem = self.rssi_1
-        cdef long[:] rssi_2_mem = self.rssi_2
-        cdef long[:] rssi_3_mem = self.rssi_3
-        cdef long[:] payload_len_mem = self.payload_len
-        cdef double complex[:, :, :, :] csi_mem = self.csi
-        cdef long[:, :] payload_mem = self.payload
+        cdef np.int64_t[:] timestamp_mem = self.timestamp
+        cdef np.int_t[:] csi_len_mem = self.csi_len
+        cdef np.int_t[:] tx_channel_mem = self.tx_channel
+        cdef np.int_t[:] err_info_mem = self.err_info
+        cdef np.int_t[:] noise_floor_mem = self.noise_floor
+        cdef np.int_t[:] Rate_mem = self.Rate
+        cdef np.int_t[:] bandWidth_mem = self.bandWidth
+        cdef np.int_t[:] num_tones_mem = self.num_tones
+        cdef np.int_t[:] nr_mem = self.nr
+        cdef np.int_t[:] nc_mem = self.nc
+        cdef np.int_t[:] rssi_mem = self.rssi
+        cdef np.int_t[:] rssi_1_mem = self.rssi_1
+        cdef np.int_t[:] rssi_2_mem = self.rssi_2
+        cdef np.int_t[:] rssi_3_mem = self.rssi_3
+        cdef np.int_t[:] payload_len_mem = self.payload_len
+        cdef np.complex128_t[:, :, :, :] csi_mem = self.csi
+        cdef np.uint8_t[:, :] payload_mem = self.payload
 
         cdef int cur = 0
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
+        cdef size_t l
 
-        cdef int bits_left
-        cdef int bitmask
-        cdef int idx
-        cdef int h_data
-        cdef int curren_data
-        cdef int k, nc_idx, nr_idx
-        cdef int imag
-        cdef int real
+        cdef int bits_left, bitmask, idx, h_data, curren_data
+        cdef int k, nc_idx, nr_idx, imag, real
         cdef unsigned char buf[4096]
         cdef unsigned char csi_buf[4096]
 
         while cur < (lens - 4):
-            fread(&buf, sizeof(unsigned char), 2, f)
+            l = fread(&buf, sizeof(unsigned char), 2, f)
             field_len = int.from_bytes(buf[:2], byteorder=endian)
             cur += 2
             if (cur + field_len) > lens:
                 break
-            
-            fread(&buf, sizeof(unsigned char), 25, f)
+
+            l = fread(&buf, sizeof(unsigned char), 25, f)
             timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=endian)
             csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=endian)
             tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=endian)
@@ -880,7 +809,7 @@ cdef class Atheros:
 
             c_len = csi_len_mem[count]
             if c_len > 0:
-                fread(&csi_buf, sizeof(unsigned char), c_len, f)
+                l = fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
                 bitmask = (1 << 10) - 1
 
@@ -929,14 +858,11 @@ cdef class Atheros:
             pl_len = payload_len_mem[count]
             pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
-                fread(&buf, sizeof(unsigned char), pl_len, f)
+                l = fread(&buf, sizeof(unsigned char), pl_len, f)
                 self.payload[count, :pl_stop] = bytearray(buf[:pl_stop])
                 cur += pl_len
 
-            if (cur + 420 > lens):
-                count -= 1
-                break
-
+            # In matlab, read_log_file drops the last two packets, but here we keep them.
             count += 1
 
         fclose(f)
@@ -981,6 +907,152 @@ cdef class Atheros:
         self.payload = self.payload[:count]
         self.count = count
 
+    cpdef pmsg(self, data, endian='little'):
+        """Parse message in real time
+
+        Args:
+            data: buffer
+            endian: ['little', 'big']
+
+            (data, endian='little')
+        """
+        cdef np.int64_t[:] timestamp_mem = self.timestamp
+        cdef np.int_t[:] csi_len_mem = self.csi_len
+        cdef np.int_t[:] tx_channel_mem = self.tx_channel
+        cdef np.int_t[:] err_info_mem = self.err_info
+        cdef np.int_t[:] noise_floor_mem = self.noise_floor
+        cdef np.int_t[:] Rate_mem = self.Rate
+        cdef np.int_t[:] bandWidth_mem = self.bandWidth
+        cdef np.int_t[:] num_tones_mem = self.num_tones
+        cdef np.int_t[:] nr_mem = self.nr
+        cdef np.int_t[:] nc_mem = self.nc
+        cdef np.int_t[:] rssi_mem = self.rssi
+        cdef np.int_t[:] rssi_1_mem = self.rssi_1
+        cdef np.int_t[:] rssi_2_mem = self.rssi_2
+        cdef np.int_t[:] rssi_3_mem = self.rssi_3
+        cdef np.int_t[:] payload_len_mem = self.payload_len
+        cdef np.complex128_t[:, :, :, :] csi_mem = self.csi
+        cdef np.uint8_t[:, :] payload_mem = self.payload
+
+        cdef int count = 0
+        cdef int c_len, pl_len, pl_stop
+
+        cdef int bits_left, bitmask, idx, h_data, curren_data
+        cdef int k, nc_idx, nr_idx, imag, real
+        cdef unsigned char buf[4096]
+        cdef unsigned char *csi_buf
+
+        for i in range(len(data)-1):
+            buf[i] = data[i]
+        timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=endian)
+        csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=endian)
+        tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=endian)
+        err_info_mem[count] = buf[12]
+        noise_floor_mem[count] = buf[13]
+        Rate_mem[count] = buf[14]
+        bandWidth_mem[count] = buf[15]
+        num_tones_mem[count] = buf[16]
+        nr_mem[count] = buf[17]
+        nc_mem[count] = buf[18]
+        rssi_mem[count] = buf[19]
+        rssi_1_mem[count] = buf[20]
+        rssi_2_mem[count] = buf[21]
+        rssi_3_mem[count] = buf[22]
+        payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=endian)
+
+        if buf[17] > self.Nrxnum:
+            raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+        if buf[18] > self.Ntxnum:
+            raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+
+        c_len = csi_len_mem[count]
+        if c_len > 0:
+            csi_buf = &buf[25]
+            bits_left = 16
+            bitmask = (1 << 10) - 1
+
+            idx = 0
+            h_data = csi_buf[idx]
+            idx += 1
+            h_data += (csi_buf[idx] << 8)
+            idx += 1
+            curren_data = h_data & ((1 << 16) - 1)
+
+            for k in range(buf[16]):
+                for nr_idx in range(buf[17]):
+                    for nc_idx in range(buf[18]):
+                        # imag
+                        if (bits_left - 10) < 0:
+                            h_data = csi_buf[idx]
+                            idx += 1
+                            h_data += (csi_buf[idx] << 8)
+                            idx += 1
+                            curren_data += h_data << bits_left
+                            bits_left += 16
+                        imag = curren_data & bitmask
+                        if imag & (1 << 9):
+                            imag -= (1 << 10)
+
+                        bits_left -= 10
+                        curren_data = curren_data >> 10
+                        # real
+                        if (bits_left - 10) < 0:
+                            h_data = csi_buf[idx]
+                            idx += 1
+                            h_data += (csi_buf[idx] << 8)
+                            idx += 1
+                            curren_data += h_data << bits_left
+                            bits_left += 16
+                        real = curren_data & bitmask
+                        if real & (1 << 9):
+                            real -= (1 << 10)
+
+                        bits_left -= 10
+                        curren_data = curren_data >> 10
+                        # csi
+                        set_csi_mem(csi_mem, count, k, nr_idx, nc_idx, real, imag)
+
+        pl_len = payload_len_mem[count]
+        pl_stop = min(pl_len, self.pl_size)
+        if pl_len > 0:
+            self.payload[count, :pl_stop] = bytearray(buf[25+c_len:25+c_len+pl_stop])
+
+        del timestamp_mem
+        del csi_len_mem
+        del tx_channel_mem
+        del err_info_mem
+        del noise_floor_mem
+        del Rate_mem
+        del bandWidth_mem
+        del num_tones_mem
+        del nr_mem
+        del nc_mem
+        del rssi_mem
+        del rssi_1_mem
+        del rssi_2_mem
+        del rssi_3_mem
+        del payload_len_mem
+        del csi_mem
+        del payload_mem
+
+    def readstp(self, endian='little'):
+        """Parse timestamp when packet was received.
+
+        Note:
+            `file.dat` and `file.datstp` must be in the same directory.
+
+            (endian='little')
+        """
+        stpfile = self.file + "stp"
+        lens = os.path.getsize(stpfile)
+        self.stp = np.zeros(lens // 8)
+        format_string = '<LL' if endian == 'little' else '>LL'
+        with open(stpfile, "rb") as f:
+            for i in range(lens // 8):
+                a, b = struct.unpack(format_string, f.read(8))
+                self.stp[i] = a + b / 1000000
+        return self.stp[0]
+
     def __report(self, count):
         """report parsed result."""
         print(str(count) + " packets parsed")
@@ -988,17 +1060,17 @@ cdef class Atheros:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void intel_mm_o3(double complex[:, :, :] ret_mem,
-                             double complex[:, :, :] scaled_csi_mem,
-                             double complex[:, :] sm, int N, int M):
+cdef inline void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
+                             np.complex128_t[:, :, :] scaled_csi_mem,
+                             np.complex128_t[:, :] sm, int N, int M):
     """Matrix multiplication of O^3
     
     the function uses a trick of GEMM. It can be faster by using OPENMP and BLAS, but
     needs more dependencies.
     """
-    cdef int i, j, k, g
-    cdef double complex sm00, sm01, sm02, sm10, sm11, sm12, sm20, sm21, sm22
-    cdef double complex r0, r1, r2
+    cdef int i, j
+    cdef np.complex128_t sm00, sm01, sm02, sm10, sm11, sm12, sm20, sm21, sm22
+    cdef np.complex128_t r0, r1, r2
 
     if M == 2:
         sm00 = sm[0, 0]
@@ -1033,20 +1105,18 @@ cdef inline void intel_mm_o3(double complex[:, :, :] ret_mem,
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void set_csi_mem(double complex[:, :, :, :] csi_mem, int count,
+cdef inline void set_csi_mem(np.complex128_t[:, :, :, :] csi_mem, int count,
 							 int s, int r, int t, double real, double imag):
     csi_mem[count, s, r, t] = real + imag * 1.j
 
 
-cdef __btype():
-    btype = None
-    if sys.platform == 'linux':
-        if platform.architecture()[0] == "64bit":
-            btype = np.int64
-        else:
-            btype = np.int32
-    elif sys.platform == 'win32':
-        btype = np.int32
-    else:
-        raise Exception("Error: Only work on linux and windows !\n")
-    return btype
+cdef inline uint32_t cu32(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
+    return a | (b << 8) | (c << 16) | (d << 24)
+
+
+cdef inline uint16_t cu16(uint8_t a, uint8_t b):
+    return a | (b << 8)
+
+
+cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
+    return ((a >> remainder) | (b << (8 - remainder))) & 0xff
