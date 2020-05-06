@@ -5,7 +5,7 @@ and 'Atheros CSI Tool'.
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
 from libc.stdio cimport FILE, SEEK_END, SEEK_SET, SEEK_CUR
 from libc.stddef cimport size_t
-from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t
+from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t, uint64_t
 
 import os
 import struct
@@ -212,8 +212,8 @@ cdef class CSI:
                 if l != (field_len - 1):
                     break  # finished
 
-                timestamp_low_mem[count_0xbb] = cu32(buf[0], buf[1], buf[2], buf[3])
-                bfee_count_mem[count_0xbb] = cu16(buf[4], buf[5])
+                timestamp_low_mem[count_0xbb] = cu32l(buf[0], buf[1], buf[2], buf[3])
+                bfee_count_mem[count_0xbb] = cu16l(buf[4], buf[5])
                 Nrx_mem[count_0xbb] = buf[8]
                 Ntx_mem[count_0xbb] = buf[9]
                 rssiA_mem[count_0xbb] = buf[10]
@@ -221,7 +221,7 @@ cdef class CSI:
                 rssiC_mem[count_0xbb] = buf[12]
                 noise_mem[count_0xbb] = <int8_t>buf[13]
                 agc_mem[count_0xbb] = buf[14]
-                rate_mem[count_0xbb] = cu16(buf[18], buf[19])
+                rate_mem[count_0xbb] = cu16l(buf[18], buf[19])
 
                 perm_mem[count_0xbb, 0] = (buf[15] & 0x3)
                 perm_mem[count_0xbb, 1] = ((buf[15] >> 2) & 0x3)
@@ -253,15 +253,15 @@ cdef class CSI:
                 if l != (field_len - 1):
                     break  # finished
 
-                fc_mem[count_0xc1] = cu16(buf[0], buf[1])
-                dur_mem[count_0xc1] = cu16(buf[2], buf[3])
+                fc_mem[count_0xc1] = cu16l(buf[0], buf[1])
+                dur_mem[count_0xc1] = cu16l(buf[2], buf[3])
 
                 for g in range(6):
                     addr_des_mem[count_0xc1, g] = buf[4+g]
                     addr_src_mem[count_0xc1, g] = buf[10+g]
                     addr_bssid_mem[count_0xc1, g] = buf[16+g]
 
-                seq_mem[count_0xc1] = cu16(buf[22], buf[23])
+                seq_mem[count_0xc1] = cu16l(buf[22], buf[23])
 
                 for g in range(min(self.pl_size, field_len - 1)):
                     payload_mem[count_0xc1, g] = buf[g]
@@ -363,8 +363,8 @@ cdef class CSI:
             buf[i] = data[1+i]
 
         if code == 0xbb:
-            timestamp_low_mem[0] = cu32(buf[0], buf[1], buf[2], buf[3])
-            bfee_count_mem[0] = cu16(buf[4], buf[5])
+            timestamp_low_mem[0] = cu32l(buf[0], buf[1], buf[2], buf[3])
+            bfee_count_mem[0] = cu16l(buf[4], buf[5])
             Nrx_mem[0] = buf[8]
             Ntx_mem[0] = buf[9]
             rssiA_mem[0] = buf[10]
@@ -372,7 +372,7 @@ cdef class CSI:
             rssiC_mem[0] = buf[12]
             noise_mem[0] = <int8_t>buf[13]
             agc_mem[0] = buf[14]
-            rate_mem[0] = cu16(buf[18], buf[19])
+            rate_mem[0] = cu16l(buf[18], buf[19])
 
             perm_mem[0, 0] = (buf[15] & 0x3)
             perm_mem[0, 1] = ((buf[15] >> 2) & 0x3)
@@ -398,15 +398,15 @@ cdef class CSI:
                         set_csi_mem(csi_mem, 0, i, perm_j, k, a, b)
                         index = index + 16
         if code == 0xc1:
-            fc_mem[0] = cu16(buf[0], buf[1])
-            dur_mem[0] = cu16(buf[2], buf[3])
+            fc_mem[0] = cu16l(buf[0], buf[1])
+            dur_mem[0] = cu16l(buf[2], buf[3])
 
             for g in range(6):
                 addr_des_mem[0, g] = buf[4+g]
                 addr_src_mem[0, g] = buf[10+g]
                 addr_bssid_mem[0, g] = buf[16+g]
 
-            seq_mem[0] = cu16(buf[22], buf[23])
+            seq_mem[0] = cu16l(buf[22], buf[23])
 
             for g in range(min(self.pl_size, len(data) - 1)):
                 payload_mem[0, g] = buf[g]
@@ -482,7 +482,8 @@ cdef class CSI:
         for i in range(self.count):
             temp_sum = 0
             for j in range(flat):
-                temp_sum = temp_sum + csi_mem[i, j].real * csi_mem[i, j].real + csi_mem[i, j].imag * csi_mem[i, j].imag
+                with cython.boundscheck(False):
+                    temp_sum += csi_mem[i, j].real * csi_mem[i, j].real + csi_mem[i, j].imag * csi_mem[i, j].imag
             csi_pwr_mem[i] = temp_sum
         del csi_pwr_mem
         del csi_mem
@@ -569,18 +570,19 @@ cdef class CSI:
 
     cdef __remove_sm(self, scaled_csi, inplace=False):
         """Actually undo the input spatial mapping"""
+        #  Conjugate Transpose
         sm_2_20 = np.array([[1, 1],
                             [1, -1]], dtype=np.complex_) / np.sqrt(2)
-        sm_2_40 = np.array([[1, 1j],
-                            [1j, 1]], dtype=np.complex_) / np.sqrt(2)
-        sm_3_20 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 33), 2 * np.pi / (80 / 3)],
-                            [ 2 * np.pi / (80 / 23), 2 * np.pi / (48 / 13), 2 * np.pi / (240 / 13)],
-                            [-2 * np.pi / (80 / 13), 2 * np.pi / (240 / 37), 2 * np.pi / (48 / 13)]], dtype=np.complex_)
-        sm_3_20 = np.power(np.exp(1), 1j * sm_3_20) / np.sqrt(3)
-        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 13), 2 * np.pi / (80 / 23)],
-                            [-2 * np.pi / (80 / 37), -2 * np.pi / (48 / 11), -2 * np.pi / (240 / 107)],
-                            [ 2 * np.pi / (80 / 7), -2 * np.pi / (240 / 83), -2 * np.pi / (48 / 11)]], dtype=np.complex_)
-        sm_3_40 = np.power(np.exp(1), 1j * sm_3_40) / np.sqrt(3)
+        sm_2_40 = np.array([[1, -1j],
+                            [-1j, 1]], dtype=np.complex_) / np.sqrt(2)
+        sm_3_20 = np.array([[-2 * np.pi / 16, 2 * np.pi / (80 / 23), -2 * np.pi / (80 / 13)],
+                            [ -2 * np.pi / (80 / 33), 2 * np.pi / (48 / 13), 2 * np.pi / (240 / 37)],
+                            [2 * np.pi / (80 / 3), 2 * np.pi / (240 / 13), 2 * np.pi / (48 / 13)]], dtype=np.complex_)
+        sm_3_20 = np.power(np.e, -1j * sm_3_20) / np.sqrt(3)
+        sm_3_40 = np.array([[-2 * np.pi / 16, -2 * np.pi / (80 / 37), 2 * np.pi / (80 / 7)],
+                            [-2 * np.pi / (80 / 13), -2 * np.pi / (48 / 11), -2 * np.pi / (240 / 83)],
+                            [ 2 * np.pi / (80 / 23), -2 * np.pi / (240 / 107), -2 * np.pi / (48 / 11)]], dtype=np.complex_)
+        sm_3_40 = np.power(np.e, -1j * sm_3_40) / np.sqrt(3)
 
         # Ntx is not a constant array
         if inplace:
@@ -773,21 +775,31 @@ cdef class Atheros:
         cdef size_t l
 
         cdef int bits_left, bitmask, idx, h_data, curren_data
-        cdef int k, nc_idx, nr_idx, imag, real
+        cdef int k, nc_idx, nr_idx, imag, real, i
         cdef unsigned char buf[4096]
         cdef unsigned char csi_buf[4096]
+        if endian == "little":
+            ath_cu16 = cu16l
+            ath_cu64 = cu64l
+        elif endian == "big":
+            ath_cu16 = cu16b
+            ath_cu64 = cu64b
+        else:
+            fclose(f)
+            raise ValueError("byteorder must be either 'little' or 'big'")
 
         while cur < (lens - 4):
             l = fread(&buf, sizeof(unsigned char), 2, f)
-            field_len = int.from_bytes(buf[:2], byteorder=endian)
+            field_len = ath_cu16(buf[0], buf[1])
             cur += 2
             if (cur + field_len) > lens:
                 break
 
             l = fread(&buf, sizeof(unsigned char), 25, f)
-            timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=endian)
-            csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=endian)
-            tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=endian)
+            timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
+            csi_len_mem[count] = ath_cu16(buf[8], buf[9])
+            tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
+            payload_len_mem[count] = ath_cu16(buf[23], buf[24])
             err_info_mem[count] = buf[12]
             noise_floor_mem[count] = buf[13]
             Rate_mem[count] = buf[14]
@@ -799,7 +811,6 @@ cdef class Atheros:
             rssi_1_mem[count] = buf[20]
             rssi_2_mem[count] = buf[21]
             rssi_3_mem[count] = buf[22]
-            payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=endian)
             cur += 25
 
             if buf[17] > self.Nrxnum:
@@ -859,7 +870,8 @@ cdef class Atheros:
             pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
                 l = fread(&buf, sizeof(unsigned char), pl_len, f)
-                self.payload[count, :pl_stop] = bytearray(buf[:pl_stop])
+                for i in range(pl_stop):
+                    payload_mem[count, i] = buf[i]
                 cur += pl_len
 
             # In matlab, read_log_file drops the last two packets, but here we keep them.
@@ -938,15 +950,24 @@ cdef class Atheros:
         cdef int c_len, pl_len, pl_stop
 
         cdef int bits_left, bitmask, idx, h_data, curren_data
-        cdef int k, nc_idx, nr_idx, imag, real
+        cdef int k, nc_idx, nr_idx, imag, real, i
         cdef unsigned char buf[4096]
         cdef unsigned char *csi_buf
 
         for i in range(len(data)-1):
             buf[i] = data[i]
-        timestamp_mem[count] = int.from_bytes(buf[:8], byteorder=endian)
-        csi_len_mem[count] = int.from_bytes(buf[8:10], byteorder=endian)
-        tx_channel_mem[count] = int.from_bytes(buf[10:12], byteorder=endian)
+        if endian == "little":
+            ath_cu16 = cu16l
+            ath_cu64 = cu64l
+        elif endian == "big":
+            ath_cu16 = cu16b
+            ath_cu64 = cu64b
+        else:
+            raise ValueError("byteorder must be either 'little' or 'big'")
+        timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
+        csi_len_mem[count] = ath_cu16(buf[8], buf[9])
+        tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
+        payload_len_mem[count] = ath_cu16(buf[23], buf[24])
         err_info_mem[count] = buf[12]
         noise_floor_mem[count] = buf[13]
         Rate_mem[count] = buf[14]
@@ -958,7 +979,6 @@ cdef class Atheros:
         rssi_1_mem[count] = buf[20]
         rssi_2_mem[count] = buf[21]
         rssi_3_mem[count] = buf[22]
-        payload_len_mem[count] = int.from_bytes(buf[23:25], byteorder=endian)
 
         if buf[17] > self.Nrxnum:
             raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
@@ -1015,7 +1035,8 @@ cdef class Atheros:
         pl_len = payload_len_mem[count]
         pl_stop = min(pl_len, self.pl_size)
         if pl_len > 0:
-            self.payload[count, :pl_stop] = bytearray(buf[25+c_len:25+c_len+pl_stop])
+            for i in range(pl_stop):
+                payload_mem[count, i] = buf[25+c_len+i]
 
         del timestamp_mem
         del csi_len_mem
@@ -1060,7 +1081,7 @@ cdef class Atheros:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
+cdef void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
                              np.complex128_t[:, :, :] scaled_csi_mem,
                              np.complex128_t[:, :] sm, int N, int M):
     """Matrix multiplication of O^3
@@ -1110,13 +1131,25 @@ cdef inline void set_csi_mem(np.complex128_t[:, :, :, :] csi_mem, int count,
     csi_mem[count, s, r, t] = real + imag * 1.j
 
 
-cdef inline uint32_t cu32(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
+cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
+    return ((a >> remainder) | (b << (8 - remainder))) & 0xff
+
+
+cdef inline uint32_t cu32l(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
     return a | (b << 8) | (c << 16) | (d << 24)
 
 
-cdef inline uint16_t cu16(uint8_t a, uint8_t b):
+cdef inline uint16_t cu16l(uint8_t a, uint8_t b):
     return a | (b << 8)
 
 
-cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
-    return ((a >> remainder) | (b << (8 - remainder))) & 0xff
+cdef inline uint16_t cu16b(uint8_t a, uint8_t b):
+    return b | (a << 8)
+
+
+cdef inline uint64_t cu64l(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h):
+    return a | (b << 8) | (c << 16) | (d << 24) | (e << 32) | (f << 40) | (g << 48) | (h << 56)
+
+
+cdef inline uint64_t cu64b(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t e, uint64_t f, uint64_t g, uint64_t h):
+    return h | (g << 8) | (f << 16) | (e << 24) | (d << 32) | (c << 40) | (b << 48) | (a << 56)
