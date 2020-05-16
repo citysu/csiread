@@ -13,7 +13,7 @@ Note:
     ----------------------------------------------------------------------
     | packet type | field_len | code | header |       payload       | CRC |
     |     0xbb    |     2     |   1  |   20   | 12 + 60 * Ntx * Nrx |     |
-    |     0xc1    |     2     |   1  | 4 + 20 |       pl_size       |  4  |
+    |     0xc1    |     2     |   1  | 4 + 20 |    pl_size - 28     |  4  |
     ----------------------------------------------------------------------
     csifile_size = os.path.getsize(csifile)
     packet_number = csifile_size // packet_size

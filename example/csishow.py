@@ -13,27 +13,44 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-carriers_seq_30 = np.array([-28, -26, -24, -22, -20, -18, -16, -14, -12,
-                            -10, -8, -6, -4, -2, -1, 1, 3, 5, 7, 9, 11, 13,
-                            15, 17, 19, 21, 23, 25, 27, 28])
+
+def get_subcarriers_index(bw, ng):
+    """subcarriers index
+
+    Args:
+        bw: bandwitdh(20, 40)
+        ng: grouping(1, 2, 4)
+    """
+    if bw not in [20, 40] or ng not in [1, 2, 4]:
+        return None
+    if bw == 20:
+        a = [i for i in range(-28, -1, ng)] + [-1]
+        b = [i for i in range(1, 28, ng)] + [28]
+    if bw == 40:
+        a = [i for i in range(-58, -2, ng)] + [-2]
+        b = [i for i in range(2, 58, ng)] + [58]
+    return np.array(a + b)
 
 
-def calib(phase):
-    """Phase calibration(Lite version)
+def calib(phase, bw=20, ng=2):
+    """Phase calibration
 
     Note:
-        Work with BW(bandwidth)=20MHz and Ns(number of subcarriers)=30 here.
+        phase: it must be unwrapped, it should be a 2-D, 3-D
+            or 4-D array and the second dimension must be subcarriers
+        bw, ng: the same as `get_subcarriers_index`
 
     ref:
         [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
         (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
     """
-    k_n = carriers_seq_30[-1]
-    k_1 = carriers_seq_30[0]
-    a = ((phase[:, -1:] - phase[:, :1])/(k_n - k_1))
+    s_index = get_subcarriers_index(bw, ng)
+    k_n = s_index[-1]
+    k_1 = s_index[1]
+    a = ((phase[:, -1:] - phase[:, :1]) / (k_n - k_1))
     b = np.mean(phase, axis=1, keepdims=True)
-    carriers = carriers_seq_30.reshape([30] + [1] * (len(phase.shape) - 2))
-    phase_calib = phase - a*carriers - b
+    s_index = s_index.reshape([len(s_index)] + [1] * (len(phase.shape) - 2))
+    phase_calib = phase - a * s_index - b
     return phase_calib
 
 
@@ -59,11 +76,12 @@ def func_1(csidata):
 def func_2(csidata):
     csi = csidata.get_scaled_csi()
     amplitude = np.abs(csi)
+    s_index = get_subcarriers_index(20, 2)
 
     plt.figure()
-    plt.plot(carriers_seq_30, np.transpose(amplitude[:100, :, 0, 0]), 'r-', linewidth=0.3)
-    plt.plot(carriers_seq_30, np.transpose(amplitude[:100, :, 1, 0]), 'g-', linewidth=0.3)
-    plt.plot(carriers_seq_30, np.transpose(amplitude[:100, :, 2, 0]), 'y-', linewidth=0.3)
+    plt.plot(s_index, amplitude[:100, :, 0, 0].T, 'r-', linewidth=0.3)
+    plt.plot(s_index, amplitude[:100, :, 1, 0].T, 'g-', linewidth=0.3)
+    plt.plot(s_index, amplitude[:100, :, 2, 0].T, 'y-', linewidth=0.3)
 
     patch_1 = mpatches.Patch(color='red', label=':100_r0t0')
     patch_2 = mpatches.Patch(color='green', label=':100_r1t0')
@@ -98,11 +116,12 @@ def func_4(csidata):
     csi = csidata.get_scaled_csi()
     phase = np.unwrap(np.angle(csi), axis=1)
     phase = calib(phase)
+    s_index = get_subcarriers_index(20, 2)
 
     plt.figure(4)
-    plt.plot(carriers_seq_30, np.transpose(phase[:100, :, 0, 0]), 'r-', linewidth=0.3)
-    plt.plot(carriers_seq_30, np.transpose(phase[:100, :, 1, 0]), 'g-', linewidth=0.3)
-    plt.plot(carriers_seq_30, np.transpose(phase[:100, :, 2, 0]), 'y-', linewidth=0.3)
+    plt.plot(s_index, phase[:100, :, 0, 0].T, 'r-', linewidth=0.3)
+    plt.plot(s_index, phase[:100, :, 1, 0].T, 'g-', linewidth=0.3)
+    plt.plot(s_index, phase[:100, :, 2, 0].T, 'y-', linewidth=0.3)
 
     patch_1 = mpatches.Patch(color='red', label=':100_r0t0')
     patch_2 = mpatches.Patch(color='green', label=':100_r1t0')

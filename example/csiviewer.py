@@ -81,6 +81,10 @@ class GetDataThread(QThread):
     def __init__(self, parent):
         super(GetDataThread, self).__init__(parent)
 
+    def stop(self):
+        self.requestInterruption()
+        self.exit()
+
     def run(self):
         """get data in real time
 
@@ -97,7 +101,8 @@ class GetDataThread(QThread):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
-            while True:
+            # while True:		# `QThread: Destroyed while thread is still running`
+            while not self.isInterruptionRequested():
                 data, address_src = s.recvfrom(4096)
                 msg_len = len(data)
 
@@ -259,6 +264,10 @@ class MainWindow(QWidget):
             self.setWindowState(self.windowState() ^ Qt.WindowFullScreen)
         if event.key() == Qt.Key_F1:
             self.ctrl.setVisible(not self.ctrl.isVisible())
+        event.accept()
+
+    def closeEvent(self, event):
+        self.task.stop()
         event.accept()
 
 

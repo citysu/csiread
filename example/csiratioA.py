@@ -34,8 +34,12 @@ mutex = QMutex()
 
 
 class GetDataThread(QThread):
-    def __init__(self):
-        super(GetDataThread, self).__init__()
+    def __init__(self, parent):
+        super(GetDataThread, self).__init__(parent)
+
+    def stop(self):
+        self.requestInterruption()
+        self.exit()
 
     def run(self):
         """get data in real time
@@ -53,7 +57,7 @@ class GetDataThread(QThread):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
-            while True:
+            while not self.isInterruptionRequested():
                 data, address_src = s.recvfrom(4096)
                 msg_len = len(data)
 
@@ -96,7 +100,7 @@ class MainWindow(QWidget):
         self.initPlot()
 
         # update cache
-        self.task = GetDataThread()
+        self.task = GetDataThread(self)
         self.task.start()
 
         # plot refresh
@@ -146,6 +150,10 @@ class MainWindow(QWidget):
             xscale = 1 - i / 200.
             self.curves[i].setData(xscale * self.X, i/2 + cache[i])
         mutex.unlock()
+
+    def closeEvent(self, event):
+        self.task.stop()
+        event.accept()
 
 
 if __name__ == "__main__":
