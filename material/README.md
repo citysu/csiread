@@ -13,7 +13,6 @@ __dataset/sample_0x5_64_3000.dat__: connector_log=0x5, channel_number=64, packet
 
 __dataset/sample_0x1_ap.dat__: ap mode
 
-__csi-get__: a shell script to start and stop `log_to_file` in ap mode
 
 ## Atheros
 

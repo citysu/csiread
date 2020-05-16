@@ -2,7 +2,7 @@
 
 Parse channel state information from raw CSI data file in Python.
 
-csiread can parse CSI obtained using [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/) fast. MPDU parsing only supports the specified frame format.
+csiread can parse CSI obtained using [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/). It is at least 15 times faster than the implementation in matlab. In addition, it also supports the MPDU parsing of the specified frame format.
 
 ## Install
 
@@ -35,6 +35,10 @@ print(csidata.csi.shape)
 Both CSI.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can parse it easily. For convenience, csiread.CSI returns the parsing result of the specified MAC header.
 
 Read `example/*.py` and `csiread/csiread.pyx` for more details.
+
+<center>contents of packets</center><img style="box-shadow: 0px 0px 5px #000000" src=sample1.png alt='smaple1.png'/>
+
+<center>real-time plotting</center><img style="box-shadow: 0px 0px 5px #000000" src=sample2.png alt='smaple2.png'/>
 
 ## Log
 
