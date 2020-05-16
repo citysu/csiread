@@ -228,9 +228,14 @@ cdef class CSI:
                 perm_mem[count_0xbb, 2] = ((buf[15] >> 4) & 0x3)
 
                 if buf[8] > self.Nrxnum:
-                    raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+                    fclose(f)
+                    raise ValueError("`Nrxnum=%d` is too small!\n" % (self.Nrxnum))
                 if buf[9] > self.Ntxnum:
-                    raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+                    fclose(f)
+                    raise ValueError("`Ntxnum=%d` is too small!\n" % (self.Ntxnum))
+                if buf[16] | (buf[17] << 8) != 60 * buf[8] * buf[9] + 12:
+                    fclose(f)
+                    raise Exception("Wrong beamforming matrix size, %dth packet is broken!" % (count_0xbb))
 
                 payload = &buf[20]
                 index = 0
@@ -238,7 +243,8 @@ cdef class CSI:
                     index = index + 3
                     remainder = index & 0x7
                     for j in range(buf[8]):
-                        perm_j = perm_mem[count_0xbb, j]
+                        with cython.boundscheck(False):
+                            perm_j = perm_mem[count_0xbb, j]
                         for k in range(buf[9]):
                             index_step = index >> 3
                             a = ccsi(payload[index_step + 0], payload[index_step + 1], remainder)
@@ -379,9 +385,12 @@ cdef class CSI:
             perm_mem[0, 2] = ((buf[15] >> 4) & 0x3)
 
             if buf[8] > self.Nrxnum:
-                raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+                raise ValueError("`Nrxnum=%d` is too small!\n" % (self.Nrxnum))
             if buf[9] > self.Ntxnum:
-                raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+                raise ValueError("`Ntxnum=%d` is too small!\n" % (self.Ntxnum))
+            if buf[16] | (buf[17] << 8) != 60 * buf[8] * buf[9] + 12:
+                print("Wrong beamforming matrix size, the packet is broken!")
+                return code
 
             payload = &buf[20]
             index = 0
@@ -389,7 +398,8 @@ cdef class CSI:
                 index = index + 3
                 remainder = index & 0x7
                 for j in range(buf[8]):
-                    perm_j = perm_mem[0, j]
+                    with cython.boundscheck(False):
+                        perm_j = perm_mem[0, j]
                     for k in range(buf[9]):
                         index_step = index >> 3
                         a = ccsi(payload[index_step + 0], payload[index_step + 1], remainder)
@@ -677,7 +687,7 @@ cdef class Atheros:
         self.if_report = if_report
 
         if Tones not in [56, 114]:
-            raise Exception("Error: Tones can only take 56 and 114, Stop!\n")
+            raise ValueError("Tones can only take 56 and 114!\n")
 
         if file is None:
             self.count = 1
@@ -772,7 +782,7 @@ cdef class Atheros:
         cdef int cur = 0
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
-        cdef size_t l
+        cdef size_t l, field_len
 
         cdef int bits_left, bitmask, idx, h_data, curren_data
         cdef int k, nc_idx, nr_idx, imag, real, i
@@ -814,9 +824,11 @@ cdef class Atheros:
             cur += 25
 
             if buf[17] > self.Nrxnum:
-                raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+                fclose(f)
+                raise ValueError("`Nrxnum=%d` is too small!\n" % (self.Nrxnum))
             if buf[18] > self.Ntxnum:
-                raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+                fclose(f)
+                raise ValueError("`Ntxnum=%d` is too small!\n" % (self.Ntxnum))
 
             c_len = csi_len_mem[count]
             if c_len > 0:
@@ -981,9 +993,9 @@ cdef class Atheros:
         rssi_3_mem[count] = buf[22]
 
         if buf[17] > self.Nrxnum:
-            raise Exception("Error: `Nrxnum=%d` is too small, Stop!\n" % (self.Nrxnum))
+            raise ValueError("`Nrxnum=%d` is too small!\n" % (self.Nrxnum))
         if buf[18] > self.Ntxnum:
-            raise Exception("Error: `Ntxnum=%d` is too small, Stop!\n" % (self.Ntxnum))
+            raise ValueError("`Ntxnum=%d` is too small!\n" % (self.Ntxnum))
 
         c_len = csi_len_mem[count]
         if c_len > 0:
