@@ -1,100 +1,84 @@
 import numpy as np
 import os
-import sys
-import platform
+from timeit import default_timer
 
 
 class Atheros:
-    def __init__(self, filepath, Nrxnum=3, Ntxnum=2, Tones=114, pl_len=1040,
-                 if_report=True):
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, Tones=56, pl_len=0, if_report=True):
         """Parameter initialization."""
-        self.filepath = filepath
+        self.file = file
         self.Nrxnum = Nrxnum
         self.Ntxnum = Ntxnum
         self.Tones = Tones
         self.pl_len = pl_len
         self.if_report = if_report
 
-        if not os.path.isfile(filepath):
+        if not os.path.isfile(file):
             raise Exception("error: file does not exist, Stop!\n")
 
-    def read(self):
-        f = open(self.filepath, 'rb')
+    def read(self, endian='little'):
+        f = open(self.file, 'rb')
         if f is None:
             f.close()
             return -1
 
-        len = f.seek(0, os.SEEK_END)
-        f.seek(0, os.SEEK_SET)
+        lens = os.path.getsize(self.file)
+        btype = np.int_
+        self.timestamp = np.zeros([lens//420])
+        self.csi_len = np.zeros([lens//420], dtype=btype)
+        self.tx_channel = np.zeros([lens//420], dtype=btype)
+        self.err_info = np.zeros([lens//420], dtype=btype)
+        self.noise_floor = np.zeros([lens//420], dtype=btype)
+        self.Rate = np.zeros([lens//420], dtype=btype)
+        self.bandWidth = np.zeros([lens//420], dtype=btype)
+        self.num_tones = np.zeros([lens//420], dtype=btype)
+        self.nr = np.zeros([lens//420], dtype=btype)
+        self.nc = np.zeros([lens//420], dtype=btype)
+        self.rssi = np.zeros([lens//420], dtype=btype)
+        self.rssi_1 = np.zeros([lens//420], dtype=btype)
+        self.rssi_2 = np.zeros([lens//420], dtype=btype)
+        self.rssi_3 = np.zeros([lens//420], dtype=btype)
+        self.payload_len = np.zeros([lens//420], dtype=btype)
+        self.csi = np.zeros([lens//420, self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+        self.payload = np.zeros([lens//420, self.pl_len], dtype=btype)
 
-        btype = None
-        if sys.platform == 'linux':
-            if platform.architecture()[0] == "64bit":
-                btype = np.int64
-            else:
-                btype = np.int32
-        elif sys.platform == 'win32':
-            btype = np.int32
-        else:
-            raise Exception("error: Only works on linux and windows !\n")
-
-        self.timestamp = np.zeros([len//420])
-        self.csi_len = np.zeros([len//420], dtype=btype)
-        self.tx_channel = np.zeros([len//420], dtype=btype)
-        self.err_info = np.zeros([len//420], dtype=btype)
-        self.noise_floor = np.zeros([len//420], dtype=btype)
-        self.Rate = np.zeros([len//420], dtype=btype)
-        self.bandWidth = np.zeros([len//420], dtype=btype)
-        self.num_tones = np.zeros([len//420], dtype=btype)
-        self.nr = np.zeros([len//420], dtype=btype)
-        self.nc = np.zeros([len//420], dtype=btype)
-        self.rssi = np.zeros([len//420], dtype=btype)
-        self.rssi_1 = np.zeros([len//420], dtype=btype)
-        self.rssi_2 = np.zeros([len//420], dtype=btype)
-        self.rssi_3 = np.zeros([len//420], dtype=btype)
-        self.payload_len = np.zeros([len//420], dtype=btype)
-        self.csi = np.zeros([len//420, self.Tones, self.Nrxnum, self.Ntxnum],
-                            dtype=np.complex128)
-        self.payload = np.zeros([len//420, self.pl_len], dtype=btype)
-
-        border = 'little'
         cur = 0
         count = 0
-        while cur < (len - 4):
-            field_len = int.from_bytes(f.read(2), byteorder=border)
+        while cur < (lens - 4):
+            field_len = int.from_bytes(f.read(2), byteorder=endian)
             cur += 2
-            if (cur + field_len) > len:
+            if (cur + field_len) > lens:
                 break
 
-            self.timestamp[count] = int.from_bytes(f.read(8), byteorder=border)
+            self.timestamp[count] = int.from_bytes(f.read(8), byteorder=endian)
             cur += 8
-            self.csi_len[count] = int.from_bytes(f.read(2), byteorder=border)
+            self.csi_len[count] = int.from_bytes(f.read(2), byteorder=endian)
             cur += 2
-            self.tx_channel[count] = int.from_bytes(f.read(2), byteorder=border)
+            self.tx_channel[count] = int.from_bytes(f.read(2), byteorder=endian)
             cur += 2
-            self.err_info[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.err_info[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.noise_floor[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.noise_floor[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.Rate[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.Rate[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.bandWidth[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.bandWidth[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.num_tones[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.num_tones[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.nr[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.nr[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.nc[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.nc[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.rssi[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.rssi[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.rssi_1[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.rssi_1[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.rssi_2[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.rssi_2[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.rssi_3[count] = int.from_bytes(f.read(1), byteorder=border)
+            self.rssi_3[count] = int.from_bytes(f.read(1), byteorder=endian)
             cur += 1
-            self.payload_len[count] = int.from_bytes(f.read(2), byteorder=border)
+            self.payload_len[count] = int.from_bytes(f.read(2), byteorder=endian)
             cur += 2
 
             c_len = self.csi_len[count]
@@ -106,16 +90,16 @@ class Atheros:
                 self.csi[count] = None
 
             pl_len = self.payload_len[count]
+            pl_stop = min(pl_len, self.pl_len, 0)
             if pl_len > 0:
-                self.payload[count, :pl_len] = bytearray(f.read(pl_len))
+                self.payload[count, :pl_stop] = bytearray(f.read(pl_len))[:pl_stop]
                 cur += pl_len
             else:
-                self.payload[count, :pl_len] = 0
+                self.payload[count, :pl_stop] = 0
 
-            if (cur + 420 > len):
+            if (cur + 420 > lens):
                 count -= 1
                 break
-            print("cur: ", count, cur)
             count += 1
 
         self.timestamp = self.timestamp[:count]
@@ -189,3 +173,10 @@ class Atheros:
         if data & (1 << (maxbit - 1)):
             data -= (1 << maxbit)
         return data
+
+
+if __name__ == '__main__':
+	last = default_timer()
+	csidata = Atheros('dataset/ath_csi_1.dat', Nrxnum=3, Ntxnum=2, pl_len=10, if_report=True)
+	csidata.read()
+	print(default_timer() - last, 's')

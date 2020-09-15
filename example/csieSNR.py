@@ -191,8 +191,6 @@ def main():
     csidata = csiread.CSI('../material/5300/dataset/sample_0x5_64_3000.dat')
     csidata.read()
     scaled_csi = csidata.get_scaled_csi()
-    # scaled_csi_sm = csidata.get_scaled_csi_sm()
-    # scaled_csi_sm = csidata.apply_sm(scaled_csi)
     preNrx = max(csidata.Nrx)
     preNtx = max(csidata.Ntx)
     if max(csidata.Nrx) != min(csidata.Nrx):

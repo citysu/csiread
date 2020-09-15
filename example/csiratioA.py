@@ -57,8 +57,12 @@ class GetDataThread(QThread):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
+            s.settimeout(30/1000)
             while not self.isInterruptionRequested():
-                data, address_src = s.recvfrom(4096)
+                try:
+                    data, address_src = s.recvfrom(4096)
+                except socket.timeout:
+                    continue
                 msg_len = len(data)
 
                 code = csidata.pmsg(data)
@@ -140,7 +144,7 @@ class MainWindow(QWidget):
         self.timer = QTimer()
         self.timer.setTimerType(0)
         self.timer.timeout.connect(self.updatePlot)
-        self.timer.start(1000/30)
+        self.timer.start(1000//30)
 
     @pyqtSlot()
     def updatePlot(self):

@@ -66,6 +66,41 @@ def calib(phase, bw=20, ng=2):
     return phase_calib
 
 
+def phy_ifft(x, axis=0, bw=20, ng=2):
+    """802.11n IFFT
+    
+    Return discrete inverse Fourier transform of real or complex sequence. it
+    is based on Equation (19-25)(P2373)
+
+    Note:
+        1. No ifftshift
+        2. Don't use scipy.fftpack.ifft, it is different from Equation (19-25)
+            and Equation (17-9)
+    """
+    x = np.expand_dims(x.swapaxes(-1, axis), -2)
+    k = get_subcarriers_index(bw, ng)
+    delta_f = 20e6 / 64
+    t = np.arange(64).reshape(-1, 1) / 20e6
+
+    out = (x * np.exp(1.j * 2 * np.pi * k * delta_f * t)).mean(axis=-1).swapaxes(-1, axis)
+    return out
+
+
+def phy_fft(x, axis=0, bw=20, ng=2):
+    """802.11n FFT
+
+    Return discrete Fourier transform of real or complex sequence.
+    """
+    x = np.expand_dims(x.swapaxes(-1, axis), -1)
+    k = get_subcarriers_index(bw, ng)
+    delta_f = 20e6 / 64
+    t = np.arange(64).reshape(-1, 1) / 20e6
+
+    scale = k.size / 64
+    out = (x * np.exp(1.j * -2 * np.pi * k * delta_f * t)).sum(axis=-2).swapaxes(-1, axis) * scale
+    return out
+
+
 def fig_2(csidata, index=34):
     """fig_2
 
@@ -79,7 +114,7 @@ def fig_2(csidata, index=34):
     """
     csi = csidata.csi
 
-    pdp = np.power(np.abs(ifft(csi, axis=1)), 2.0) / csi.shape[1]
+    pdp = np.power(np.abs(phy_ifft(csi, axis=1)), 2.0) / csi.shape[1]
     norm = lambda x: x / np.max(x)
 
     plt.figure()
@@ -114,6 +149,7 @@ def fig_4(athdata, index=26):
     plt.plot(amplidute[index].reshape(csi.shape[1], -1))
 
     # Fig.4(c)
+    # scipy.fftpack.fft or phy_fft ?
     A = np.log10(np.abs(fft(csi, n=64, axis=1)))
     plt.subplot(3, 1, 3)
     plt.plot(A[index].reshape(64, -1), '*--')
@@ -200,8 +236,9 @@ def alg_2(csi):
 
     Note: N_p = 1
     """
-    p = np.power(np.abs(ifftshift(ifft(csi, axis=1))), 2.0)
-    s = p.argmax(axis=1).reshape(csi.shape[0], -1)
+    p = np.power(np.abs(phy_ifft(csi, axis=1)), 2.0)
+    # find_peak() is better
+    s = p[:, :20].argmax(axis=1).reshape(csi.shape[0], -1)
     N_sto = get_subcarriers_index(20, 2)[mode(s, axis=1)[0][:, 0]]
     N_sc = 64
     csi = derotate_formual16(csi, -2 * np.pi * N_sto / N_sc)
@@ -229,7 +266,7 @@ def alg_3(csi, index):
 
 def algshow(csidata):
     s_index = get_subcarriers_index(20, 2)
-    csi = csidata.csi
+    csi = csidata.csi[:500]
 
     plt.figure()
     
@@ -247,8 +284,6 @@ def algshow(csidata):
     phase = calib(phase)
     plt.subplot(3, 1, 2)
     plt.plot(s_index, phase[200:300, :, 0, 0].T)
-    # The phase difference of the positive x-axis and negative
-    # x-axis is pi, it may be caused by the parity of `s_index`
 
     # alg_3
     # csicopy = csi.copy()

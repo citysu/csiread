@@ -2,7 +2,9 @@
 
 Parse channel state information from raw CSI data file in Python.
 
-csiread can parse CSI obtained using [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/). It is at least 15 times faster than the implementation in matlab. In addition, it also supports the MPDU parsing of the specified frame format.
+- Full support for [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/)
+- At least 15 times faster than the implementation in Matlab
+- Real-time parsing
 
 ## Install
 
@@ -36,15 +38,19 @@ Both CSI.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can pa
 
 Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
-<center>contents of packets</center><img style="box-shadow: 0px 0px 5px #000000" src=sample1.png alt='smaple1.png'/>
+<center><b>contents of packets</b></center>
 
-<center>real-time plotting</center><img style="box-shadow: 0px 0px 5px #000000" src=sample2.png alt='smaple2.png'/>
+![contents of packets](sample1.png)
+
+<center><b>real-time plotting</b></center>
+
+![contents of packets](sample2.png )
 
 ## Log
 
 ### v1.3.4
 
-1. process data faster
+1. new feature: process data faster
 2. new feature: add in-place operation in csiread.CSI
 3. new feature: add CSI.pmsg() to parse message in real time.
 4. new feature: both CSI.payload and Atheros.payload are MPDU and stored in np.uint8 now.

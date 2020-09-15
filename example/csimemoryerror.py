@@ -4,7 +4,7 @@
 """CSI MemoryError: temporary solution to the MemoryError
 
 csiread may raise MemoryError when reading a super large file. here is a temporary solution
-without changing csiread. However, this error rarely happens. 
+without changing csiread. However, this error rarely happens.
 
 Note:
     csiread.CSI needs to know the count of packets in the csifile before parsing. It estimates
