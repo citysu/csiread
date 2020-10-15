@@ -19,7 +19,7 @@ Note:
         a larger value of delay. downsampling would be better.
     2. If you want to start it quickly on Linux, create a file named 'csiviewer.desktop'. 
         Copy the following code to 'csiviewer.desktop', and give it executable permissions.
-        Finally, you need change `Exec` manually.
+        Finally, you need set `Exec` manually.
 
         ```bash
         [Desktop Entry]

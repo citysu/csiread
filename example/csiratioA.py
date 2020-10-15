@@ -69,6 +69,7 @@ class GetDataThread(QThread):
                 if code == 0xbb:
                     csi = csidata.get_scaled_csi_sm()
                     scaled_csi_sm = np.abs(csi[0, :, 0, 0] / csi[0:, :, 1, 0])
+                    scaled_csi_sm[scaled_csi_sm==np.inf] = 0
                     mutex.lock()
                     cache[:, :-1] = cache[:, 1:]
                     cache[:, -1] = scaled_csi_sm

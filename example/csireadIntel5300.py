@@ -1,3 +1,5 @@
+"""csiread.CSI: implemented in pure Python"""
+
 import ctypes
 from timeit import default_timer
 import os
@@ -209,6 +211,7 @@ CSI = Intel
 
 if __name__ == '__main__':
     last = default_timer()
-    csidata = Intel('dataset/sample_0x5_64_3000.dat', Nrxnum=3, Ntxnum=1, pl_len=0, if_report=True)
+    csifile = '../material/5300/dataset/sample_0x5_64_3000.dat'
+    csidata = Intel(csifile, Nrxnum=3, Ntxnum=1, pl_len=0, if_report=True)
     csidata.read()
     print(default_timer() - last, 's')

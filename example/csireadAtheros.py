@@ -1,3 +1,5 @@
+"""csiread.Atheros: implemented in pure Python"""
+
 import numpy as np
 import os
 from timeit import default_timer
@@ -176,7 +178,8 @@ class Atheros:
 
 
 if __name__ == '__main__':
-	last = default_timer()
-	csidata = Atheros('dataset/ath_csi_1.dat', Nrxnum=3, Ntxnum=2, pl_len=10, if_report=True)
-	csidata.read()
-	print(default_timer() - last, 's')
+    last = default_timer()
+    csifile = '../material/atheros/dataset/ath_csi_1.dat'
+    csidata = Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_len=10, if_report=True)
+    csidata.read()
+    print(default_timer() - last, 's')

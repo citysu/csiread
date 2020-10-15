@@ -4,7 +4,6 @@ and 'Atheros CSI Tool'.
 
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
 from libc.stdio cimport FILE, SEEK_END, SEEK_SET, SEEK_CUR
-from libc.stddef cimport size_t
 from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t, uint64_t
 
 import os
@@ -194,7 +193,7 @@ cdef class CSI:
         cdef unsigned char buf[1024]
         cdef unsigned char temp[3]
         cdef unsigned char *payload
-        cdef size_t l
+        cdef int l
 
         cdef int index, index_step
         cdef int i, j, k, g, perm_j
@@ -782,7 +781,7 @@ cdef class Atheros:
         cdef int cur = 0
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
-        cdef size_t l, field_len
+        cdef int l, field_len
 
         cdef int bits_left, bitmask, idx, h_data, curren_data
         cdef int k, nc_idx, nr_idx, imag, real, i
@@ -966,7 +965,7 @@ cdef class Atheros:
         cdef unsigned char buf[4096]
         cdef unsigned char *csi_buf
 
-        for i in range(len(data)-1):
+        for i in range(len(data)):
             buf[i] = data[i]
         if endian == "little":
             ath_cu16 = cu16l

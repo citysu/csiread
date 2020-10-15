@@ -52,11 +52,11 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 1. new feature: process data faster
 2. new feature: add in-place operation in csiread.CSI
-3. new feature: add CSI.pmsg() to parse message in real time.
+3. new feature: add CSI.pmsg() and Atheros.pmsg() to parse message in real time.
 4. new feature: both CSI.payload and Atheros.payload are MPDU and stored in np.uint8 now.
 5. fix bug: noise will change after calling get_scaled_csi()
 6. fix bug: in matlab, read_log_file drops the last two packets(Atheros), but here we keep them.
-7. fix bug: get_scaled_csi_sm() value error if Ntx is 3.
+7. fix bug: get_scaled_csi_sm() value error.
 8. fix bug: csiread.CSI may not work well on big-endian computers.
 9. new examples: plot CSI in real time
 10. new example: implement log_to_file in pure Python
@@ -83,6 +83,6 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 1. fix bug: report format error
 2. fix bug: `count` value error
-3. new feature: add suppport for atheros
+3. new feature: add support for atheros
 4. new feature: add processing functions of intel 5300: get_scaled_csi(), get_total_rss()
 5. new example
