@@ -122,8 +122,46 @@ def atheros(csifile, index, Ntxnum=2):
     # print("help: \n", csidata.__doc__)
 
 
+def nexmon(csifile, index, chip, bw):
+    """nexmon"""
+    print("="*40+"[nexmon]")
+
+    if csiread.__version__ < '1.3.5':
+        print("csiread.Nexmon: version >= 1.3.5 is required");return
+
+    members = [s for s in dir(csiread.Nexmon) if not s.startswith("__") and callable(getattr(csiread.Nexmon, s))]
+    print("Methods: \n", members)
+
+    print('Time:')
+    last = default_timer()
+    csidata = csiread.Nexmon(csifile, chip, bw, if_report=False)
+    csidata.read()
+    print(" read                ", default_timer() - last, "s")
+
+    print('-'*40)
+    print("%dth packet: " % index)
+    print(" file                ", csidata.file)
+    print(" count               ", csidata.count)
+    print(" chip                ", csidata.chip)
+    print(" bw                  ", csidata.bw)
+    print(" nano                ", csidata.nano)
+    print(" sec                 ", csidata.sec[index])
+    print(" usec                ", csidata.usec[index])
+    print(" caplen              ", csidata.caplen[index])
+    print(" wirelen             ", csidata.wirelen[index])
+    print(" magic               ", hex(csidata.magic[index]))
+    print(" src_addr            ", stringify(csidata.src_addr[index], ":"))
+    print(" seq                 ", csidata.seq[index])
+    print(" core                ", csidata.core[index])
+    print(" spatial             ", csidata.spatial[index])
+    print(" chan_spec           ", csidata.chan_spec[index])
+    print(" chip_version        ", csidata.chip_version[index])
+    print(" csi                 ", csidata.csi[index].shape)
+
+
 if __name__ == "__main__":
     print("csiread.__version__: ", csiread.__version__)
     intel("../material/5300/dataset/sample_0x1_ap.dat", 10, Ntxnum=2)
     intel("../material/5300/dataset/sample_0x5_64_3000.dat", 10, Ntxnum=1)
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, Ntxnum=2)
+    nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)

@@ -1,10 +1,10 @@
-"""A tool to parse channel state infomation obtained using 'Linux 802.11n CSI Tool'
-and 'Atheros CSI Tool'.
+"""A tool to parse channel state infomation obtained using 'Linux 802.11n CSI Tool',
+'Atheros CSI Tool' and 'nexmon_csi'.
 """
 
 from libc.stdio cimport fopen, fread, fclose, fseek, ftell
 from libc.stdio cimport FILE, SEEK_END, SEEK_SET, SEEK_CUR
-from libc.stdint cimport uint16_t, uint32_t, uint8_t, int8_t, uint64_t
+from libc.stdint cimport uint16_t, int16_t, uint32_t, int32_t, uint8_t, int8_t, uint64_t
 
 import os
 import struct
@@ -14,8 +14,8 @@ cimport numpy as np
 cimport cython
 
 
-__version__ = "1.3.4"
-__all__ = ['CSI', 'Atheros']
+__version__ = "1.3.5"
+__all__ = ['CSI', 'Atheros', 'Nexmon']
 
 
 cdef class CSI:
@@ -191,7 +191,6 @@ cdef class CSI:
         cdef unsigned short field_len
         cdef unsigned char code
         cdef unsigned char buf[1024]
-        cdef unsigned char temp[3]
         cdef unsigned char *payload
         cdef int l
 
@@ -201,9 +200,9 @@ cdef class CSI:
         cdef double a, b
 
         while cur < (lens-3):
-            l = fread(&temp, sizeof(unsigned char), 3, f)
-            field_len = temp[1] + (temp[0] << 8)
-            code = temp[2]
+            l = fread(&buf, sizeof(unsigned char), 3, f)
+            field_len = buf[1] + (buf[0] << 8)
+            code = buf[2]
             cur = cur + 3
 
             if code == 0xbb:
@@ -1090,6 +1089,262 @@ cdef class Atheros:
         print(str(count) + " packets parsed")
 
 
+cdef class Nexmon:
+    """Parse channel state infomation obtained using 'nexmon_csi'.
+
+    Args:
+        file: the file path of csi '.pcap', None: real time mode
+        chip: chip
+        bw: bandwidth
+        if_report: report the parsed result, default: True
+
+        (file, chip, bw, if_report=True)
+    """
+    cdef readonly str file
+    cdef readonly int count
+    cdef readonly str chip
+    cdef readonly int bw
+    cdef readonly bint nano
+
+    cdef public np.ndarray sec
+    cdef public np.ndarray usec
+    cdef public np.ndarray caplen
+    cdef public np.ndarray wirelen
+    cdef public np.ndarray magic
+    cdef public np.ndarray src_addr
+    cdef public np.ndarray seq
+    cdef public np.ndarray core
+    cdef public np.ndarray spatial
+    cdef public np.ndarray chan_spec
+    cdef public np.ndarray chip_version
+    cdef public np.ndarray csi
+
+    cdef bint if_report
+    cdef __csi_parse
+
+    def __init__(self, file, chip, bw, if_report=True):
+        """Parameter initialization."""
+        self.file = file
+        self.chip = chip
+        self.bw = bw
+        self.if_report = if_report
+
+        if file is None:
+            self.count = 0
+            pk_num = 1
+        else:
+            pk_num = self.__get_count()
+
+        btype = np.int_
+        self.sec = np.zeros([pk_num], dtype=btype)
+        self.usec = np.zeros([pk_num], dtype=btype)
+        self.caplen = np.zeros([pk_num], dtype=btype)
+        self.wirelen = np.zeros([pk_num], dtype=btype)
+        self.magic = np.zeros([pk_num], dtype=btype)
+        self.src_addr = np.zeros([pk_num, 6], dtype=btype)
+        self.seq = np.zeros([pk_num], dtype=btype)
+        self.core = np.zeros([pk_num], dtype=btype)
+        self.spatial = np.zeros([pk_num], dtype=btype)
+        self.chan_spec = np.zeros([pk_num], dtype=btype)
+        self.chip_version = np.zeros([pk_num], dtype=btype)
+        self.csi = np.zeros([pk_num, int(self.bw * 3.2)], dtype=np.complex_)
+
+    def __getitem__(self, index):
+        """Return contents of packets"""
+        ret = {
+            "magic": self.magic[index],
+            "src_addr": self.src_addr[index],
+            "seq": self.seq[index],
+            "core": self.core[index],
+            "spatial": self.spatial[index],
+            "chan_spec": self.chan_spec[index],
+            "chip_version": self.chip_version[index],
+            "csi": self.csi[index]
+        }
+        return ret
+
+    cpdef read(self):
+        """Parse data"""
+        cdef FILE *f
+
+        tempfile = self.file.encode(encoding="utf-8")
+        cdef char *datafile = tempfile
+
+        f = fopen(datafile, "rb")
+        if f is NULL:
+            print("Open failed!\n")
+            fclose(f)
+            return -1
+
+        cdef np.int_t[:] sec_mem = self.sec
+        cdef np.int_t[:] usec_mem = self.usec
+        cdef np.int_t[:] caplen_mem = self.caplen
+        cdef np.int_t[:] wirelen_mem = self.wirelen
+        cdef np.int_t[:] magic_mem = self.magic
+        cdef np.int_t[:, :] src_addr_mem = self.src_addr
+        cdef np.int_t[:] seq_mem = self.seq
+        cdef np.int_t[:] core_mem = self.core
+        cdef np.int_t[:] spatial_mem = self.spatial
+        cdef np.int_t[:] chan_spec_mem = self.chan_spec
+        cdef np.int_t[:] chip_version_mem = self.chip_version
+        cdef np.complex128_t[:, :] csi_mem = self.csi
+
+        cdef int count = 0
+        cdef unsigned char buf[2048]
+        cdef int l, i
+        cdef int nfft = <int>(self.bw * 3.2)
+
+        endian = self.__pacpheader(f, self.if_report)
+        if endian == "little":
+            nex_cu16 = cu16l
+            nex_cu32 = cu32l
+        else:
+            nex_cu16 = cu16b
+            nex_cu32 = cu32b
+
+        while True:
+            # global header
+            l = fread(&buf, sizeof(unsigned char), 16, f)
+            if l < 16:
+                break
+            sec_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
+            usec_mem[count] = nex_cu32(buf[4], buf[5], buf[6], buf[7])
+            caplen_mem[count] = nex_cu32(buf[8], buf[9], buf[10], buf[11])
+            wirelen_mem[count] = nex_cu32(buf[12], buf[13], buf[14], buf[15])
+
+            # we don't care about enth+ip+udp header
+            l = fread(&buf, sizeof(unsigned char), 42, f)
+            if buf[6:12] != b'NEXMON':
+                fseek(f, caplen_mem[count] - 42, SEEK_CUR)
+                continue
+
+            # nexmon header
+            l = fread(&buf, sizeof(unsigned char), 18, f)
+            magic_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
+            for i in range(6):
+                src_addr_mem[count, i] = buf[4+i]
+            seq_mem[count] = nex_cu16(buf[10], buf[11])
+            core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
+            spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
+            chan_spec_mem[count] = nex_cu16(buf[14], buf[15])
+            chip_version_mem[count] = nex_cu16(buf[16], buf[17])
+
+            # CSI
+            l = fread(&buf, sizeof(unsigned char), caplen_mem[count] - 42 - 18, f)
+            if self.chip == '4339' or self.chip == '3455c0':
+                unpack_int16(buf, csi_mem[count], nfft, nex_cu16)
+            elif self.chip == '4358':
+                unpack_float(buf, csi_mem[count], nfft, 9, 5, nex_cu32)
+            elif self.chip == '4366c0':
+                unpack_float(buf, csi_mem[count], nfft, 12, 6, nex_cu32)
+            else:
+                pass
+
+            count += 1
+        fclose(f)
+        self.count = count
+        if self.if_report:
+            print(str(count) + " packets parsed")
+        del sec_mem
+        del usec_mem
+        del caplen_mem
+        del wirelen_mem
+        del magic_mem
+        del src_addr_mem
+        del seq_mem
+        del core_mem
+        del spatial_mem
+        del chan_spec_mem
+        del chip_version_mem
+        del csi_mem
+
+    cdef __get_count(self):
+        # open file
+        cdef FILE *f
+        tempfile = self.file.encode(encoding="utf-8")
+        cdef char *datafile = tempfile
+
+        f = fopen(datafile, "rb")
+        if f is NULL:
+            print("Open failed!\n")
+            fclose(f)
+            return -1
+
+        cdef int count = 0
+        cdef int l
+        cdef uint32_t caplen
+        cdef unsigned char buf[64]
+
+        # pcap header: head: endian
+        l = fread(&buf, sizeof(unsigned char), 4, f)
+        magic_g = buf[:4]
+        if magic_g == b"\xa1\xb2\xc3\xd4":
+            nex_cu32 = cu32b
+        elif magic_g == b"\xd4\xc3\xb2\xa1":
+            nex_cu32 = cu32l
+        else:
+            raise Exception("Not a pcap capture file (bad magic: %r)" % magic_g)
+
+        # pcap header: tail
+        l = fread(&buf, sizeof(unsigned char), 20, f)
+        if l < 20:
+            raise Exception("Invalid pcap file (too short)")
+
+        # count
+        while True:
+            l = fread(&buf, sizeof(unsigned char), 16+42, f)
+            if l < 16:
+                break
+            if buf[22:28] == b'NEXMON':
+                count += 1
+            caplen = nex_cu32(buf[8], buf[9], buf[10], buf[11])
+            fseek(f, caplen - 42, SEEK_CUR)
+        fclose(f)
+        return count
+
+    cdef __pacpheader(self, FILE *f, if_report=False):
+        cdef unsigned char buf[32]
+        cdef int l
+
+        l = fread(&buf, sizeof(unsigned char), 4, f)
+        magic = buf[:4]
+        if magic == b"\xa1\xb2\xc3\xd4":  # big endian
+            endian = ">"
+            self.nano = False
+        elif magic == b"\xd4\xc3\xb2\xa1":  # little endian
+            endian = "<"
+            self.nano = False
+        elif magic == b"\xa1\xb2\x3c\x4d":  # big endian, nanosecond-precision
+            endian = ">"
+            self.nano = True
+        elif magic == b"\x4d\x3c\xb2\xa1":  # little endian, nanosecond-precision  # noqa: E501
+            endian = "<"
+            self.nano = True
+        else:
+            raise Exception("Not a pcap capture file (bad magic: %r)" % magic)
+
+        l = fread(&buf, sizeof(unsigned char), 20, f)
+        if l < 20:
+            raise Exception("Invalid pcap file (too short)")
+
+        hdr = buf[:20]
+        if if_report:
+            vermaj, vermin, tz, sig, snaplen, linktype = struct.unpack(
+                endian + "HHIIII", hdr
+            )
+            info = "pacp header\n"
+            info += "  %-10s: %d\n" % ("vermaj", vermaj)
+            info += "  %-10s: %d\n" % ("vermin", vermin)
+            info += "  %-10s: %d\n" % ("tz", tz)
+            info += "  %-10s: %d\n" % ("sig", sig)
+            info += "  %-10s: %d\n" % ("snaplen", snaplen)
+            info += "  %-10s: %d\n" % ("linktype", linktype)
+            info += "  %-10s: %s" % ("nano", self.nano)
+            print(info)
+        endian = "little" if endian == "<" else "big"
+        return endian
+
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
@@ -1138,8 +1393,101 @@ cdef void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void set_csi_mem(np.complex128_t[:, :, :, :] csi_mem, int count,
-							 int s, int r, int t, double real, double imag):
+                             int s, int r, int t, double real, double imag):
     csi_mem[count, s, r, t] = real + imag * 1.j
+
+
+cdef void unpack_int16(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
+                       uint16_t (*nex_cu16)(uint8_t a, uint8_t b)):
+    cdef int i, j
+    cdef double a, b
+    for i in range(nfft):
+        j = i * 4
+        a = <int16_t>nex_cu16(buf[j+0], buf[j+1])
+        b = <int16_t>nex_cu16(buf[j+2], buf[j+3])
+        csi_mem[i] = a + b * 1.j
+
+
+cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
+                       int M, int E,
+                       uint32_t (*nex_cu32)(uint8_t a, uint8_t b, uint8_t c, uint8_t d)):
+    """N = M * R ^ E
+
+    M:Mantissa
+    R:Radix
+    E:Exponent
+    """
+    cdef int i, s, e
+    cdef uint32_t h, m, b, x
+
+    cdef int nbits = 10
+    cdef int autoscale = 1
+    cdef int e_p = (1 << (E - 1))
+    cdef int e_shift = 1
+    cdef int e_zero = - M
+    cdef int maxbit = -e_p
+    cdef uint32_t k_tof_unpack_sgn_mask = (1 << 31)
+    cdef uint32_t ri_mask = (1 << (M - 1)) - 1
+    cdef uint32_t E_mask = (1 << E) - 1
+    cdef uint32_t sgnr_mask = (1 << (E + 2 * M - 1))
+    cdef uint32_t sgni_mask = sgnr_mask >> M
+    cdef int8_t He[256]
+    cdef int32_t Hout[512]
+    cdef int32_t v_real, v_imag
+
+    for i in range(nfft):
+        h = nex_cu32(buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3])
+        v_real = <int32_t>((h >> (E + M)) & ri_mask)
+        v_imag = <int32_t>((h >> E) & ri_mask)
+
+        e = <int>(h & E_mask)
+
+        if (e >= e_p):
+            e -= (e_p << 1)
+        He[i] = <int8_t>e
+
+        x = <uint32_t>v_real | <uint32_t>v_imag
+
+        if (autoscale and x):
+            m = 0xffff0000
+            b = 0xffff
+            s = 16
+            while (s > 0):
+                if (x & m):
+                    e += s
+                    x >>= s
+                s >>= 1
+                m = (m >> s) & b
+                b >>= s
+            if (e > maxbit):
+                maxbit = e
+        
+        if (h & sgnr_mask):
+            v_real |= k_tof_unpack_sgn_mask
+        if (h & sgni_mask):
+            v_imag |= k_tof_unpack_sgn_mask
+
+        Hout[i<<1] = v_real
+        Hout[(i<<1)+1] = v_imag
+
+    shft = nbits - maxbit
+    for i in range(nfft*2):
+        e = He[(i >> e_shift)] + shft
+        sgn = 1
+        if (Hout[i] & k_tof_unpack_sgn_mask):
+            sgn = -1
+            Hout[i] &= ~k_tof_unpack_sgn_mask
+        if (e < e_zero):
+            Hout[i] = 0
+        elif (e < 0):
+            e = -e
+            Hout[i] = (Hout[i] >> e)
+        else:
+            Hout[i] = (Hout[i] << e)
+        Hout[i] *= sgn
+
+    for i in range(nfft):
+        csi_mem[i] = <double>Hout[i*2] + <double>Hout[i*2+1] * 1.j
 
 
 cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
@@ -1148,6 +1496,10 @@ cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
 
 cdef inline uint32_t cu32l(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
     return a | (b << 8) | (c << 16) | (d << 24)
+
+
+cdef inline uint32_t cu32b(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
+    return d | (c << 8) | (b << 16) | (a << 24)
 
 
 cdef inline uint16_t cu16l(uint8_t a, uint8_t b):

@@ -26,7 +26,7 @@ EXTENSIONS = [
 ]
 setup(
     name="csiread",
-    version="1.3.4",
+    version="1.3.5",
 
     author="Hecheng Su",
     author_email="2215523266@qq.com",

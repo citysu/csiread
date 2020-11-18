@@ -2,7 +2,7 @@
 
 Parse channel state information from raw CSI data file in Python.
 
-- Full support for [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/)
+- Full support for [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/) and [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/), partial support for [nexmon_csi](https://github.com/seemoo-lab/nexmon_csi)
 - At least 15 times faster than the implementation in Matlab
 - Real-time parsing
 
@@ -32,6 +32,12 @@ csifile = "../material/atheros/dataset/ath_csi_1.dat"
 csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=10, Tones=56)
 csidata.read(endian='little')
 print(csidata.csi.shape)
+
+# nexmon_csi
+csifile = "../material/nexmon/dataset/example.pcap"
+csidata = csiread.Nexmon(csifile, chip='4358', bw=80)
+csidata.read()
+print(csidata.csi.shape)
 ```
 
 Both CSI.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can parse it easily. For convenience, csiread.CSI returns the parsing result of the specified MAC header.
@@ -47,6 +53,10 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ![contents of packets](sample2.png )
 
 ## Log
+
+### v.1.3.5
+
+1. new feature: add support for nexmon_csi
 
 ### v1.3.4
 
