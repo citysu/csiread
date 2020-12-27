@@ -46,6 +46,7 @@ class GetDataThread(threading.Thread):
         csidata = csiread.CSI(None, 3, 2)
 
         # config
+        global cache, mutex
         count = 0
         address_src = ('127.0.0.1', 10086)
         address_des = ('127.0.0.1', 10010)
@@ -99,6 +100,7 @@ def realtime_plot():
         lines.append(line)
 
     def animate(i):
+        global cache, mutex
         mutex.acquire()
         for i in range(len(cache)):
             lines[i].set_ydata(i/2 + cache[i])

@@ -6,10 +6,6 @@
 Usage:
     1. python3 csirealtime.py
     2. python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 500
-
-Note:
-    Atheros.pmsg() is experimental
-
 """
 
 import socket
@@ -36,6 +32,7 @@ def update_background():
     csidata = csiread.CSI(None, 3, 1)
 
     # config
+    global cache_data1, cache_data2, cache_data3, mutex
     count = 0
     address_src = ('127.0.0.1', 10086)
     address_des = ('127.0.0.1', 10010)
@@ -83,6 +80,7 @@ def realtime_plot():
         return line1, line2, line3,
 
     def animate(i):
+        global cache_data1, cache_data2, cache_data3, mutex
         mutex.acquire()
         line1.set_ydata(np.abs(cache_data1))
         line2.set_ydata(np.abs(cache_data2))

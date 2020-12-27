@@ -9,7 +9,6 @@ Note:
 Ref:
     [nexmon_csi](https://github.com/seemoo-lab/nexmon_csi)
     [rdpcap](https://github.com/secdev/scapy/blob/master/scapy/utils.py)
-    [_PyFloat_Unpack2](https://github.com/python/cpython/blob/master/Objects/floatobject.c)
 """
 
 import os
@@ -20,7 +19,7 @@ from timeit import default_timer
 
 
 def unpack_int16(buf, csi, nfft, endian):
-	dt = np.dtype(np.int16).newbyteorder(endian)
+    dt = np.dtype(np.int16).newbyteorder(endian)
     csi = np.frombuffer(buf, dtype=dt, count=nfft)
 
 

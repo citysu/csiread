@@ -331,6 +331,9 @@ cdef class CSI:
             data: buffer
 
             (data)
+
+        Return:
+            status code: 0xbb, 0xc1
         """
         cdef np.int_t[:] timestamp_low_mem = self.timestamp_low
         cdef np.int_t[:] bfee_count_mem = self.bfee_count
@@ -794,7 +797,7 @@ cdef class Atheros:
             ath_cu64 = cu64b
         else:
             fclose(f)
-            raise ValueError("byteorder must be either 'little' or 'big'")
+            raise ValueError("endian must be either 'little' or 'big'")
 
         while cur < (lens - 4):
             l = fread(&buf, sizeof(unsigned char), 2, f)
@@ -937,6 +940,9 @@ cdef class Atheros:
             endian: ['little', 'big']
 
             (data, endian='little')
+
+        Return:
+            status code: 0xff00
         """
         cdef np.int64_t[:] timestamp_mem = self.timestamp
         cdef np.int_t[:] csi_len_mem = self.csi_len
@@ -973,7 +979,7 @@ cdef class Atheros:
             ath_cu16 = cu16b
             ath_cu64 = cu64b
         else:
-            raise ValueError("byteorder must be either 'little' or 'big'")
+            raise ValueError("endian must be either 'little' or 'big'")
         timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7])
         csi_len_mem[count] = ath_cu16(buf[8], buf[9])
         tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
@@ -1066,6 +1072,8 @@ cdef class Atheros:
         del csi_mem
         del payload_mem
 
+        return 0xff00
+
     def readstp(self, endian='little'):
         """Parse timestamp when packet was received.
 
@@ -1130,7 +1138,7 @@ cdef class Nexmon:
         self.if_report = if_report
 
         if file is None:
-            self.count = 0
+            self.count = 1
             pk_num = 1
         else:
             pk_num = self.__get_count()
@@ -1190,7 +1198,7 @@ cdef class Nexmon:
         cdef np.complex128_t[:, :] csi_mem = self.csi
 
         cdef int count = 0
-        cdef unsigned char buf[2048]
+        cdef unsigned char buf[4096]
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
 
@@ -1257,6 +1265,76 @@ cdef class Nexmon:
         del chan_spec_mem
         del chip_version_mem
         del csi_mem
+
+    cpdef pmsg(self, data, endian='little'):
+        """Parse message in real time
+
+        Args:
+            data: buffer
+            endian: ['little', 'big']
+
+            (data, endian='little')
+
+        Return:
+            status code: 0xf100
+        """
+        cdef np.int_t[:] magic_mem = self.magic
+        cdef np.int_t[:, :] src_addr_mem = self.src_addr
+        cdef np.int_t[:] seq_mem = self.seq
+        cdef np.int_t[:] core_mem = self.core
+        cdef np.int_t[:] spatial_mem = self.spatial
+        cdef np.int_t[:] chan_spec_mem = self.chan_spec
+        cdef np.int_t[:] chip_version_mem = self.chip_version
+        cdef np.complex128_t[:, :] csi_mem = self.csi
+
+        cdef int count = 0
+        cdef unsigned char buf[4096]
+        cdef int l, i
+        cdef int nfft = <int>(self.bw * 3.2)
+        for i in range(len(data)):
+            buf[i] = data[i]
+
+        if endian == "little":
+            nex_cu16 = cu16l
+            nex_cu32 = cu32l
+        else:
+            nex_cu16 = cu16b
+            nex_cu32 = cu32b
+
+        # we don't care about enth+ip+udp header
+        if buf[6:12] != b'NEXMON':
+            return
+
+        # nexmon header
+        magic_mem[count] = nex_cu32(buf[42], buf[43], buf[44], buf[45])
+        for i in range(6):
+            src_addr_mem[count, i] = buf[46+i]
+        seq_mem[count] = nex_cu16(buf[52], buf[53])
+        core_mem[count] = nex_cu16(buf[54], buf[55]) & 0x7
+        spatial_mem[count] = (nex_cu16(buf[54], buf[55]) >> 3) & 0x7
+        chan_spec_mem[count] = nex_cu16(buf[56], buf[57])
+        chip_version_mem[count] = nex_cu16(buf[58], buf[59])
+
+        # CSI
+        if self.chip == '4339' or self.chip == '3455c0':
+            unpack_int16(&buf[60], csi_mem[count], nfft, nex_cu16)
+        elif self.chip == '4358':
+            unpack_float(&buf[60], csi_mem[count], nfft, 9, 5, nex_cu32)
+        elif self.chip == '4366c0':
+            unpack_float(&buf[60], csi_mem[count], nfft, 12, 6, nex_cu32)
+        else:
+            pass
+
+        del magic_mem
+        del src_addr_mem
+        del seq_mem
+        del core_mem
+        del spatial_mem
+        del chan_spec_mem
+        del chip_version_mem
+        del csi_mem
+
+        return 0xf100
 
     cdef __get_count(self):
         # open file
@@ -1417,7 +1495,7 @@ cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
     R:Radix
     E:Exponent
     """
-    cdef int i, s, e
+    cdef int i, s, e, shft, sgn
     cdef uint32_t h, m, b, x
 
     cdef int nbits = 10

@@ -54,7 +54,7 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 ## Log
 
-### v.1.3.5
+### v1.3.5
 
 1. new feature: add support for nexmon_csi
 

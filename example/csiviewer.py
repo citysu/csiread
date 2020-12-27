@@ -33,9 +33,6 @@ Note:
         Icon=/opt/csiread/csiviewer.png
         Exec=python3 /opt/csiread/csiviewer.py %F
         Name[en_US]=csiviewer.desktop
-        ```
-
-    3. If the GetDataThread was blocked, Timer should stop.
 """
 
 import os
@@ -80,6 +77,7 @@ cache_phaseC = np.zeros([SUBCARRIERS_NUM, 10, 3])     # [subcarriers, packets, N
 cache_cirD = np.zeros([64, 10, 3])       # [time(samples), packets, Nrx]
 
 mutex = QMutex()
+state = True
 
 
 def get_subcarriers_index(bw, ng):
@@ -155,6 +153,7 @@ class GetDataThread(QThread):
         """
 
         # config
+        global cache_amptiA, cache_amptiB, cache_phaseC, cache_cirD, mutex, state
         count = 0
         address_src = ('127.0.0.1', 10086)
         address_des = ('127.0.0.1', 10010)
@@ -173,7 +172,7 @@ class GetDataThread(QThread):
                 code = csidata.pmsg(data)  # Notice: endian
                 if code == 0xbb:            # Intel
                     csi = csidata.get_scaled_csi_sm(True)
-                elif code == None:          # Atheros
+                elif code == 0xff00:        # Atheros
                     csi = csidata.csi
                 else:
                     continue
@@ -187,10 +186,11 @@ class GetDataThread(QThread):
                 cache_amptiB[:, -1] = np.abs(csi[0, :, :, 0])
                 cache_phaseC[:, -1] = calib(np.unwrap(np.angle(csi), axis=1), bw=BW, ng=NG)[0, :, :, 0]
                 cache_cirD[:, -1] = np.abs(phy_ifft(csi[0, :, :, 0], axis=0, bw=BW, ng=NG))
+                state = True
                 mutex.unlock()
                 count += 1
                 if count % 100 == 0:
-                    print('receive %d bytes [msgcnt=%u]' % (msg_len, count))
+                    print('receive %d bytes [bfee_count=%u, msgcnt=%u]' % (msg_len, csidata.bfee_count[0], count))
 
 
 class MainWindow(QWidget):
@@ -319,14 +319,16 @@ class MainWindow(QWidget):
 
     @pyqtSlot()
     def updatePlot(self):
-        global cache_amptiA, cache_amptiB, cache_phaseC
+        global cache_amptiA, cache_amptiB, cache_phaseC, cache_cirD, mutex, state
         mutex.lock()
-        for i in range(SUBCARRIERS_NUM):
-            self.curvesA[i].setData(self.X, cache_amptiA[i])
-        for i in range(10*3):
-            self.curvesB[i].setData(self.subcarriers_index, cache_amptiB[:, i%10 , i//10])
-            self.curvesC[i].setData(self.subcarriers_index, cache_phaseC[:, i%10 , i//10])
-            self.curvesD[i].setData(np.arange(64), cache_cirD[:, i%10 , i//10])
+        if state:
+            for i in range(SUBCARRIERS_NUM):
+                self.curvesA[i].setData(self.X, cache_amptiA[i])
+            for i in range(10*3):
+                self.curvesB[i].setData(self.subcarriers_index, cache_amptiB[:, i%10 , i//10])
+                self.curvesC[i].setData(self.subcarriers_index, cache_phaseC[:, i%10 , i//10])
+                self.curvesD[i].setData(np.arange(64), cache_cirD[:, i%10 , i//10])
+            state = False
         mutex.unlock()
 
     def keyPressEvent(self, event):

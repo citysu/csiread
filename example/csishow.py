@@ -61,6 +61,12 @@ def phy_ifft(x, axis=0, bw=20, ng=2):
         1. No ifftshift
         2. Don't use scipy.fftpack.ifft, it is different from Equation (19-25)
             and Equation (17-9)
+    Note:
+        IEEE Standard for Information technology—Telecommunications and information
+        exchange between systems Local and metropolitan area networks—Specific 
+        requirements - Part 11: Wireless LAN Medium Access Control (MAC) and Physical
+        Layer (PHY) Specifications, in IEEE Std 802.11-2016 (Revision of IEEE Std
+        802.11-2012), vol., no., pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
     """
     x = np.expand_dims(x.swapaxes(-1, axis), -2)
     k = get_subcarriers_index(bw, ng)

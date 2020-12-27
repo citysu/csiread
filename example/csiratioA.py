@@ -51,6 +51,7 @@ class GetDataThread(QThread):
         csidata = csiread.CSI(None, 3, 2)
 
         # config
+        global cache, mutex
         count = 0
         address_src = ('127.0.0.1', 10086)
         address_des = ('127.0.0.1', 10010)
@@ -149,7 +150,7 @@ class MainWindow(QWidget):
 
     @pyqtSlot()
     def updatePlot(self):
-        global cache
+        global cache, mutex
         mutex.lock()
         for i in range(len(cache)):
             xscale = 1 - i / 200.
