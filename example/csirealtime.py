@@ -29,7 +29,7 @@ class GetDataThread(threading.Thread):
 
 
 def update_background():
-    csidata = csiread.CSI(None, 3, 1)
+    csidata = csiread.Intel(None, 3, 1)
 
     # config
     global cache_data1, cache_data2, cache_data3, mutex

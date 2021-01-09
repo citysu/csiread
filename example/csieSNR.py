@@ -188,7 +188,7 @@ def get_eff_SNRs(csi, csi_sm=None):
 
 
 def main():
-    csidata = csiread.CSI('../material/5300/dataset/sample_0x5_64_3000.dat')
+    csidata = csiread.Intel('../material/5300/dataset/sample_0x5_64_3000.dat')
     csidata.read()
     scaled_csi = csidata.get_scaled_csi()
     preNrx = max(csidata.Nrx)

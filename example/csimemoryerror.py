@@ -7,7 +7,7 @@ csiread may raise MemoryError when reading a super large file. here is a tempora
 without changing csiread. However, this error rarely happens.
 
 Note:
-    csiread.CSI needs to know the count of packets in the csifile before parsing. It estimates
+    csiread.Intel needs to know the count of packets in the csifile before parsing. It estimates
     packets count by the following method.
 
     ----------------------------------------------------------------------
@@ -69,7 +69,7 @@ def read_bf_fileA(csifile, pk_num):
         Override os.path.getsize(file) temporarily and set packet_number manually.
     """
     csiread.os.path.getsize = lambda filename: 95 * pk_num
-    csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False)
+    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False)
     csiread.os.path.getsize = lambda filename: csiread.os.stat(filename).st_size
     csidata.read()
     return csidata
@@ -77,7 +77,7 @@ def read_bf_fileA(csifile, pk_num):
 
 @info
 def read_bf_fileB(csifile):
-    csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False)
+    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False)
     csidata.read()
     return csidata
 

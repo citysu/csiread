@@ -10,7 +10,7 @@ import csiread
 import pandas as pd
 
 csifile = "../material/5300/dataset/sample_0x5_64_3000.dat"
-csidata = csiread.CSI(csifile, Ntxnum=1, pl_size=6, if_report=False)
+csidata = csiread.Intel(csifile, Ntxnum=1, pl_size=6, if_report=False)
 csidata.read()
 
 # pd.set_option('display.max_rows', None)

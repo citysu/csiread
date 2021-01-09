@@ -1,4 +1,4 @@
-"""csiread.CSI: implemented in pure Python"""
+"""csiread.Intel: implemented in pure Python"""
 
 import ctypes
 from timeit import default_timer

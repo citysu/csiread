@@ -22,7 +22,7 @@ import csiread
 
 # Linux 802.11n CSI Tool
 csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-csidata = csiread.CSI(csifile, Nrxnum=3, Ntxnum=2, pl_size=10)
+csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=10)
 csidata.read()
 csi = csidata.get_scaled_csi()
 print(csidata.csi.shape)
@@ -40,7 +40,7 @@ csidata.read()
 print(csidata.csi.shape)
 ```
 
-Both CSI.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can parse it easily. For convenience, csiread.CSI returns the parsing result of the specified MAC header.
+Both Intel.payload and Atheros.payload are MPDU. [scapy](https://scapy.net) can parse it easily. For convenience, csiread.Intel can parse the specified MAC header.
 
 Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
@@ -57,6 +57,7 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ### v1.3.5
 
 1. new feature: add support for nexmon_csi
+2. new feature: rename csiread.CSI to csiread.Intel
 
 ### v1.3.4
 

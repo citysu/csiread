@@ -19,12 +19,12 @@ def stringify(array, space=':'):
 def intel(csifile, index, Ntxnum=2):
     """csitool"""
     print("="*40+"[intel]")
-    members = [s for s in dir(csiread.CSI) if not s.startswith("__") and callable(getattr(csiread.CSI, s))]
+    members = [s for s in dir(csiread.Intel) if not s.startswith("__") and callable(getattr(csiread.Intel, s))]
     print("Methods: \n", members)
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.CSI(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
+    csidata = csiread.Intel(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
     csidata.read()
     print(" read                ", default_timer() - last, "s")
 
@@ -42,13 +42,13 @@ def intel(csifile, index, Ntxnum=2):
     print(" get_scaled_csi_sm   ", default_timer() - last, "s")
 
     # Setting inplace to True may be dangerous but more efficient.
-    temp = csiread.CSI(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp = csiread.Intel(csifile, Ntxnum=Ntxnum, if_report=False)
     temp.read()
     last = default_timer()
     _ = temp.get_scaled_csi(inplace=True)       # _ is temp.csi == True
     print(" get_scaled_csi(T)   ", default_timer() - last, "s")
 
-    temp = csiread.CSI(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp = csiread.Intel(csifile, Ntxnum=Ntxnum, if_report=False)
     temp.read()
     last = default_timer()
     _ = temp.get_scaled_csi_sm(inplace=True)    # _ is temp.csi == True

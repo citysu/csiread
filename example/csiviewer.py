@@ -51,7 +51,7 @@ os.environ['QT_SCALE_FACTOR'] = '1'
 Device = 'Intel' # Intel or Atheros
 
 if Device == 'Intel':
-    csidata = csiread.CSI(None, 3, 2)
+    csidata = csiread.Intel(None, 3, 2)
     SUBCARRIERS_NUM = 30
     BW = 20
     NG = 2
@@ -190,7 +190,7 @@ class GetDataThread(QThread):
                 mutex.unlock()
                 count += 1
                 if count % 100 == 0:
-                    print('receive %d bytes [bfee_count=%u, msgcnt=%u]' % (msg_len, csidata.bfee_count[0], count))
+                    print('receive %d bytes [msgcnt=%u]' % (msg_len, count))
 
 
 class MainWindow(QWidget):

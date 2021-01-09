@@ -94,7 +94,7 @@ class CSIChat(Namespace):
         self.background_task_stop()
 
     def background_task(self):
-        csidata = csiread.CSI(None, 3, 2)
+        csidata = csiread.Intel(None, 3, 2)
         address_des = ('127.0.0.1', 10010)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)

@@ -48,7 +48,7 @@ class GetDataThread(QThread):
             If you want to run this script on the host with Intel 5300 NIC, rewrite code as
             csiuserspace.py
         """
-        csidata = csiread.CSI(None, 3, 2)
+        csidata = csiread.Intel(None, 3, 2)
 
         # config
         global cache, mutex

@@ -15,10 +15,10 @@ cimport cython
 
 
 __version__ = "1.3.5"
-__all__ = ['CSI', 'Atheros', 'Nexmon']
+__all__ = ['Intel', 'Atheros', 'Nexmon']
 
 
-cdef class CSI:
+cdef class Intel:
     """Parse channel state infomation obtained using 'Linux 802.11n CSI Tool'.
 
     Args:

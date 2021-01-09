@@ -25,7 +25,7 @@ import csiread
 
 
 def python_read(csifile='log.all_csi.6.7.6'):
-	csidata = csiread.CSI(csifile, Ntxnum=3)
+	csidata = csiread.Intel(csifile, Ntxnum=3)
 	csidata.read()
 	pydata = csidata[:]
 	pydata['scaled_csi'] = csidata.get_scaled_csi()
