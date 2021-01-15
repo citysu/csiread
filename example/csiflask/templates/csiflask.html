@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>CSI Flask</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uikit@3.6.10/dist/css/uikit.min.css" />
+        <script src="https://cdn.jsdelivr.net/npm/uikit@3.6.10/dist/js/uikit.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/uikit@3.6.10/dist/js/uikit-icons.min.js"></script>
+        <script src="https://cdn.bootcdn.net/ajax/libs/echarts/4.7.0/echarts-en.common.js"></script>
+        <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+        <script>
+            const socket = io({autoConnect: false, transports: ['websocket']});
+            var dataset = [];
+            var subcarrier_index = 15;
+            var count = 800;
+            for(i = 0; i < count; i++){
+                dataset.push([i, 0]);
+            }
+        </script>
+    </head>
+    {% raw %}
+    <body>
+        <div class="uk-container">
+            <h1 class="uk-heading-line uk-text-center uk-padding">
+                <span>CSI Flask</span>
+            </h1>
+            <div id="csiviewer" class="uk-container" style="height:400px;"></div>
+            <div class="uk-text-center">
+                <button class="uk-button uk-button-default" onclick="start()">START</button>
+                <button class="uk-button uk-button-primary" onclick="stop()">STOP</button>
+            </div>
+            <hr>
+        </div>
+        <script type="text/javascript">
+            var csiviewer = echarts.init(document.getElementById('csiviewer'));
+            var timeID = null;
+
+            function draw(){
+                option = {
+                    grid: {
+                        show: true
+                    },
+                    title: {
+                        text: 'csi_' + count + '_' + subcarrier_index + '_0_0',
+                        left: 'center'
+                    },
+                    xAxis: {
+                        name: 'Packets',
+                        nameLocation: 'center',
+                        nameGap: 30,
+                        type: 'value',
+                        min: 0,
+                        max: count
+                    },
+                    yAxis: {
+                        name: 'Amplitude',
+                        nameLocation: 'center',
+                        nameGap: 30,
+                        type: 'value',
+                        min: 0,
+                        max: 40
+                    },
+                    series: [{
+                        type: 'line',
+                        symbol: 'none',
+                        data: dataset,
+                    }]
+                };
+                csiviewer.setOption(option);
+            };
+
+            function start(){
+                socket.open();
+                timeID = setInterval(draw);
+            };
+
+            function stop(){
+                socket.close();
+                clearInterval(timeID);
+                timeID = null;
+            };
+
+            socket.on("message", function (data) {
+                dataset.shift();
+                dataset.push([0, data['csi'][subcarrier_index]]);
+                for(i = 0; i < count; i++){
+                    dataset[i][0] = i;
+                }
+            });
+
+            draw.call();
+        </script>
+    </body>
+    {% endraw %}
+</html>

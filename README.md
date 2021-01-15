@@ -57,8 +57,8 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ### v1.3.5
 
 1. new feature: add support for nexmon_csi
-2. new feature: rename csiread.CSI to csiread.Intel
-3. new feature: add a new parameter: bufsize
+2. API changes: rename csiread.CSI to csiread.Intel;add a new parameter: bufsize
+3. update example: improve csiflask
 
 ### v1.3.4
 
