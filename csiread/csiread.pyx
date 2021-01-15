@@ -27,8 +27,9 @@ cdef class Intel:
         Ntxnum: the set number of transmit antennas, default: 2
         pl_size: the size of payload that will be used, default: 0
         if_report: report the parsed result, default: True
+        bufsize: the maximum amount of packets to be parsed, default: 0
 
-        (file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True)
+        (file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True, bufsize=0)
 
     Attributes:
         file: data file path
@@ -91,7 +92,8 @@ cdef class Intel:
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True):
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True,
+                 bufsize=0):
         """Parameter initialization."""
         self.file = file
         self.Nrxnum = Nrxnum
@@ -99,12 +101,15 @@ cdef class Intel:
         self.pl_size = pl_size
         self.if_report = if_report
 
-        if file is None:
-            self.count = 1
-            pk_num = 1
+        if bufsize == 0:
+            if file is None:
+                self.count = 1
+                pk_num = 1
+            else:
+                lens = os.path.getsize(file)
+                pk_num = lens // (35 + 60 * 1 * 1)
         else:
-            lens = os.path.getsize(file)
-            pk_num = lens // (35 + 60 * 1 * 1)
+            pk_num = bufsize
 
         btype = np.int_
 
@@ -649,7 +654,8 @@ cdef class Atheros:
     """Parse channel state infomation obtained using 'Atheros CSI Tool'.
     
     Args:
-        (file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True)
+        (file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True,
+         bufsize=0)
     """
     cdef readonly str file
     cdef readonly int count
@@ -678,7 +684,8 @@ cdef class Atheros:
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56, if_report=True):
+    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
+                 if_report=True, bufsize=0):
         """Parameter initialization."""
         self.file = file
         self.Nrxnum = Nrxnum
@@ -690,12 +697,15 @@ cdef class Atheros:
         if Tones not in [56, 114]:
             raise ValueError("Tones can only take 56 and 114!\n")
 
-        if file is None:
-            self.count = 1
-            pk_num = 1
+        if bufsize == 0:
+            if file is None:
+                self.count = 1
+                pk_num = 1
+            else:
+                lens = os.path.getsize(file)
+                pk_num = int(lens / 420)
         else:
-            lens = os.path.getsize(file)
-            pk_num = int(lens / 420)
+            pk_num = bufsize
 
         btype = np.int_
         self.timestamp = np.zeros([pk_num], dtype=np.int64)
@@ -1105,8 +1115,9 @@ cdef class Nexmon:
         chip: chip
         bw: bandwidth
         if_report: report the parsed result, default: True
+        bufsize: the maximum amount of packets to be parsed, default: 0
 
-        (file, chip, bw, if_report=True)
+        (file, chip, bw, if_report=True, bufsize=0)
     """
     cdef readonly str file
     cdef readonly int count
@@ -1130,18 +1141,21 @@ cdef class Nexmon:
     cdef bint if_report
     cdef __csi_parse
 
-    def __init__(self, file, chip, bw, if_report=True):
+    def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         """Parameter initialization."""
         self.file = file
         self.chip = chip
         self.bw = bw
         self.if_report = if_report
 
-        if file is None:
-            self.count = 1
-            pk_num = 1
+        if bufsize == 0:
+            if file is None:
+                self.count = 1
+                pk_num = 1
+            else:
+                pk_num = self.__get_count()
         else:
-            pk_num = self.__get_count()
+            pk_num = bufsize
 
         btype = np.int_
         self.sec = np.zeros([pk_num], dtype=btype)
