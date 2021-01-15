@@ -4,14 +4,14 @@
 """Plot CSI(nexmon_csi) in real time
 
 Usage:
-    1. python3 csirealtime_nexmon.py
-    2. python3 csiserver_nexmon.py ../material/5300/dataset/example.pcap 4 10000
+    1. sudo python3 csirealtime_nexmon.py
+    2. sudo python3 csiserver.py ../material/5300/dataset/example.pcap 4 10000
 
 Important:
     1. Nexmon.pmsg() is experimental, it may be modified in the future.
     The first arguement is raw packet, however, I'd like it to be udp packet. 
-    2. csirealtime_nexmon.py and csiserver_nexmon.py need root or sudo permissions,
-    Only work on Linux.
+    2. csirealtime_nexmon.py and csiserver.py(Nexmon) need root or sudo 
+    permissions. Only work on Linux.
 """
 
 import socket

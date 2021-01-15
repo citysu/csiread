@@ -1216,7 +1216,7 @@ cdef class Nexmon:
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
 
-        endian = self.__pacpheader(f, self.if_report)
+        endian = self.__pcapheader(f)
         if endian == "little":
             nex_cu16 = cu16l
             nex_cu32 = cu32l
@@ -1368,19 +1368,11 @@ cdef class Nexmon:
         cdef unsigned char buf[64]
 
         # pcap header: head: endian
-        l = fread(&buf, sizeof(unsigned char), 4, f)
-        magic_g = buf[:4]
-        if magic_g == b"\xa1\xb2\xc3\xd4":
-            nex_cu32 = cu32b
-        elif magic_g == b"\xd4\xc3\xb2\xa1":
+        endian = self.__pcapheader(f)
+        if endian == 'little':
             nex_cu32 = cu32l
         else:
-            raise Exception("Not a pcap capture file (bad magic: %r)" % magic_g)
-
-        # pcap header: tail
-        l = fread(&buf, sizeof(unsigned char), 20, f)
-        if l < 20:
-            raise Exception("Invalid pcap file (too short)")
+            nex_cu32 = cu32b
 
         # count
         while True:
@@ -1394,46 +1386,28 @@ cdef class Nexmon:
         fclose(f)
         return count
 
-    cdef __pacpheader(self, FILE *f, if_report=False):
-        cdef unsigned char buf[32]
+    cdef __pcapheader(self, FILE *f):
+        cdef unsigned char buf[16]
         cdef int l
 
         l = fread(&buf, sizeof(unsigned char), 4, f)
         magic = buf[:4]
         if magic == b"\xa1\xb2\xc3\xd4":  # big endian
-            endian = ">"
+            endian = "big"
             self.nano = False
         elif magic == b"\xd4\xc3\xb2\xa1":  # little endian
-            endian = "<"
+            endian = "little"
             self.nano = False
         elif magic == b"\xa1\xb2\x3c\x4d":  # big endian, nanosecond-precision
-            endian = ">"
+            endian = "big"
             self.nano = True
         elif magic == b"\x4d\x3c\xb2\xa1":  # little endian, nanosecond-precision  # noqa: E501
-            endian = "<"
+            endian = "little"
             self.nano = True
         else:
             raise Exception("Not a pcap capture file (bad magic: %r)" % magic)
 
-        l = fread(&buf, sizeof(unsigned char), 20, f)
-        if l < 20:
-            raise Exception("Invalid pcap file (too short)")
-
-        hdr = buf[:20]
-        if if_report:
-            vermaj, vermin, tz, sig, snaplen, linktype = struct.unpack(
-                endian + "HHIIII", hdr
-            )
-            info = "pacp header\n"
-            info += "  %-10s: %d\n" % ("vermaj", vermaj)
-            info += "  %-10s: %d\n" % ("vermin", vermin)
-            info += "  %-10s: %d\n" % ("tz", tz)
-            info += "  %-10s: %d\n" % ("sig", sig)
-            info += "  %-10s: %d\n" % ("snaplen", snaplen)
-            info += "  %-10s: %d\n" % ("linktype", linktype)
-            info += "  %-10s: %s" % ("nano", self.nano)
-            print(info)
-        endian = "little" if endian == "<" else "big"
+        fseek(f, 20, SEEK_CUR)
         return endian
 
 

@@ -20,7 +20,7 @@ from timeit import default_timer
 
 def unpack_int16(buf, csi, nfft, endian):
     dt = np.dtype(np.int16).newbyteorder(endian)
-    csi = np.frombuffer(buf, dtype=dt, count=nfft)
+    csi[:] = np.frombuffer(buf, dtype=dt, count=nfft)
 
 
 def unpack_float(buf, csi, nfft, M, E, endian):
@@ -122,7 +122,7 @@ class Nexmon:
         nfft = int(self.bw * 3.2)
 
         f = open(self.file, 'rb')
-        endian = self.__pacpheader(f, self.if_report)
+        endian = self.__pcapheader(f)
 
         while True:
             hdr = f.read(16)
@@ -170,17 +170,7 @@ class Nexmon:
     def __get_count(self):
         count = 0
         f = open(self.file, 'rb')
-        magic_g = f.read(4)
-        if magic_g == b"\xa1\xb2\xc3\xd4":
-            endian = '>'
-        elif magic_g == b"\xd4\xc3\xb2\xa1":
-            endian = '<'
-        else:
-            raise Exception("Not a pcap capture file (bad magic: %r)" % magic_g)
-    
-        if len(f.read(20)) < 20:
-            raise Exception("Invalid pcap file (too short)")
-
+        endian = self.__pcapheader(f)
         while True:
             hdr = f.read(16+42)
             if len(hdr) < 16:
@@ -192,7 +182,7 @@ class Nexmon:
         f.close()
         return count
 
-    def __pacpheader(self, f, if_report=False):
+    def __pcapheader(self, f):
         magic = f.read(4)
         if magic == b"\xa1\xb2\xc3\xd4":  # big endian
             endian = ">"
@@ -203,28 +193,13 @@ class Nexmon:
         elif magic == b"\xa1\xb2\x3c\x4d":  # big endian, nanosecond-precision
             endian = ">"
             self.nano = True
-        elif magic == b"\x4d\x3c\xb2\xa1":  # little endian, nanosecond-precision  # noqa: E501
+        elif magic == b"\x4d\x3c\xb2\xa1":  # little endian, nanosecond-precision
             endian = "<"
             self.nano = True
         else:
             raise Exception("Not a pcap capture file (bad magic: %r)" % magic)
 
-        hdr = f.read(20)
-        if len(hdr) < 20:
-            raise Exception("Invalid pcap file (too short)")
-        if if_report:
-            vermaj, vermin, tz, sig, snaplen, linktype = struct.unpack(
-                endian + "HHIIII", hdr
-            )
-            info = "pacp header\n"
-            info += "  %-10s: %d\n" % ("vermaj", vermaj)
-            info += "  %-10s: %d\n" % ("vermin", vermin)
-            info += "  %-10s: %d\n" % ("tz", tz)
-            info += "  %-10s: %d\n" % ("sig", sig)
-            info += "  %-10s: %d\n" % ("snaplen", snaplen)
-            info += "  %-10s: %d\n" % ("linktype", linktype)
-            info += "  %-10s: %s" % ("nano", self.nano)
-            print(info)
+        f.seek(20, os.SEEK_CUR)
         return endian
 
 

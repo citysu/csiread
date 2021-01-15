@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""CSI server: simulation of real-time packet sending(Linux 802.11n CSI Tool)
+"""CSI server: simulation of real-time packet sending
 
 Usage:
-    python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 1000
+    Intel5300: python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 1000
+    Atheros: python3 csiserver.py ../material/atheros/dataset/ath_csi_1.dat 100 100000
+    Nexmon: sudo python3 csiserver_nexmon.py ../material/nexmon/dataset/example.pcap 12 10000
 """
 
 import argparse
@@ -13,8 +15,21 @@ import socket
 import time
 
 
-def csiserver(csifile, number, delay):
-    """csi server
+def check_device(csifile):
+    """Check the file type simplely"""
+    with open(csifile, 'rb') as f:
+        buf = f.read(4)
+        if buf[2] in [0xc1, 0xbb]:
+            return 'Intel'
+        elif buf in [b"\xa1\xb2\xc3\xd4", b"\xd4\xc3\xb2\xa1",
+                     b"\xa1\xb2\x3c\x4d", b"\x4d\x3c\xb2\xa1"]:
+            return 'Nexmon'
+        else:
+            return 'Atheros'
+
+
+def intel_server(csifile, number, delay):
+    """intel server
 
     Args:
         csifile: csi smaple file
@@ -131,6 +146,46 @@ def atheros_server(csifile, number, delay, endian):
     print()
 
 
+def nexmon_server(csifile, number, delay):
+    s = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.IPPROTO_IP)
+    s.bind(("wlp4s0", socket.IPPROTO_IP))
+
+    f = open(csifile, 'rb')
+    magic = f.read(4)
+    f.seek(20, os.SEEK_CUR)
+    lens = os.path.getsize(csifile)
+    endian = 'big' if magic in [b"\xa1\xb2\xc3\xd4", b"\xa1\xb2\x3c\x4d"] else "little"
+    cur = 24
+    count = 0
+
+    while True:
+        if cur >= (lens - 4):
+            f.seek(24, os.SEEK_SET)
+            cur = 0
+
+        caplen = int.from_bytes(f.read(16)[8:12], byteorder=endian)
+        if f.read(42)[6:12] == b'NEXMON':
+            time.sleep(delay/1000000)
+            f.seek(-42, os.SEEK_CUR)
+            data = f.read(caplen)
+            s.send(data)
+
+            count += 1
+            if count % 1000 == 0:
+                print(".", end="", flush=True)
+            if count % 50000 == 0:
+                print(count//1000, 'K', flush=True)
+            if number != 0 and count >= number:
+                break
+        else:
+            f.seek(caplen - 42, os.SEEK_CUR)
+        cur += (caplen + 16)
+
+    f.close()
+    s.close()
+    print()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('csifile', type=str, help='csi smaple file')
@@ -138,5 +193,11 @@ if __name__ == "__main__":
     parser.add_argument('delay', type=int, help='delay in us')
     p = parser.parse_args()
 
-    csiserver(p.csifile, p.number, p.delay)
-    # atheros_server(p.csifile, p.number, p.delay, 'little')
+    device = check_device(p.csifile)
+
+    if device == "Intel":
+        intel_server(p.csifile, p.number, p.delay)
+    elif device == "Atheros":
+        atheros_server(p.csifile, p.number, p.delay, 'little')
+    else:
+        nexmon_server(p.csifile, p.number, p.delay)
