@@ -45,6 +45,8 @@ import pyqtgraph as pg
 from PyQt5.QtCore import QMutex, Qt, QThread, QTimer, pyqtSlot
 from PyQt5.QtGui import QApplication
 from PyQt5.QtWidgets import QLabel, QMenuBar, QPushButton, QVBoxLayout, QWidget
+from utils import get_subcarriers_index, phy_ifft, calib
+
 
 os.environ['QT_SCALE_FACTOR'] = '1'
 
@@ -78,62 +80,6 @@ cache_cirD = np.zeros([64, 10, 3])       # [time(samples), packets, Nrx]
 
 mutex = QMutex()
 state = True
-
-
-def get_subcarriers_index(bw, ng):
-    """subcarriers index
-
-    Args:
-        bw: bandwitdh(20, 40)
-        ng: grouping(1, 2, 4)
-    """
-    if bw not in [20, 40] or ng not in [1, 2, 4]:
-        raise ValueError("bw should be [20, 40] and ng should be [1, 2, 4]")
-    a, b = int(bw * 1.5 - 2), int(bw / 20)
-    k = np.r_[range(-a, -b, ng), -b, range(b, a, ng), a]
-    return k
-
-
-def phy_ifft(x, axis=0, bw=20, ng=2):
-    """802.11n IFFT
-    
-    Return discrete inverse Fourier transform of real or complex sequence. it
-    is based on Equation (19-25)(P2373)
-
-    Note:
-        1. No ifftshift
-        2. Don't use scipy.fftpack.ifft, it is different from Equation (19-25)
-            and Equation (17-9)
-    """
-    x = np.expand_dims(x.swapaxes(-1, axis), -2)
-    k = get_subcarriers_index(bw, ng)
-    delta_f = 20e6 / 64
-    t = np.arange(64).reshape(-1, 1) / 20e6
-
-    out = (x * np.exp(1.j * 2 * np.pi * k * delta_f * t)).mean(axis=-1).swapaxes(-1, axis)
-    return out
-
-
-def calib(phase, bw=20, ng=2):
-    """Phase calibration
-
-    Note:
-        phase: it must be unwrapped, it should be a 2-D, 3-D
-            or 4-D array and the second dimension must be subcarriers
-        bw, ng: the same as `get_subcarriers_index`
-
-    ref:
-        [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
-        (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
-    """
-    s_index = get_subcarriers_index(bw, ng)
-    k_n = s_index[-1]
-    k_1 = s_index[1]
-    a = ((phase[:, -1:] - phase[:, :1]) / (k_n - k_1))
-    b = np.mean(phase, axis=1, keepdims=True)
-    s_index = s_index.reshape([len(s_index)] + [1] * (len(phase.shape) - 2))
-    phase_calib = phase - a * s_index - b
-    return phase_calib
 
 
 class GetDataThread(QThread):

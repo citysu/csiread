@@ -24,24 +24,7 @@ from scipy.signal import find_peaks
 import csiread
 import matplotlib.pyplot as plt
 from music import signalG, music
-
-
-def get_subcarriers_index(bw, ng):
-    """subcarriers index
-
-    Args:
-        bw: bandwitdh(20, 40)
-        ng: grouping(1, 2, 4)
-    """
-    if bw not in [20, 40] or ng not in [1, 2, 4]:
-        return None
-    if bw == 20:
-        a = [i for i in range(-28, -1, ng)] + [-1]
-        b = [i for i in range(1, 28, ng)] + [28]
-    if bw == 40:
-        a = [i for i in range(-58, -2, ng)] + [-2]
-        b = [i for i in range(2, 58, ng)] + [58]
-    return np.array(a + b)
+from utils import get_subcarriers_index
 
 
 def remove_sto(csi, carriers):

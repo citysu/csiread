@@ -6,7 +6,6 @@ Ref: [ESP32-CSI-Tool](https://github.com/StevenMHernandez/ESP32-CSI-Tool).
     Get test data from here.
 """
 
-import csv
 from timeit import default_timer
 
 import numpy as np

@@ -18,7 +18,7 @@ with open("README.md", "r", encoding='UTF-8') as fh:
 
 EXTENSIONS = [
     Extension(
-        "csiread", ["csiread/csiread.pyx"],
+        "csiread.csiread", ["csiread/csiread.pyx"],
         include_dirs=[numpy.get_include()],
         define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
         extra_compile_args=EXTRA_COMPILE_ARGS,

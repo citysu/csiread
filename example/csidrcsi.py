@@ -24,81 +24,7 @@ import matplotlib.patches as mpatches
 from scipy.fftpack import fft, ifft, fftshift, ifftshift
 from scipy.signal import find_peaks
 from scipy.stats import mode
-
-
-def get_subcarriers_index(bw, ng):
-    """subcarriers index
-
-    Args:
-        bw: bandwitdh(20, 40)
-        ng: grouping(1, 2, 4)
-    """
-    if bw not in [20, 40] or ng not in [1, 2, 4]:
-        return None
-    if bw == 20:
-        a = [i for i in range(-28, -1, ng)] + [-1]
-        b = [i for i in range(1, 28, ng)] + [28]
-    if bw == 40:
-        a = [i for i in range(-58, -2, ng)] + [-2]
-        b = [i for i in range(2, 58, ng)] + [58]
-    return np.array(a + b)
-
-
-def calib(phase, bw=20, ng=2):
-    """Phase calibration
-
-    Note:
-        phase: it must be unwrapped, it should be a 2-D, 3-D or 4-D array and
-            the second dimension must be subcarriers
-        bw, ng: the same as `get_subcarriers_index`
-
-    ref:
-        [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
-        (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
-    """
-    s_index = get_subcarriers_index(bw, ng)
-    k_n = s_index[-1]
-    k_1 = s_index[1]
-    a = ((phase[:, -1:] - phase[:, :1]) / (k_n - k_1))
-    b = np.mean(phase, axis=1, keepdims=True)
-    s_index = s_index.reshape([len(s_index)] + [1] * (len(phase.shape) - 2))
-    phase_calib = phase - a * s_index - b
-    return phase_calib
-
-
-def phy_ifft(x, axis=0, bw=20, ng=2):
-    """802.11n IFFT
-    
-    Return discrete inverse Fourier transform of real or complex sequence. it
-    is based on Equation (19-25)(P2373)
-
-    Note:
-        1. No ifftshift
-        2. Don't use scipy.fftpack.ifft, it is different from Equation (19-25)
-            and Equation (17-9)
-    """
-    x = np.expand_dims(x.swapaxes(-1, axis), -2)
-    k = get_subcarriers_index(bw, ng)
-    delta_f = 20e6 / 64
-    t = np.arange(64).reshape(-1, 1) / 20e6
-
-    out = (x * np.exp(1.j * 2 * np.pi * k * delta_f * t)).mean(axis=-1).swapaxes(-1, axis)
-    return out
-
-
-def phy_fft(x, axis=0, bw=20, ng=2):
-    """802.11n FFT
-
-    Return discrete Fourier transform of real or complex sequence.
-    """
-    x = np.expand_dims(x.swapaxes(-1, axis), -1)
-    k = get_subcarriers_index(bw, ng)
-    delta_f = 20e6 / 64
-    t = np.arange(64).reshape(-1, 1) / 20e6
-
-    scale = k.size / 64
-    out = (x * np.exp(1.j * -2 * np.pi * k * delta_f * t)).sum(axis=-2).swapaxes(-1, axis) * scale
-    return out
+from utils import get_subcarriers_index, calib, phy_ifft, phy_fft
 
 
 def fig_2(csidata, index=34):
@@ -129,9 +55,6 @@ def fig_2(csidata, index=34):
 def fig_4(athdata, index=26):
     """fig_4
 
-    Note:
-        Fig.4(c): If using 5300 instead of Atheros. you may need
-            a larger fft length to get a beautiful result
     Ref:
         [FFT Length (802.11n/ac/ax)](http://rfmw.em.keysight.com/wireless/helpfiles/89600B/WebHelp/Subsystems/wlan-mimo/Content/mimo_adv_fftsze.htm)
     """

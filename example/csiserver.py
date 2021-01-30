@@ -13,19 +13,7 @@ import argparse
 import os
 import socket
 import time
-
-
-def check_device(csifile):
-    """Check the file type simplely"""
-    with open(csifile, 'rb') as f:
-        buf = f.read(4)
-        if buf[2] in [0xc1, 0xbb]:
-            return 'Intel'
-        elif buf in [b"\xa1\xb2\xc3\xd4", b"\xd4\xc3\xb2\xa1",
-                     b"\xa1\xb2\x3c\x4d", b"\x4d\x3c\xb2\xa1"]:
-            return 'Nexmon'
-        else:
-            return 'Atheros'
+from utils import check_device
 
 
 def intel_server(csifile, number, delay):
