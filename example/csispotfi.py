@@ -6,44 +6,38 @@
 Usage:
     python3 csispotfi.py
 
-Note:
-    work with Linux 802.11n CSI Tool
-
 Important:
-    Unfinished.
+    Unfinished! There are many issues.
 
 Ref:
-    1. <<空间谱估计理论与算法>> 王永良
-    2. [SpotFi: Decimeter Level Localization Using WiFi](http://conferences.sigcomm.org/sigcomm/2015/pdf/papers/p269.pdf)
+    1. [SpotFi: Decimeter Level Localization Using WiFi](http://conferences.sigcomm.org/sigcomm/2015/pdf/papers/p269.pdf)
+    2. [spotfiMusicAoaEstimation](https://bitbucket.org/mkotaru/spotfimusicaoaestimation)
 """
 
 import numpy as np
 from numpy import linalg as LA
-import scipy.signal as ss
 from scipy.signal import find_peaks
 import csiread
 import matplotlib.pyplot as plt
-from music import signalG, music
 from utils import get_subcarriers_index
 
 
-def remove_sto(csi, carriers):
+def remove_sto(csi, bw=20, ng=2):
     """Algorithm 1: SpotFi’s ToF sanitization algorithm
-	
-	Args:
-		carriers: subcarriers index
-	"""
-    freq_delta = 312500                     # frequency space
-    radius = np.abs(csi)					# amplitude
-    theta = np.unwrap(np.angle(csi))		# phase
 
-    # In the paper, step 1 is least squares
-    tau = np.polyfit(np.arange(30), theta, 1)[0]
-    n = (carriers - carriers[0]).reshape(-1, 1)
-    theta = theta - 2 * np.pi * freq_delta * n * tau
+    Args:
+        csi: [30, 3] - [subcarriers, Ntx]
 
-    csi = radius * np.exp(1j * theta)
-    return csi
+    Ref:
+        spotfiMusicAoaEstimation: removePhsSlope.m
+    """
+    s_index = np.tile(get_subcarriers_index(bw, ng), (csi.shape[1], 1)).T
+
+    # In the paper, step 1 is least-squares 
+    m, c = np.linalg.lstsq(np.c_[s_index.flatten('F'), np.ones(csi.size)], 
+                           np.unwrap(np.angle(csi), axis=0).flatten('F'),
+                           rcond=None)[0]
+    return csi * np.exp(-1.j * (m * s_index + c))
 
 
 def smooth_csi(csi):
@@ -55,9 +49,16 @@ def smooth_csi(csi):
     return smoothed_csi
 
 
+def smooth_csiB(csi):
+    """Fig.4: CSI smoothing(another version)"""
+    from scipy.linalg import hankel
+    h0 = hankel(csi[:15, 0], csi[14:, 0])
+    h1 = hankel(csi[:15, 1], csi[14:, 1])
+    h2 = hankel(csi[:15, 2], csi[14:, 2])
+    smoothed_csi = np.c_[np.r_[h0, h1],
+                         np.r_[h1, h2]]
+    return smoothed_csi
+
+
 def spotfi(csi):
-    carriers = get_subcarriers_index(20, 2)
-    smoothed_csi = smooth_csi(csi)
-    smoothed_csi = remove_sto(smoothed_csi, carriers)
-    p, doa = music(X=smoothed_csi, N=32, d=6.25e-2, f=5.327e9, M=30, L=1)
-    return p
+    pass
