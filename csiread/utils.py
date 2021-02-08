@@ -2,19 +2,28 @@ import numpy as np
 
 
 def scidx(bw, ng):
-    """SubCarrier InDeX(Table 9-54—Number of matrices and carrier grouping)
+    """SubCarrier InDeX
+
+    Table 9-54-Number of matrices and carrier grouping
 
     Args:
-        bw: bandwitdh(20, 40)
-        ng: grouping(1, 2, 4)
+        bw (int): Bandwidth, it can be 20 and 40.
+        ng (int): Grouping, it can be 1, 2 and 4.
 
-    Ref:
-        IEEE Standard for Information technology—Telecommunications and
+    Returns:
+        ndarray: Subcarrier index
+
+    Examples:
+
+        >>> s_index = scidx(20, 2)
+
+    References:
+        1. `IEEE Standard for Information technology—Telecommunications and
         information exchange between systems Local and metropolitan area
         networks—Specific requirements - Part 11: Wireless LAN Medium Access
-        Control (MAC) and Physical Layer (PHY) Specifications, in 
+        Control (MAC) and Physical Layer (PHY) Specifications, in
         IEEE Std 802.11-2016 (Revision of IEEE Std 802.11-2012), vol., no.,
-        pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
+        pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995. <#>`_
     """
     if bw not in [20, 40] or ng not in [1, 2, 4]:
         raise ValueError("bw should be [20, 40] and ng should be [1, 2, 4]")
@@ -27,14 +36,23 @@ def calib(phase, bw=20, ng=2, axis=1):
     """Phase calibration
 
     Args:
-        phase: it must be unwrapped.
-        bw: bandwitdh(20, 40)
-        ng: grouping(1, 2, 4)
-        axis: axis(subcarriers) along which calib will operate.
+        phase (ndarray): Unwrapped phase of CSI.
+        bw (int): Bandwidth, it can be 20 and 40. Default: 20
+        ng (int): Grouping, it can be 1, 2 and 4. Default: 2
+        axis (int): Axis along which is subcarrier. Default: 1
 
-    ref:
-        [Enabling Contactless Detection of Moving Humans with Dynamic SpeedsUsing CSI]
-        (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
+    Returns:
+        ndarray: Phase calibrated
+
+    Examples:
+
+        >>> csi = csidata.csi[:10]
+        >>> phase = np.unwrap(np.angle(csi), axis=1)
+        >>> phase = calib(phase, bw=20, ng=2, axis=1)
+
+    References:
+        1. `Enabling Contactless Detection of Moving Humans with Dynamic Speeds
+        Using CSI <#>`_
     """
     p = np.asarray(phase)
     s = scidx(bw, ng)
