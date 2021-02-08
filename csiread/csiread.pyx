@@ -519,7 +519,7 @@ cdef class Intel:
 
     def get_total_rss(self):
         """Calculates the Received Signal Strength [RSS] in dBm from CSI"""
-        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
+        rssi_mag = np.zeros_like(self.rssiA, dtype=float)
         rssi_mag += self.__dbinvs(self.rssiA)
         rssi_mag += self.__dbinvs(self.rssiB)
         rssi_mag += self.__dbinvs(self.rssiC)
