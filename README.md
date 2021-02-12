@@ -57,8 +57,9 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 ### v1.3.5
 
 1. new feature: add support for nexmon_csi
-2. API changes: rename csiread.CSI to csiread.Intel;add a new parameter: bufsize
-3. update example: improve csiflask
+2. new feature: add seek() and scidx()
+3. API changes: rename csiread.CSI to csiread.Intel; add a new parameter: bufsize
+4. update examples: improve csiflask; ESP32(pure Python); music.py works.
 
 ### v1.3.4
 

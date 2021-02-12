@@ -45,7 +45,10 @@ setup(
     ],
     python_requires='>=3',
 
-    ext_modules=cythonize(EXTENSIONS, compiler_directives={'language_level': 3}),
+    ext_modules=cythonize(
+        EXTENSIONS,
+        compiler_directives={'language_level': 3, 'binding': False}
+    ),
 
     classifiers=["Topic :: Scientific/Engineering",
                  "Programming Language :: Python :: 3",
