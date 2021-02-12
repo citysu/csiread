@@ -176,9 +176,12 @@ cdef class Intel:
 
     cpdef read(self):
         """Parse data only if code=0xbb or code=0xc1"""
+        self.seek(self.file, 0, 0)
+
+    cpdef seek(self, file, long pos, long num):
         cdef FILE *f
 
-        tempfile = self.file.encode(encoding="utf-8")
+        tempfile = file.encode(encoding="utf-8")
         cdef char *datafile = tempfile
 
         f = fopen(datafile, "rb")
@@ -189,7 +192,7 @@ cdef class Intel:
 
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
-        fseek(f, 0, SEEK_SET)
+        fseek(f, pos, SEEK_SET)
 
         cdef np.int_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
@@ -212,7 +215,6 @@ cdef class Intel:
         cdef np.int_t[:] buf_seq_mem = self.buf_seq
         cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
 
-        cdef long pos = 0
         cdef int count_0xbb = 0
         cdef int count_0xc1 = 0
         cdef unsigned short field_len
@@ -225,6 +227,9 @@ cdef class Intel:
         cdef int i, j, k, g, perm_j
         cdef uint8_t remainder = 0
         cdef double a, b
+
+        if num == 0:
+            num = lens
 
         while pos < (lens-3):
             l = fread(&buf, sizeof(unsigned char), 3, f)
@@ -301,6 +306,8 @@ cdef class Intel:
             else:
                 fseek(f, field_len - 1, SEEK_CUR)
             pos += (field_len + 2)
+            if count_0xbb >= num:
+                break
 
         fclose(f)
 
@@ -813,9 +820,12 @@ cdef class Atheros:
 
             (endian='little')
         """
+        self.seek(self.file, 0, 0, endian)
+
+    cpdef seek(self, file, long pos, long num, endian='little'):
         cdef FILE *f
 
-        tempfile = self.file.encode(encoding="utf-8")
+        tempfile = file.encode(encoding="utf-8")
         cdef char *datafile = tempfile
 
         f = fopen(datafile, "rb")
@@ -826,7 +836,7 @@ cdef class Atheros:
 
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
-        fseek(f, 0, SEEK_SET)
+        fseek(f, pos, SEEK_SET)
 
         cdef np.int64_t[:] buf_timestamp_mem = self.buf_timestamp
         cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
@@ -846,10 +856,12 @@ cdef class Atheros:
         cdef np.complex128_t[:, :, :, :] buf_csi_mem = self.buf_csi
         cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
 
-        cdef int pos = 0
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
         cdef int l, field_len
+
+        if num == 0:
+            num = lens
 
         cdef int bits_left, bitmask, idx, h_data, curren_data
         cdef int k, nc_idx, nr_idx, imag, real, i
@@ -955,6 +967,8 @@ cdef class Atheros:
 
             # In matlab, read_log_file drops the last two packets, but here we keep them.
             count += 1
+            if count >= num:
+                break
 
         fclose(f)
 
@@ -1268,9 +1282,12 @@ cdef class Nexmon:
 
     cpdef read(self):
         """Parse data"""
+        self.seek(self.file, 24, 0)
+
+    cpdef seek(self, file, long pos, long num):
         cdef FILE *f
 
-        tempfile = self.file.encode(encoding="utf-8")
+        tempfile = file.encode(encoding="utf-8")
         cdef char *datafile = tempfile
 
         f = fopen(datafile, "rb")
@@ -1278,10 +1295,11 @@ cdef class Nexmon:
             print("Open failed!\n")
             fclose(f)
             return -1
-        
+
+        endian = self.__pcapheader(f)
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
-        fseek(f, 0, SEEK_SET)
+        fseek(f, pos, SEEK_SET)
 
         cdef np.int_t[:] buf_sec_mem = self.buf_sec
         cdef np.int_t[:] buf_usec_mem = self.buf_usec
@@ -1296,13 +1314,14 @@ cdef class Nexmon:
         cdef np.int_t[:] buf_chip_version_mem = self.buf_chip_version
         cdef np.complex128_t[:, :] buf_csi_mem = self.buf_csi
 
-        cdef long pos = 0
         cdef int count = 0
         cdef unsigned char buf[4096]
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
 
-        endian = self.__pcapheader(f)
+        if num == 0:
+            num = lens
+
         if endian == "little":
             nex_cu16 = cu16l
             nex_cu32 = cu32l
@@ -1350,6 +1369,8 @@ cdef class Nexmon:
                 pass
 
             count += 1
+            if count >= num:
+                break
         fclose(f)
         self.count = count
         if self.if_report:
