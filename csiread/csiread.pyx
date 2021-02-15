@@ -45,11 +45,11 @@ cdef class Intel:
             dropped in this pipe.
         Nrx (ndarray): The number of antennas used to receive the packet.
         Ntx (ndarray): The number of space/time streams transmitted.
-        rssiA (ndarray): RSSI measured by the receiving NIC at the input to
+        rssi_a (ndarray): RSSI measured by the receiving NIC at the input to
             antenna port A. This measurement is made during the packet preamble.
             This value is in dB relative to an internal reference.
-        rssiB (ndarray): See ``rssiA``
-        rssiC (ndarray): See ``rssiA``
+        rssi_b (ndarray): See ``rssi_a``
+        rssi_c (ndarray): See ``rssi_a``
         noise (ndarray): Noise
         agc (ndarray): Automatic Gain Control (AGC) setting in dB
         perm (ndarray): Tell us how the NIC permuted the signals from the 3
@@ -90,9 +90,9 @@ cdef class Intel:
     cdef public np.ndarray bfee_count
     cdef public np.ndarray Nrx
     cdef public np.ndarray Ntx
-    cdef public np.ndarray rssiA
-    cdef public np.ndarray rssiB
-    cdef public np.ndarray rssiC
+    cdef public np.ndarray rssi_a
+    cdef public np.ndarray rssi_b
+    cdef public np.ndarray rssi_c
     cdef public np.ndarray noise
     cdef public np.ndarray agc
     cdef public np.ndarray perm
@@ -112,9 +112,9 @@ cdef class Intel:
     cdef np.ndarray buf_bfee_count
     cdef np.ndarray buf_Nrx
     cdef np.ndarray buf_Ntx
-    cdef np.ndarray buf_rssiA
-    cdef np.ndarray buf_rssiB
-    cdef np.ndarray buf_rssiC
+    cdef np.ndarray buf_rssi_a
+    cdef np.ndarray buf_rssi_b
+    cdef np.ndarray buf_rssi_c
     cdef np.ndarray buf_noise
     cdef np.ndarray buf_agc
     cdef np.ndarray buf_perm
@@ -159,9 +159,9 @@ cdef class Intel:
         self.buf_bfee_count = np.zeros([pk_num], dtype=btype)
         self.buf_Nrx = np.zeros([pk_num], dtype=btype)
         self.buf_Ntx = np.zeros([pk_num], dtype=btype)
-        self.buf_rssiA = np.zeros([pk_num], dtype=btype)
-        self.buf_rssiB = np.zeros([pk_num], dtype=btype)
-        self.buf_rssiC = np.zeros([pk_num], dtype=btype)
+        self.buf_rssi_a = np.zeros([pk_num], dtype=btype)
+        self.buf_rssi_b = np.zeros([pk_num], dtype=btype)
+        self.buf_rssi_c = np.zeros([pk_num], dtype=btype)
         self.buf_noise = np.zeros([pk_num], dtype=btype)
         self.buf_agc = np.zeros([pk_num], dtype=btype)
         self.buf_perm = np.zeros([pk_num, 3], dtype=btype)
@@ -183,9 +183,9 @@ cdef class Intel:
             "bfee_count": self.bfee_count[index],
             "Nrx": self.Nrx[index],
             "Ntx": self.Ntx[index],
-            "rssiA": self.rssiA[index],
-            "rssiB": self.rssiB[index],
-            "rssiC": self.rssiC[index],
+            "rssi_a": self.rssi_a[index],
+            "rssi_b": self.rssi_b[index],
+            "rssi_c": self.rssi_c[index],
             "noise": self.noise[index],
             "agc": self.agc[index],
             "perm": self.perm[index],
@@ -248,9 +248,9 @@ cdef class Intel:
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
         cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
         cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
-        cdef np.int_t[:] buf_rssiA_mem = self.buf_rssiA
-        cdef np.int_t[:] buf_rssiB_mem = self.buf_rssiB
-        cdef np.int_t[:] buf_rssiC_mem = self.buf_rssiC
+        cdef np.int_t[:] buf_rssi_a_mem = self.buf_rssi_a
+        cdef np.int_t[:] buf_rssi_b_mem = self.buf_rssi_b
+        cdef np.int_t[:] buf_rssi_c_mem = self.buf_rssi_c
         cdef np.int_t[:] buf_noise_mem = self.buf_noise
         cdef np.int_t[:] buf_agc_mem = self.buf_agc
         cdef np.int_t[:, :] buf_perm_mem = self.buf_perm
@@ -296,9 +296,9 @@ cdef class Intel:
                 buf_bfee_count_mem[count_0xbb] = cu16l(buf[4], buf[5])
                 buf_Nrx_mem[count_0xbb] = buf[8]
                 buf_Ntx_mem[count_0xbb] = buf[9]
-                buf_rssiA_mem[count_0xbb] = buf[10]
-                buf_rssiB_mem[count_0xbb] = buf[11]
-                buf_rssiC_mem[count_0xbb] = buf[12]
+                buf_rssi_a_mem[count_0xbb] = buf[10]
+                buf_rssi_b_mem[count_0xbb] = buf[11]
+                buf_rssi_c_mem[count_0xbb] = buf[12]
                 buf_noise_mem[count_0xbb] = <int8_t>buf[13]
                 buf_agc_mem[count_0xbb] = buf[14]
                 buf_rate_mem[count_0xbb] = cu16l(buf[18], buf[19])
@@ -373,9 +373,9 @@ cdef class Intel:
         del buf_bfee_count_mem
         del buf_Nrx_mem
         del buf_Ntx_mem
-        del buf_rssiA_mem
-        del buf_rssiB_mem
-        del buf_rssiC_mem
+        del buf_rssi_a_mem
+        del buf_rssi_b_mem
+        del buf_rssi_c_mem
         del buf_noise_mem
         del buf_agc_mem
         del buf_perm_mem
@@ -394,9 +394,9 @@ cdef class Intel:
         self.bfee_count = self.buf_bfee_count[:count_0xbb]
         self.Nrx = self.buf_Nrx[:count_0xbb]
         self.Ntx = self.buf_Ntx[:count_0xbb]
-        self.rssiA = self.buf_rssiA[:count_0xbb]
-        self.rssiB = self.buf_rssiB[:count_0xbb]
-        self.rssiC = self.buf_rssiC[:count_0xbb]
+        self.rssi_a = self.buf_rssi_a[:count_0xbb]
+        self.rssi_b = self.buf_rssi_b[:count_0xbb]
+        self.rssi_c = self.buf_rssi_c[:count_0xbb]
         self.noise = self.buf_noise[:count_0xbb]
         self.agc = self.buf_agc[:count_0xbb]
         self.perm = self.buf_perm[:count_0xbb, :]
@@ -440,9 +440,9 @@ cdef class Intel:
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
         cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
         cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
-        cdef np.int_t[:] buf_rssiA_mem = self.buf_rssiA
-        cdef np.int_t[:] buf_rssiB_mem = self.buf_rssiB
-        cdef np.int_t[:] buf_rssiC_mem = self.buf_rssiC
+        cdef np.int_t[:] buf_rssi_a_mem = self.buf_rssi_a
+        cdef np.int_t[:] buf_rssi_b_mem = self.buf_rssi_b
+        cdef np.int_t[:] buf_rssi_c_mem = self.buf_rssi_c
         cdef np.int_t[:] buf_noise_mem = self.buf_noise
         cdef np.int_t[:] buf_agc_mem = self.buf_agc
         cdef np.int_t[:, :] buf_perm_mem = self.buf_perm
@@ -475,9 +475,9 @@ cdef class Intel:
             buf_bfee_count_mem[0] = cu16l(buf[4], buf[5])
             buf_Nrx_mem[0] = buf[8]
             buf_Ntx_mem[0] = buf[9]
-            buf_rssiA_mem[0] = buf[10]
-            buf_rssiB_mem[0] = buf[11]
-            buf_rssiC_mem[0] = buf[12]
+            buf_rssi_a_mem[0] = buf[10]
+            buf_rssi_b_mem[0] = buf[11]
+            buf_rssi_c_mem[0] = buf[12]
             buf_noise_mem[0] = <int8_t>buf[13]
             buf_agc_mem[0] = buf[14]
             buf_rate_mem[0] = cu16l(buf[18], buf[19])
@@ -529,9 +529,9 @@ cdef class Intel:
         del buf_bfee_count_mem
         del buf_Nrx_mem
         del buf_Ntx_mem
-        del buf_rssiA_mem
-        del buf_rssiB_mem
-        del buf_rssiC_mem
+        del buf_rssi_a_mem
+        del buf_rssi_b_mem
+        del buf_rssi_c_mem
         del buf_noise_mem
         del buf_agc_mem
         del buf_perm_mem
@@ -550,9 +550,9 @@ cdef class Intel:
         self.bfee_count = self.buf_bfee_count
         self.Nrx = self.buf_Nrx
         self.Ntx = self.buf_Ntx
-        self.rssiA = self.buf_rssiA
-        self.rssiB = self.buf_rssiB
-        self.rssiC = self.buf_rssiC
+        self.rssi_a = self.buf_rssi_a
+        self.rssi_b = self.buf_rssi_b
+        self.rssi_c = self.buf_rssi_c
         self.noise = self.buf_noise
         self.agc = self.buf_agc
         self.perm = self.buf_perm
@@ -605,10 +605,10 @@ cdef class Intel:
             >>> rssi = csidata.get_total_rss()
             >>> print(rssi.shape)
         """
-        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
-        rssi_mag += self.__dbinvs(self.rssiA)
-        rssi_mag += self.__dbinvs(self.rssiB)
-        rssi_mag += self.__dbinvs(self.rssiC)
+        rssi_mag = np.zeros_like(self.rssi_a, dtype=np.float)
+        rssi_mag += self.__dbinvs(self.rssi_a)
+        rssi_mag += self.__dbinvs(self.rssi_b)
+        rssi_mag += self.__dbinvs(self.rssi_c)
         ret = self.__db(rssi_mag) - 44 - self.agc
         return ret
 

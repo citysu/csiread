@@ -22,9 +22,9 @@ class Intel:
             "bfee_count": self.bfee_count[index],
             "Nrx": self.Nrx[index],
             "Ntx": self.Ntx[index],
-            "rssiA": self.rssiA[index],
-            "rssiB": self.rssiB[index],
-            "rssiC": self.rssiC[index],
+            "rssi_a": self.rssi_a[index],
+            "rssi_b": self.rssi_b[index],
+            "rssi_c": self.rssi_c[index],
             "noise": self.noise[index],
             "agc": self.agc[index],
             "perm": self.perm[index],
@@ -45,9 +45,9 @@ class Intel:
         self.bfee_count = np.zeros([lens//95], dtype = btype)
         self.Nrx = np.zeros([lens//95], dtype = btype)
         self.Ntx = np.zeros([lens//95], dtype = btype)
-        self.rssiA = np.zeros([lens//95], dtype = btype)
-        self.rssiB = np.zeros([lens//95], dtype = btype)
-        self.rssiC = np.zeros([lens//95], dtype = btype)
+        self.rssi_a = np.zeros([lens//95], dtype = btype)
+        self.rssi_b = np.zeros([lens//95], dtype = btype)
+        self.rssi_c = np.zeros([lens//95], dtype = btype)
         self.noise = np.zeros([lens//95], dtype = btype)
         self.agc = np.zeros([lens//95], dtype = btype)
         self.perm = np.zeros([lens//95, 3], dtype = btype)
@@ -70,9 +70,9 @@ class Intel:
                 self.bfee_count[count] = int.from_bytes(buf[4:6], 'little')
                 self.Nrx[count] = buf[8]
                 self.Ntx[count] = buf[9]
-                self.rssiA[count] = buf[10]
-                self.rssiB[count] = buf[11]
-                self.rssiC[count] = buf[12]
+                self.rssi_a[count] = buf[10]
+                self.rssi_b[count] = buf[11]
+                self.rssi_c[count] = buf[12]
                 self.noise[count] = int.from_bytes(buf[13:14], 'little', signed=True)
                 self.agc[count] = buf[14]
                 self.rate[count] = int.from_bytes(buf[18:20], 'little')
@@ -105,9 +105,9 @@ class Intel:
         self.bfee_count = self.bfee_count[:count]
         self.Nrx = self.Nrx[:count]
         self.Ntx = self.Ntx[:count]
-        self.rssiA = self.rssiA[:count]
-        self.rssiB = self.rssiB[:count]
-        self.rssiC = self.rssiC[:count]
+        self.rssi_a = self.rssi_a[:count]
+        self.rssi_b = self.rssi_b[:count]
+        self.rssi_c = self.rssi_c[:count]
         self.noise = self.noise[:count]
         self.agc = self.agc[:count]
         self.perm = self.perm[:count, :]
@@ -117,10 +117,10 @@ class Intel:
 
     def get_total_rss(self):
         """Calculates the Received Signal Strength (RSS) in dBm from CSI"""
-        rssi_mag = np.zeros_like(self.rssiA, dtype=np.float)
-        rssi_mag += self.__dbinvs(self.rssiA)
-        rssi_mag += self.__dbinvs(self.rssiB)
-        rssi_mag += self.__dbinvs(self.rssiC)
+        rssi_mag = np.zeros_like(self.rssi_a, dtype=np.float)
+        rssi_mag += self.__dbinvs(self.rssi_a)
+        rssi_mag += self.__dbinvs(self.rssi_b)
+        rssi_mag += self.__dbinvs(self.rssi_c)
         ret = self.__db(rssi_mag) - 44 - self.agc
         return ret
 

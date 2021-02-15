@@ -41,9 +41,9 @@ def matlab_read(matfile='log.all_csi.6.7.6.mat'):
 	mldata['bfee_count'] = np.zeros([pk_num], dtype=np.int_)
 	mldata['Nrx'] = np.zeros([pk_num], dtype=np.int_)
 	mldata['Ntx'] = np.zeros([pk_num], dtype=np.int_)
-	mldata['rssiA'] = np.zeros([pk_num], dtype=np.int_)
-	mldata['rssiB'] = np.zeros([pk_num], dtype=np.int_)
-	mldata['rssiC'] = np.zeros([pk_num], dtype=np.int_)
+	mldata['rssi_a'] = np.zeros([pk_num], dtype=np.int_)
+	mldata['rssi_b'] = np.zeros([pk_num], dtype=np.int_)
+	mldata['rssi_c'] = np.zeros([pk_num], dtype=np.int_)
 	mldata['noise'] = np.zeros([pk_num], dtype=np.int_)
 	mldata['agc'] = np.zeros([pk_num], dtype=np.int_)
 	mldata['perm'] = np.zeros([pk_num, 3], dtype=np.int_)
@@ -56,9 +56,9 @@ def matlab_read(matfile='log.all_csi.6.7.6.mat'):
 		mldata['bfee_count'][i] = matdata['csidata'][i, 0]['bfee_count'][0, 0]
 		mldata['Nrx'][i] = matdata['csidata'][i, 0]['Nrx'][0, 0]
 		mldata['Ntx'][i] = matdata['csidata'][i, 0]['Ntx'][0, 0]
-		mldata['rssiA'][i] = matdata['csidata'][i, 0]['rssi_a'][0, 0]
-		mldata['rssiB'][i] = matdata['csidata'][i, 0]['rssi_b'][0, 0]
-		mldata['rssiC'][i] = matdata['csidata'][i, 0]['rssi_c'][0, 0]
+		mldata['rssi_a'][i] = matdata['csidata'][i, 0]['rssi_a'][0, 0]
+		mldata['rssi_b'][i] = matdata['csidata'][i, 0]['rssi_b'][0, 0]
+		mldata['rssi_c'][i] = matdata['csidata'][i, 0]['rssi_c'][0, 0]
 		mldata['noise'][i] = matdata['csidata'][i, 0]['noise'][0, 0]
 		mldata['agc'][i] = matdata['csidata'][i, 0]['agc'][0, 0]
 		mldata['perm'][i] = matdata['csidata'][i, 0]['perm'][0, 0].T[:, 0] - 1
