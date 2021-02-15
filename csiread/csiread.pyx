@@ -135,8 +135,8 @@ cdef class Intel:
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
-                 bufsize=0):
+    def __cinit__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
+                  bufsize=0, *argv, **kw):
         self.file = file
         self.nrxnum = nrxnum
         self.ntxnum = ntxnum
@@ -176,6 +176,10 @@ cdef class Intel:
         self.buf_addr_bssid = np.zeros([pk_num, 6], dtype=btype)
         self.buf_seq = np.zeros([pk_num], dtype=btype)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
+
+    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
+                 bufsize=0):
+        pass
 
     def __getitem__(self, index):
         ret = {
@@ -588,10 +592,7 @@ cdef class Intel:
             >>> first_stp = csidata.readstp()
             >>> print(first_stp)
         """
-        stpfile = self.file + "stp"
-        lens = os.path.getsize(stpfile)
-        self.stp = np.zeros(lens // 8)
-        read_stpfile(stpfile, self.stp, endian)
+        self.stp = read_stpfile(self.file + "stp", endian)
         return self.stp[0]
 
     def get_total_rss(self):
@@ -940,8 +941,8 @@ cdef class Atheros:
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
-                 if_report=True, bufsize=0):
+    def __cinit__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
+                  if_report=True, bufsize=0, *argv, **kw):
         self.file = file
         self.nrxnum = nrxnum
         self.ntxnum = ntxnum
@@ -981,6 +982,10 @@ cdef class Atheros:
         self.buf_csi = np.zeros([pk_num, self.tones, self.nrxnum, self.ntxnum],
                                 dtype=np.complex_)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
+
+    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
+                 if_report=True, bufsize=0):
+        pass
 
     def __getitem__(self, index):
         ret = {
@@ -1435,10 +1440,7 @@ cdef class Atheros:
             >>> first_stp = csidata.readstp()
             >>> print(first_stp)
         """
-        stpfile = self.file + "stp"
-        lens = os.path.getsize(stpfile)
-        self.stp = np.zeros(lens // 8)
-        read_stpfile(stpfile, self.stp, endian)
+        self.stp = read_stpfile(self.file + "stp", endian)
         return self.stp[0]
 
     def __report(self, int count):
@@ -1531,7 +1533,8 @@ cdef class Nexmon:
 
     cdef bint if_report
 
-    def __init__(self, file, chip, bw, if_report=True, bufsize=0):
+    def __cinit__(self, file, chip, bw, if_report=True, bufsize=0,
+                  *argv, **kw):
         self.file = file
         self.chip = chip
         self.bw = bw
@@ -1560,6 +1563,9 @@ cdef class Nexmon:
         self.buf_chip_version = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, int(self.bw * 3.2)],
                                 dtype=np.complex_)
+
+    def __init__(self, file, chip, bw, if_report=True, bufsize=0):
+        pass
 
     def __getitem__(self, index):
         ret = {
@@ -1893,13 +1899,17 @@ cdef class Nexmon:
         return endian
 
 
-cdef read_stpfile(stpfile, stp, endian):
+cdef read_stpfile(stpfile, endian):
+    lens = os.path.getsize(stpfile) // 8
+    stp = np.zeros(lens)
     format_string = '<LL' if endian == 'little' else '>LL'
-    cdef int i
-    with open(stpfile, "rb") as f:
-        for i in range(stp.size):
-            a, b = struct.unpack(format_string, f.read(8))
-            stp[i] = a + b / 1000000
+    cdef int i, a, b
+    f = open(stpfile, "rb")
+    for i in range(lens):
+        a, b = struct.unpack(format_string, f.read(8))
+        stp[i] = a + b / 1000000
+    f.close()
+    return stp
 
 
 @cython.boundscheck(False)
