@@ -24,8 +24,8 @@ cdef class Intel:
         file (str or None): CSI data file. If ``str``, ``read`` and ``readstp``
             methods are allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
-        Nrxnum (int, optional): Number of receive antennas. Default: 3
-        Ntxnum (int, optional): Number of transmit antennas. Default: 2
+        nrxnum (int, optional): Number of receive antennas. Default: 3
+        ntxnum (int, optional): Number of transmit antennas. Default: 2
         pl_size (int, optional): The size of payload to be used. Default: 0
         if_report (bool, optional): Report the parsed result. Default: ``True``
         bufsize (int, optional): The maximum amount of packets to be parsed.
@@ -130,16 +130,16 @@ cdef class Intel:
     cdef np.ndarray buf_seq
     cdef np.ndarray buf_payload
 
-    cdef int Nrxnum
-    cdef int Ntxnum
+    cdef int nrxnum
+    cdef int ntxnum
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=True,
+    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
                  bufsize=0):
         self.file = file
-        self.Nrxnum = Nrxnum
-        self.Ntxnum = Ntxnum
+        self.nrxnum = nrxnum
+        self.ntxnum = ntxnum
         self.pl_size = pl_size
         self.if_report = if_report
 
@@ -166,7 +166,7 @@ cdef class Intel:
         self.buf_agc = np.zeros([pk_num], dtype=btype)
         self.buf_perm = np.zeros([pk_num, 3], dtype=btype)
         self.buf_rate = np.zeros([pk_num], dtype=btype)
-        self.buf_csi = np.zeros([pk_num, 30, self.Nrxnum, self.Ntxnum],
+        self.buf_csi = np.zeros([pk_num, 30, self.nrxnum, self.ntxnum],
                                 dtype=np.complex_)
 
         self.buf_fc = np.zeros([pk_num], dtype=btype)
@@ -307,12 +307,12 @@ cdef class Intel:
                 buf_perm_mem[count_0xbb, 1] = ((buf[15] >> 2) & 0x3)
                 buf_perm_mem[count_0xbb, 2] = ((buf[15] >> 4) & 0x3)
 
-                if buf[8] > self.Nrxnum:
+                if buf[8] > self.nrxnum:
                     fclose(f)
-                    raise ValueError("Nrxnum=%d is too small!\n" % self.Nrxnum)
-                if buf[9] > self.Ntxnum:
+                    raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+                if buf[9] > self.ntxnum:
                     fclose(f)
-                    raise ValueError("Ntxnum=%d is too small!\n" % self.Ntxnum)
+                    raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
                 if buf[16] | (buf[17] << 8) != 60 * buf[8] * buf[9] + 12:
                     fclose(f)
                     raise Exception("Wrong beamforming matrix size"
@@ -486,10 +486,10 @@ cdef class Intel:
             buf_perm_mem[0, 1] = ((buf[15] >> 2) & 0x3)
             buf_perm_mem[0, 2] = ((buf[15] >> 4) & 0x3)
 
-            if buf[8] > self.Nrxnum:
-                raise ValueError("Nrxnum=%d is too small!\n" % self.Nrxnum)
-            if buf[9] > self.Ntxnum:
-                raise ValueError("Ntxnum=%d is too small!\n" % self.Ntxnum)
+            if buf[8] > self.nrxnum:
+                raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+            if buf[9] > self.ntxnum:
+                raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
             if buf[16] | (buf[17] << 8) != 60 * buf[8] * buf[9] + 12:
                 printf("Wrong beamforming matrix size, the packet is broken!\n")
                 return code
@@ -631,7 +631,7 @@ cdef class Intel:
             >>> print("scaled_csi is csidata.csi: ", scaled_csi is csidata.csi)
         """
         cdef int i, j
-        cdef int flat = 30 * self.Nrxnum * self.Ntxnum
+        cdef int flat = 30 * self.nrxnum * self.ntxnum
         cdef double constant2 = 2
         cdef double constant4_5 = np.power(10, 0.45)
         cdef double temp_sum
@@ -785,7 +785,7 @@ cdef class Intel:
         if inplace:
             ret = scaled_csi
         else:
-            ret = np.zeros([self.count, 30, self.Nrxnum, self.Ntxnum],
+            ret = np.zeros([self.count, 30, self.nrxnum, self.ntxnum],
                            dtype=np.complex_)
 
         cdef int i, N, M, B
@@ -843,10 +843,10 @@ cdef class Atheros:
         file (str or None): CSI data file. If ``str``, ``read`` and ``readstp``
             methods are allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
-        Nrxnum (int, optional): Number of receive antennas. Default: 3
-        Ntxnum (int, optional): Number of transmit antennas. Default: 2
+        nrxnum (int, optional): Number of receive antennas. Default: 3
+        ntxnum (int, optional): Number of transmit antennas. Default: 2
         pl_size (int, optional): The size of payload to be used. Default: 0
-        Tones (int, optional): The number of subcarrier. It can be 56 and 114.
+        tones (int, optional): The number of subcarrier. It can be 56 and 114.
             Default: 56
         if_report (bool, optional): Report the parsed result. Default: ``True``
         bufsize (int, optional): The maximum amount of packets to be parsed.
@@ -934,23 +934,23 @@ cdef class Atheros:
     cdef np.ndarray buf_csi
     cdef np.ndarray buf_payload
 
-    cdef int Nrxnum
-    cdef int Ntxnum
-    cdef int Tones
+    cdef int nrxnum
+    cdef int ntxnum
+    cdef int tones
     cdef int pl_size
     cdef bint if_report
 
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_size=0, Tones=56,
+    def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
                  if_report=True, bufsize=0):
         self.file = file
-        self.Nrxnum = Nrxnum
-        self.Ntxnum = Ntxnum
-        self.Tones = Tones
+        self.nrxnum = nrxnum
+        self.ntxnum = ntxnum
+        self.tones = tones
         self.pl_size = pl_size
         self.if_report = if_report
 
-        if Tones not in [56, 114]:
-            raise ValueError("Tones can only take 56 and 114!\n")
+        if tones not in [56, 114]:
+            raise ValueError("tones can only take 56 and 114!\n")
 
         if bufsize == 0:
             if file is None:
@@ -978,7 +978,7 @@ cdef class Atheros:
         self.buf_rssi_2 = np.zeros([pk_num], dtype=btype)
         self.buf_rssi_3 = np.zeros([pk_num], dtype=btype)
         self.buf_payload_len = np.zeros([pk_num], dtype=btype)
-        self.buf_csi = np.zeros([pk_num, self.Tones, self.Nrxnum, self.Ntxnum],
+        self.buf_csi = np.zeros([pk_num, self.tones, self.nrxnum, self.ntxnum],
                                 dtype=np.complex_)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
@@ -1125,12 +1125,12 @@ cdef class Atheros:
             buf_rssi_3_mem[count] = buf[22]
             pos += 25
 
-            if buf[17] > self.Nrxnum:
+            if buf[17] > self.nrxnum:
                 fclose(f)
-                raise ValueError("Nrxnum=%d is too small!\n" % self.Nrxnum)
-            if buf[18] > self.Ntxnum:
+                raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+            if buf[18] > self.ntxnum:
                 fclose(f)
-                raise ValueError("Ntxnum=%d is too small!\n" % self.Ntxnum)
+                raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
 
             c_len = buf_csi_len_mem[count]
             if c_len > 0:
@@ -1316,10 +1316,10 @@ cdef class Atheros:
         buf_rssi_2_mem[count] = buf[21]
         buf_rssi_3_mem[count] = buf[22]
 
-        if buf[17] > self.Nrxnum:
-            raise ValueError("Nrxnum=%d is too small!\n" % self.Nrxnum)
-        if buf[18] > self.Ntxnum:
-            raise ValueError("Ntxnum=%d is too small!\n" % self.Ntxnum)
+        if buf[17] > self.nrxnum:
+            raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+        if buf[18] > self.ntxnum:
+            raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
 
         c_len = buf_csi_len_mem[count]
         if c_len > 0:

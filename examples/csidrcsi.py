@@ -220,7 +220,7 @@ def algshow(csidata):
 
 
 if __name__ == "__main__":
-    csidata = csiread.Intel("../material/5300/dataset/sample_0x5_64_3000.dat", Ntxnum=1, if_report=False)
+    csidata = csiread.Intel("../material/5300/dataset/sample_0x5_64_3000.dat", ntxnum=1, if_report=False)
     athdata = csiread.Atheros("../material/atheros/dataset/ath_csi_1.dat", if_report=False)
     csidata.read();csidata.get_scaled_csi(True)
     athdata.read()

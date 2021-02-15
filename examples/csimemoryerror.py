@@ -63,14 +63,14 @@ def info(func):
 
 @info
 def read_bf_fileA(csifile, pk_num):
-    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False, bufsize=pk_num)
+    csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=0, if_report=False, bufsize=pk_num)
     csidata.read()
     return csidata
 
 
 @info
 def read_bf_fileB(csifile):
-    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=0, if_report=False)
+    csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=0, if_report=False)
     csidata.read()
     return csidata
 

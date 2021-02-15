@@ -6,12 +6,12 @@ from timeit import default_timer
 
 
 class Atheros:
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, Tones=56, pl_len=0, if_report=True):
+    def __init__(self, file, nrxnum=3, ntxnum=2, tones=56, pl_len=0, if_report=True):
         """Parameter initialization."""
         self.file = file
-        self.Nrxnum = Nrxnum
-        self.Ntxnum = Ntxnum
-        self.Tones = Tones
+        self.nrxnum = nrxnum
+        self.ntxnum = ntxnum
+        self.tones = tones
         self.pl_len = pl_len
         self.if_report = if_report
 
@@ -41,7 +41,7 @@ class Atheros:
         self.rssi_2 = np.zeros([lens//420], dtype=btype)
         self.rssi_3 = np.zeros([lens//420], dtype=btype)
         self.payload_len = np.zeros([lens//420], dtype=btype)
-        self.csi = np.zeros([lens//420, self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+        self.csi = np.zeros([lens//420, self.tones, self.nrxnum, self.ntxnum], dtype=np.complex128)
         self.payload = np.zeros([lens//420, self.pl_len], dtype=btype)
 
         cur = 0
@@ -125,7 +125,7 @@ class Atheros:
         f.close()
 
     def __read_csi(self, csi_buf, nr, nc, num_tones):
-        csi = np.zeros([self.Tones, self.Nrxnum, self.Ntxnum], dtype=np.complex128)
+        csi = np.zeros([self.tones, self.nrxnum, self.ntxnum], dtype=np.complex128)
 
         bits_left = 16
         bitmask = (1 << 10) - 1
@@ -180,6 +180,6 @@ class Atheros:
 if __name__ == '__main__':
     last = default_timer()
     csifile = '../material/atheros/dataset/ath_csi_1.dat'
-    csidata = Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_len=10, if_report=True)
+    csidata = Atheros(csifile, nrxnum=3, ntxnum=2, pl_len=10, if_report=True)
     csidata.read()
     print(default_timer() - last, 's')

@@ -208,7 +208,7 @@ if __name__ == "__main__":
     parser.add_argument('-t', type=int, default=1, help=helpinfo)
     p = parser.parse_args()
 
-    csidata = csiread.Intel(p.file, Nrxnum=3, Ntxnum=3)
+    csidata = csiread.Intel(p.file, nrxnum=3, ntxnum=3)
     csidata.read()
     if p.t > 10:
         raise ValueError('the value of `t` can be 1 - 10')

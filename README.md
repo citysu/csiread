@@ -22,14 +22,14 @@ import csiread
 
 # Linux 802.11n CSI Tool
 csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=10)
+csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=10)
 csidata.read()
 csi = csidata.get_scaled_csi()
 print(csidata.csi.shape)
 
 # Atheros CSI Tool
 csifile = "../material/atheros/dataset/ath_csi_1.dat"
-csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=10, Tones=56)
+csidata = csiread.Atheros(csifile, nrxnum=3, ntxnum=2, pl_size=10, tones=56)
 csidata.read(endian='little')
 print(csidata.csi.shape)
 

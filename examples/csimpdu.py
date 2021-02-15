@@ -70,7 +70,7 @@ class MPDU:
 
 def AtherosMPDU(csifile, index=0):
     """Parse payload using scapy"""
-    csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=40, Tones=56, if_report=False)
+    csidata = csiread.Atheros(csifile, nrxnum=3, ntxnum=2, pl_size=40, tones=56, if_report=False)
     csidata.read()
     print("=" * 20 + "Atheros MPDU" + "=" * 20)
     m = Dot11(csidata.payload[index].tobytes())
@@ -78,7 +78,7 @@ def AtherosMPDU(csifile, index=0):
 
 def Intel5300MPDU(csifile, index=0):
     """Parse payload using scapy"""
-    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=40, if_report=False)
+    csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=40, if_report=False)
     csidata.read()
     print("=" * 20 + "Intel 5300 MPDU" + "=" * 20)
     m = Dot11(csidata.payload[index].tobytes())
@@ -86,7 +86,7 @@ def Intel5300MPDU(csifile, index=0):
 
 def AtherosMPDU2(csifile, index=0):
     """Parse payload without scapy"""
-    csidata = csiread.Atheros(csifile, Nrxnum=3, Ntxnum=2, pl_size=40, Tones=56, if_report=False)
+    csidata = csiread.Atheros(csifile, nrxnum=3, ntxnum=2, pl_size=40, tones=56, if_report=False)
     csidata.read()
     print("=" * 20 + "Atheros MPDU2" + "=" * 20)
     m = MPDU(csidata.payload[index].tobytes())
@@ -94,7 +94,7 @@ def AtherosMPDU2(csifile, index=0):
 
 def Intel5300MPDU2(csifile, index=0):
     """Parse payload without scapy"""
-    csidata = csiread.Intel(csifile, Nrxnum=3, Ntxnum=2, pl_size=40, if_report=False)
+    csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=40, if_report=False)
     csidata.read()
     print("=" * 20 + "Intel 5300 MPDU2" + "=" * 20)
     m = MPDU(csidata.payload[index].tobytes())

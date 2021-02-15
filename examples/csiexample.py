@@ -16,7 +16,7 @@ def stringify(array, space=':'):
     return space.join([hex(element)[2:].zfill(2) for element in array])
 
 
-def intel(csifile, index, Ntxnum=2):
+def intel(csifile, index, ntxnum=2):
     """csitool"""
     print("="*40+"[intel]")
     members = [s for s in dir(csiread.Intel) if not s.startswith("__") and callable(getattr(csiread.Intel, s))]
@@ -24,7 +24,7 @@ def intel(csifile, index, Ntxnum=2):
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.Intel(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
+    csidata = csiread.Intel(csifile, ntxnum=ntxnum, pl_size=10, if_report=False)
     csidata.read()
     print(" read                ", default_timer() - last, "s")
 
@@ -42,13 +42,13 @@ def intel(csifile, index, Ntxnum=2):
     print(" get_scaled_csi_sm   ", default_timer() - last, "s")
 
     # Setting inplace to True may be dangerous but more efficient.
-    temp = csiread.Intel(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp = csiread.Intel(csifile, ntxnum=ntxnum, if_report=False)
     temp.read()
     last = default_timer()
     _ = temp.get_scaled_csi(inplace=True)       # _ is temp.csi == True
     print(" get_scaled_csi(T)   ", default_timer() - last, "s")
 
-    temp = csiread.Intel(csifile, Ntxnum=Ntxnum, if_report=False)
+    temp = csiread.Intel(csifile, ntxnum=ntxnum, if_report=False)
     temp.read()
     last = default_timer()
     _ = temp.get_scaled_csi_sm(inplace=True)    # _ is temp.csi == True
@@ -85,7 +85,7 @@ def intel(csifile, index, Ntxnum=2):
     # print("help: \n", csidata.__doc__)
 
 
-def atheros(csifile, index, Ntxnum=2):
+def atheros(csifile, index, ntxnum=2):
     """atheros"""
     print("="*40+"[atheros]")
 
@@ -94,7 +94,7 @@ def atheros(csifile, index, Ntxnum=2):
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.Atheros(csifile, Ntxnum=Ntxnum, pl_size=10, if_report=False)
+    csidata = csiread.Atheros(csifile, ntxnum=ntxnum, pl_size=10, if_report=False)
     csidata.read()
     print(" read                ", default_timer() - last, "s")
 
@@ -161,7 +161,7 @@ def nexmon(csifile, index, chip, bw):
 
 if __name__ == "__main__":
     print("csiread.__version__: ", csiread.__version__)
-    intel("../material/5300/dataset/sample_0x1_ap.dat", 10, Ntxnum=2)
-    intel("../material/5300/dataset/sample_0x5_64_3000.dat", 10, Ntxnum=1)
-    atheros("../material/atheros/dataset/ath_csi_1.dat", 10, Ntxnum=2)
+    intel("../material/5300/dataset/sample_0x1_ap.dat", 10, ntxnum=2)
+    intel("../material/5300/dataset/sample_0x5_64_3000.dat", 10, ntxnum=1)
+    atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)

@@ -6,10 +6,10 @@ import numpy as np
 
 
 class Intel:
-    def __init__(self, file, Nrxnum=3, Ntxnum=2, pl_len=0, if_report=True):
+    def __init__(self, file, nrxnum=3, ntxnum=2, pl_len=0, if_report=True):
         self.file = file
-        self.Nrxnum = Nrxnum
-        self.Ntxnum = Ntxnum
+        self.nrxnum = nrxnum
+        self.ntxnum = ntxnum
         self.pl_len = pl_len    # useless
         self.if_report = if_report
         if not os.path.isfile(file):
@@ -52,7 +52,7 @@ class Intel:
         self.agc = np.zeros([lens//95], dtype = btype)
         self.perm = np.zeros([lens//95, 3], dtype = btype)
         self.rate = np.zeros([lens//95], dtype = btype)
-        self.csi = np.zeros([lens//95, 30, self.Nrxnum, self.Ntxnum], dtype = np.complex_)
+        self.csi = np.zeros([lens//95, 30, self.nrxnum, self.ntxnum], dtype = np.complex_)
 
         cur = 0
         count = 0
@@ -215,6 +215,6 @@ CSI = Intel
 if __name__ == '__main__':
     last = default_timer()
     csifile = '../material/5300/dataset/sample_0x5_64_3000.dat'
-    csidata = Intel(csifile, Nrxnum=3, Ntxnum=1, pl_len=0, if_report=True)
+    csidata = Intel(csifile, nrxnum=3, ntxnum=1, pl_len=0, if_report=True)
     csidata.read()
     print(default_timer() - last, 's')
