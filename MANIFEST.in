@@ -1,5 +1,5 @@
-include example/*
+include examples/*
 include csiread/*.pyx
 include *.png
-include doc/*
+include docs/*
 exclude csiread/*.c

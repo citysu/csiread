@@ -46,11 +46,11 @@ Read `example/*.py` and `csiread/csiread.pyx` for more details.
 
 <center><b>contents of packets</b></center>
 
-![contents of packets](sample1.png)
+![contents of packets](docs/sample1.png)
 
 <center><b>real-time plotting</b></center>
 
-![contents of packets](sample2.png )
+![contents of packets](docs/sample2.png )
 
 ## Log
 
