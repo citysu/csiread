@@ -1081,6 +1081,9 @@ cdef class Atheros:
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
         cdef int l, field_len
+        cdef uint16_t (*ath_cu16)(uint8_t, uint8_t)
+        cdef uint64_t (*ath_cu64)(uint64_t, uint64_t, uint64_t, uint64_t,
+                                  uint64_t, uint64_t, uint64_t, uint64_t)
 
         if num == 0:
             num = lens
@@ -1289,6 +1292,9 @@ cdef class Atheros:
         cdef int k, nc_idx, nr_idx, imag, real, i
         cdef unsigned char *buf
         cdef unsigned char *csi_buf
+        cdef uint16_t (*ath_cu16)(uint8_t, uint8_t)
+        cdef uint64_t (*ath_cu64)(uint64_t, uint64_t, uint64_t, uint64_t,
+                                  uint64_t, uint64_t, uint64_t, uint64_t)
 
         buf = data
         if endian == "little":
@@ -1638,6 +1644,9 @@ cdef class Nexmon:
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
         cdef uint32_t caplen
+        cdef bint flag
+        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
+        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         if num == 0:
             num = lens
@@ -1645,9 +1654,11 @@ cdef class Nexmon:
         if endian == "little":
             nex_cu16 = cu16l
             nex_cu32 = cu32l
+            flag = True
         else:
             nex_cu16 = cu16b
             nex_cu32 = cu32b
+            flag = False
 
         while pos < (lens - 24):
             # global header
@@ -1682,11 +1693,11 @@ cdef class Nexmon:
             # CSI
             l = fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
-                unpack_int16(buf, buf_csi_mem[count], nfft, nex_cu16)
+                unpack_int16(buf, buf_csi_mem[count], nfft, flag)
             elif self.chip == '4358':
-                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5, nex_cu32)
+                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5, flag)
             elif self.chip == '4366c0':
-                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6, nex_cu32)
+                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6, flag)
             else:
                 pass
 
@@ -1762,14 +1773,20 @@ cdef class Nexmon:
         cdef unsigned char *buf
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
+        cdef bint flag
+        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
+        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
+
         buf = data
 
         if endian == "little":
             nex_cu16 = cu16l
             nex_cu32 = cu32l
+            flag = True
         else:
             nex_cu16 = cu16b
             nex_cu32 = cu32b
+            flag = False
 
         # we don't care about enth+ip+udp header
         if buf[6:12] != b'NEXMON':
@@ -1787,11 +1804,11 @@ cdef class Nexmon:
 
         # CSI
         if self.chip == '4339' or self.chip == '3455c0':
-            unpack_int16(&buf[60], buf_csi_mem[count], nfft, nex_cu16)
+            unpack_int16(&buf[60], buf_csi_mem[count], nfft, flag)
         elif self.chip == '4358':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5, nex_cu32)
+            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5, flag)
         elif self.chip == '4366c0':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6, nex_cu32)
+            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6, flag)
         else:
             pass
 
@@ -1830,6 +1847,7 @@ cdef class Nexmon:
         cdef int l
         cdef uint32_t caplen
         cdef unsigned char buf[64]
+        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         # pcap header: head: endian
         endian = self.__pcapheader(f)
@@ -1933,29 +1951,33 @@ cdef void intel_mm_o3(np.complex128_t[:, :, :] ret_mem,
 @cython.wraparound(False)
 cdef inline void set_csi_mem(np.complex128_t[:, :, :, :] csi_mem, int count,
                              int s, int r, int t, double real, double imag):
-    csi_mem[count, s, r, t] = real + imag * 1.j
+    csi_mem[count, s, r, t].real = real
+    csi_mem[count, s, r, t].imag = imag
 
 
 cdef void unpack_int16(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
-                       uint16_t (*nex_cu16)(uint8_t a, uint8_t b)):
+                       bint flag):
     cdef int i, j
-    cdef double a, b
-    for i in range(nfft):
-        j = i * 4
-        a = <int16_t>nex_cu16(buf[j+0], buf[j+1])
-        b = <int16_t>nex_cu16(buf[j+2], buf[j+3])
-        csi_mem[i] = a + b * 1.j
+    if flag:
+        for i in range(nfft):
+            j = i * 4
+            csi_mem[i].real = <double><int16_t>cu16l(buf[j+0], buf[j+1])
+            csi_mem[i].imag = <double><int16_t>cu16l(buf[j+2], buf[j+3])
+    else:
+        for i in range(nfft):
+            j = i * 4
+            csi_mem[i].real = <double><int16_t>cu16b(buf[j+0], buf[j+1])
+            csi_mem[i].imag = <double><int16_t>cu16b(buf[j+2], buf[j+3])
 
 
 cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
-                       int M, int E,
-                       uint32_t (*nex_cu32)(uint8_t a, uint8_t b, uint8_t c,
-                                            uint8_t d)):
+                       int M, int E, bint flag):
     """N = M * R ^ E
 
     M: Mantissa
     R: Radix
     E: Exponent
+    flag: little endian if ``True`` else big endian
     """
     cdef int i, s, e, shft, sgn
     cdef uint32_t h, m, b, x
@@ -1976,16 +1998,17 @@ cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
     cdef int32_t v_real, v_imag
 
     for i in range(nfft):
-        h = nex_cu32(buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3])
+        if flag:
+            h = cu32l(buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3])
+        else:
+            h = cu32b(buf[4*i+0], buf[4*i+1], buf[4*i+2], buf[4*i+3])
+
         v_real = <int32_t>((h >> (E + M)) & ri_mask)
         v_imag = <int32_t>((h >> E) & ri_mask)
-
         e = <int>(h & E_mask)
-
         if e >= e_p:
             e -= (e_p << 1)
         He[i] = <int8_t>e
-
         x = <uint32_t>v_real | <uint32_t>v_imag
 
         if autoscale and x:
@@ -2011,23 +2034,39 @@ cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
         Hout[(i<<1)+1] = v_imag
 
     shft = nbits - maxbit
-    for i in range(nfft*2):
-        e = He[(i >> e_shift)] + shft
+    for i in range(nfft):
+        e = He[(i*2 >> e_shift)] + shft
         sgn = 1
-        if Hout[i] & k_tof_unpack_sgn_mask:
+        v_real = Hout[i*2]
+        if v_real & k_tof_unpack_sgn_mask:
             sgn = -1
-            Hout[i] &= ~k_tof_unpack_sgn_mask
+            v_real &= ~k_tof_unpack_sgn_mask
         if e < e_zero:
-            Hout[i] = 0
+            v_real = 0
         elif e < 0:
             e = -e
-            Hout[i] = (Hout[i] >> e)
+            v_real >>= e
         else:
-            Hout[i] = (Hout[i] << e)
-        Hout[i] *= sgn
+            v_real <<= e
+        v_real *= sgn
 
-    for i in range(nfft):
-        csi_mem[i] = <double>Hout[i*2] + <double>Hout[i*2+1] * 1.j
+        e = He[(i*2+1 >> e_shift)] + shft
+        sgn = 1
+        v_imag = Hout[i*2+1]
+        if v_imag & k_tof_unpack_sgn_mask:
+            sgn = -1
+            v_imag &= ~k_tof_unpack_sgn_mask
+        if e < e_zero:
+            v_imag = 0
+        elif e < 0:
+            e = -e
+            v_imag >>= e
+        else:
+            v_imag <<= e
+        v_imag *= sgn
+
+        csi_mem[i].real = <double>v_real
+        csi_mem[i].imag = <double>v_imag
 
 
 cdef inline int8_t ccsi(uint8_t a, uint8_t b, uint8_t remainder):
