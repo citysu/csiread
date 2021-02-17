@@ -1,6 +1,5 @@
 """csiread.Intel: implemented in pure Python"""
 
-import ctypes
 from timeit import default_timer
 import os
 import numpy as np
@@ -74,7 +73,7 @@ class Intel:
                 self.rssiA[count] = buf[10]
                 self.rssiB[count] = buf[11]
                 self.rssiC[count] = buf[12]
-                self.noise[count] = ctypes.c_int8(buf[13]).value
+                self.noise[count] = int.from_bytes(buf[13:14], 'little', signed=True)
                 self.agc[count] = buf[14]
                 self.rate[count] = int.from_bytes(buf[18:20], 'little')
 
@@ -89,8 +88,12 @@ class Intel:
                     remainder = index & 0x7
                     for j in range(buf[8]):
                         for k in range(buf[9]):
-                            a = ctypes.c_int8((payload[index // 8] >> remainder) | (payload[index // 8 + 1] << (8 - remainder)) & 0xff).value
-                            b = ctypes.c_int8((payload[index // 8 + 1] >> remainder) | (payload[index // 8 + 2] << (8 - remainder)) & 0xff).value
+                            a = (payload[index // 8] >> remainder) | (payload[index // 8 + 1] << (8 - remainder)) & 0xff
+                            b = (payload[index // 8 + 1] >> remainder) | (payload[index // 8 + 2] << (8 - remainder)) & 0xff
+                            if a >= 128:
+                                a -= 256
+                            if b >= 128:
+                                b -= 256
                             self.csi[count, i, self.perm[count, j], k] = a + b * 1.j
                             index += 16
                 count += 1
@@ -138,8 +141,8 @@ class Intel:
         total_noise_pwr = thermal_noise_pwr + quant_error_pwr
 
         ret = self.csi * np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
-        ret[self.Ntx == 2] = ret[self.Ntx == 2] * np.sqrt(2)
-        ret[self.Ntx == 3] = ret[self.Ntx == 3] * np.sqrt(self.__dbinv(4.5))
+        ret[self.Ntx == 2] *= np.sqrt(2)
+        ret[self.Ntx == 3] *= np.sqrt(self.__dbinv(4.5))
         return ret
 
     def get_scaled_csi_sm(self):

@@ -13,7 +13,6 @@ Ref:
 
 import os
 import struct
-import ctypes
 import numpy as np
 from timeit import default_timer
 
@@ -37,19 +36,19 @@ def unpack_float(buf, csi, nfft, M, E, endian):
     sgni_mask = sgnr_mask >> M
     He = [0] * 256
     Hout = [0] * 512
+    border = 'little' if endian == '<' else 'big'
 
     for i in range(nfft):
-        h = int.from_bytes(buf[4*i:4*i+4], 'little' if endian == '<' else 'big')
-        v_real = ctypes.c_int32((h >> (E + M)) & ri_mask).value
-        v_imag = ctypes.c_int32((h >> E) & ri_mask).value
+        h = int.from_bytes(buf[4*i:4*i+4], border)
 
-        e = ctypes.c_int(h & E_mask).value
-
+        v_real = (h >> (E + M)) & ri_mask
+        v_imag = (h >> E) & ri_mask
+        e = h & E_mask
         if (e >= e_p):
             e -= (e_p << 1)
-        He[i] = ctypes.c_int8(e).value
+        He[i] = e
+        x = v_real | v_imag
 
-        x = ctypes.c_uint32(v_real).value | ctypes.c_uint32(v_imag).value
         if (autoscale and x):
             m = 0xffff0000
             b = 0xffff

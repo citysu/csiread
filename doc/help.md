@@ -9,12 +9,12 @@
 |        Function         | Matlab   | Python3+Numpy | Cython+Numpy(csiread)    | file size |
 |-------------------------|----------|---------------|--------------------------|-----------|
 | Nexmon.read:bcm4339     | 3.2309s  | 0.2739s       | 0.0898s                  | 44.0MB    |
-| Nexmon.read:bcm4358     | 3.5987s  | 31.9910s      | 0.1558s                  | 44.0MB    |
+| Nexmon.read:bcm4358     | 3.5987s  | 23.0025s      | 0.1558s                  | 44.0MB    |
 | Atheros.read            | 3.3081s  | 14.6021s      | 0.1063s                  | 76.3MB    |
-| Intel.read              | 1.6102s  | 9.6345s       | 0.0529s                  | 21.0MB    |
+| Intel.read              | 1.6102s  | 7.6624s       | 0.0529s                  | 21.0MB    |
 | Intel.get_total_rss     | 0.1786s  | 0.0030s       | 0.0030s                  |           |
-| Intel.get_scaled_csi    | 0.5497s  | 0.1251s       | 0.0376s/0.0278s(inplace) |           |
-| Intel.get_scaled_csi_sm | 5.0097s  | 0.3638s       | 0.0778s/0.0465s(inplace) |           |
+| Intel.get_scaled_csi    | 0.5497s  | 0.1225s       | 0.0376s/0.0278s(inplace) |           |
+| Intel.get_scaled_csi_sm | 5.0097s  | 0.3627s       | 0.0778s/0.0465s(inplace) |           |
 
 Many CSI Tools only provide Matlab API parsing CSI data files. People who want to process CSI with Python have to install Matlab to convert `.dat` to `.mat`. This process is redundant and inefficient. Therefore, **Python API** is recommended. Unfortunately, the api implemented in pure Python is inefficient. With this in mind, I implemented csiread in Cython(Pybind11 may be another great choice). The table above shows the efficiency comparison of different implementations. They were all tested with **40k** packets on the same computer.
 
