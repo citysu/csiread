@@ -1532,6 +1532,7 @@ cdef class Nexmon:
     cdef np.ndarray buf_csi
 
     cdef bint if_report
+    cdef public int _autoscale
 
     def __cinit__(self, file, chip, bw, if_report=True, bufsize=0,
                   *argv, **kw):
@@ -1563,6 +1564,7 @@ cdef class Nexmon:
         self.buf_chip_version = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, int(self.bw * 3.2)],
                                 dtype=np.complex_)
+        self._autoscale = 1
 
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         pass
@@ -1701,9 +1703,11 @@ cdef class Nexmon:
             if self.chip == '4339' or self.chip == '43455c0':
                 unpack_int16(buf, buf_csi_mem[count], nfft, flag)
             elif self.chip == '4358':
-                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5, flag)
+                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5,
+                             self._autoscale, flag)
             elif self.chip == '4366c0':
-                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6, flag)
+                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6,
+                             self._autoscale, flag)
             else:
                 pass
 
@@ -1812,9 +1816,11 @@ cdef class Nexmon:
         if self.chip == '4339' or self.chip == '3455c0':
             unpack_int16(&buf[60], buf_csi_mem[count], nfft, flag)
         elif self.chip == '4358':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5, flag)
+            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5,
+                         self._autoscale, flag)
         elif self.chip == '4366c0':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6, flag)
+            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6,
+                         self._autoscale, flag)
         else:
             pass
 
@@ -1880,7 +1886,7 @@ cdef class Nexmon:
 
         l = fread(&buf, sizeof(unsigned char), 4, f)
         magic = buf[:4]
-        if magic == b"\xa1\xb2\xc3\xd4":  # big endian
+        if magic == b"\xa1\xb2\xc3\xd4":    # big endian
             endian = "big"
             self.nano = False
         elif magic == b"\xd4\xc3\xb2\xa1":  # little endian
@@ -1981,7 +1987,7 @@ cdef void unpack_int16(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
 
 
 cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
-                       int M, int E, bint flag):
+                       int M, int E, int autoscale, bint flag):
     """N = M * R ^ E
 
     M: Mantissa
@@ -1993,7 +1999,6 @@ cdef void unpack_float(uint8_t *buf, np.complex128_t[:] csi_mem, int nfft,
     cdef uint32_t h, m, b, x
 
     cdef int nbits = 10
-    cdef int autoscale = 1
     cdef int e_p = (1 << (E - 1))
     cdef int e_shift = 1
     cdef int e_zero = - M
