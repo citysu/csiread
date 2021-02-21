@@ -1,0 +1,63 @@
+# ChangeLog
+
+## v1.3.5
+
+_2021.02.22__
+
+- new features: add support for nexmon_csi
+- new features: add `seek()` method and `csiread.utils` module.
+- API changes: rename `csiread.CSI `to `csiread.Intel`
+- API changes: rename `Intel.rssiA` to `Intel.rssi_a` .etc
+- API changes: apply `lower_with_under` to method parameters
+- API changes: new parameter: `bufsize`
+- fix bug: remove DeprecationWarning caused by Numpy(version >= 1.2.0)
+- update examples: improve csiflask; ESP32(pure Python); `music.py` works.
+
+## v1.3.4
+
+_2020.11.18_
+
+- new feature: process data faster
+- new feature: add in-place operation in `csiread.CSI`
+- new feature: add `CSI.pmsg()` and A`theros.pmsg()` to parse message in real time.
+- new feature: both `CSI.payload` and `Atheros.payload` are MPDU and stored in `np.uint8` now.
+- fix bug: `noise` will change after calling `get_scaled_csi()`
+- fix bug: in matlab, `read_log_file` drops the last two packets(Atheros), but here we keep them.
+- fix bug: `get_scaled_csi_sm()` value error.
+- fix bug: `csiread.CSI` may not work well on big-endian computers.
+- new examples: plot CSI in real time
+- new example: implement `log_to_file` in pure Python
+- new example: a better solution to the MemoryError
+
+## v1.3.3
+
+_2019.12.31_
+
+- update examples
+- new feature: add `__getitem__`
+- new feature: add `get_scaled_csi_sm(), apply_sm()`
+
+## v1.3.2
+
+_2019.08.10_
+
+- fix bug: choose big endian or little endian when using Atheros, e.g. csidata.read(endian='big')
+
+## v1.3.1
+
+_2019.07.13_
+
+- fix bug: some value error on 32-bit computer
+- fix bug: avoid built-in keyword, len -> lens
+- new example: add `example/csishow.py` to plot data
+- new example: add `example/csisplit.py` to split the data file of linux-80211n-tool into small pieces
+
+## v1.3.0
+
+_2019.06.04_
+
+- fix bug: report format error
+- fix bug: `count` value error
+- new feature: add support for Atheros
+- new feature: add processing functions of Intel5300: `get_scaled_csi(), get_total_rss()`
+- new example

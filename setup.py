@@ -24,34 +24,35 @@ EXTENSIONS = [
         extra_compile_args=EXTRA_COMPILE_ARGS,
     ),
 ]
+
 setup(
     name="csiread",
     version="1.3.5",
 
-    author="Hecheng Su",
-    author_email="2215523266@qq.com",
-    url="https://github.com/citysu/csiread",
-    description="Parse channel state information from raw CSI data file in Python.",
+    description="A fast channel state information parser for Intel, " \
+                "Atheros and Nexmon.",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
 
-    maintainer="Hecheng Su",
-    maintainer_email="2215523266@qq.com",
+    author="Hecheng Su",
+    author_email="2215523266@qq.com",
+    url="https://github.com/citysu/csiread",
 
     packages=find_packages(),
-
-    install_requires=[
-        'numpy',
-    ],
+    install_requires=['numpy'],
     python_requires='>=3',
-
     ext_modules=cythonize(
         EXTENSIONS,
         compiler_directives={'language_level': 3, 'binding': False}
     ),
 
+    license='MIT',
     classifiers=["Topic :: Scientific/Engineering",
                  "Programming Language :: Python :: 3",
                  "Programming Language :: Python :: Implementation :: CPython",
+                 "Operating System :: Unix",
+                 "Operating System :: POSIX",
+                 "Operating System :: Microsoft",
+                 "Operating System :: MacOS",
                  "License :: OSI Approved :: MIT License"],
 )
