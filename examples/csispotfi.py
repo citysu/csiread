@@ -19,7 +19,7 @@ from numpy import linalg as LA
 from scipy.signal import find_peaks
 import csiread
 import matplotlib.pyplot as plt
-from utils import get_subcarriers_index
+from utils import scidx
 
 
 def remove_sto(csi, bw=20, ng=2):
@@ -31,7 +31,7 @@ def remove_sto(csi, bw=20, ng=2):
     Ref:
         spotfiMusicAoaEstimation: removePhsSlope.m
     """
-    s_index = np.tile(get_subcarriers_index(bw, ng), (csi.shape[1], 1)).T
+    s_index = np.tile(scidx(bw, ng), (csi.shape[1], 1)).T
 
     # In the paper, step 1 is least-squares 
     m, c = np.linalg.lstsq(np.c_[s_index.flatten('F'), np.ones(csi.size)], 

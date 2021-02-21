@@ -45,7 +45,7 @@ import pyqtgraph as pg
 from PyQt5.QtCore import QMutex, Qt, QThread, QTimer, pyqtSlot
 from PyQt5.QtGui import QApplication
 from PyQt5.QtWidgets import QLabel, QMenuBar, QPushButton, QVBoxLayout, QWidget
-from utils import get_subcarriers_index, phy_ifft, calib
+from utils import scidx, phy_ifft, calib
 
 
 os.environ['QT_SCALE_FACTOR'] = '1'
@@ -142,7 +142,7 @@ class GetDataThread(QThread):
 class MainWindow(QWidget):
     def __init__(self, parent=None, flags=Qt.WindowFlags()):
         super(MainWindow, self).__init__(parent=parent, flags=flags)
-        self.subcarriers_index = get_subcarriers_index(bw=BW, ng=NG)
+        self.subcarriers_index = scidx(bw=BW, ng=NG)
         self.configUI()
         self.configLayout()
         self.show()

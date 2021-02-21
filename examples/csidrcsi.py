@@ -24,7 +24,7 @@ import matplotlib.patches as mpatches
 from scipy.fftpack import fft, ifft, fftshift, ifftshift
 from scipy.signal import find_peaks
 from scipy.stats import mode
-from utils import get_subcarriers_index, calib, phy_ifft, phy_fft
+from utils import scidx, calib, phy_ifft, phy_fft
 
 
 def fig_2(csidata, index=34):
@@ -84,7 +84,7 @@ def fig_4(athdata, index=26):
 def fig_6(csidata):
     """fig_6"""
     csi = csidata.csi
-    s_index = get_subcarriers_index(20, 2)
+    s_index = scidx(20, 2)
 
     phase = np.unwrap(np.angle(csi[:1000, :, 0, 0])).T
     phase_diff = np.diff(phase)
@@ -127,21 +127,21 @@ def formula_15(csi):
 
 def formula_16(csi):
     """formula_16"""
-    k = get_subcarriers_index(20, 2)[:, np.newaxis, np.newaxis]
+    k = scidx(20, 2)[:, np.newaxis, np.newaxis]
     phi = formula_15(csi)[:, np.newaxis, np.newaxis, np.newaxis]
     return np.exp(1j * phi * k) * csi
 
 
 def derotate_linear(csi, bw=20, ng=2):
     """Windowing/CP removal effect compensation"""
-    k = get_subcarriers_index(bw, ng)[:, np.newaxis, np.newaxis]
+    k = scidx(bw, ng)[:, np.newaxis, np.newaxis]
     phi = -7e-5 * k ** 3 + 3e-5 * k ** 2 + 0.05 * k
     return np.exp(-1j * phi) * csi
 
 
 def derotate_formual16(csi, phi, bw=20, ng=2):
     """De-rotate CSI phase using (16)"""
-    k = get_subcarriers_index(bw, ng)[:, np.newaxis, np.newaxis]
+    k = scidx(bw, ng)[:, np.newaxis, np.newaxis]
     phi = phi[:, np.newaxis, np.newaxis, np.newaxis]
     return np.exp(1j * phi * k) * csi
 
@@ -162,7 +162,7 @@ def alg_2(csi):
     p = np.power(np.abs(phy_ifft(csi, axis=1)), 2.0)
     # find_peak() is better
     s = p[:, :20].argmax(axis=1).reshape(csi.shape[0], -1)
-    N_sto = get_subcarriers_index(20, 2)[mode(s, axis=1)[0][:, 0]]
+    N_sto = scidx(20, 2)[mode(s, axis=1)[0][:, 0]]
     N_sc = 64
     csi = derotate_formual16(csi, -2 * np.pi * N_sto / N_sc)
     return csi
@@ -188,7 +188,7 @@ def alg_3(csi, index):
 
 
 def algshow(csidata):
-    s_index = get_subcarriers_index(20, 2)
+    s_index = scidx(20, 2)
     csi = csidata.csi[:500]
 
     plt.figure()

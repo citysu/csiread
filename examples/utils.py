@@ -4,7 +4,7 @@
 import numpy as np
 
 
-def get_subcarriers_index(bw, ng):
+def scidx(bw, ng):
     """subcarriers index
 
     Args:
@@ -18,29 +18,41 @@ def get_subcarriers_index(bw, ng):
     return k
 
 
-def calib(phase, bw=20, ng=2):
+def calib(phase, bw=20, ng=2, axis=1):
     """Phase calibration
 
     Note:
         phase: it must be unwrapped, it should be a 2-D, 3-D or 4-D array and
             the second dimension must be subcarriers
-        bw, ng: the same as `get_subcarriers_index`
+        bw, ng: the same as `scidx`
 
     ref:
         [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
         (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
     """
-    s_index = get_subcarriers_index(bw, ng)
-    k_n = s_index[-1]
-    k_1 = s_index[1]
-    a = ((phase[:, -1:] - phase[:, :1]) / (k_n - k_1))
-    b = np.mean(phase, axis=1, keepdims=True)
-    s_index = s_index.reshape([len(s_index)] + [1] * (len(phase.shape) - 2))
-    phase_calib = phase - a * s_index - b
+    p = np.asarray(phase)
+    s = scidx(bw, ng)
+
+    slice1 = [slice(None, None)] * p.ndim
+    slice1[axis] = slice(-1, None)
+    slice1 = tuple(slice1)
+    slice2 = [slice(None, None)] * p.ndim
+    slice2[axis] = slice(None, 1)
+    slice2 = tuple(slice2)
+    shape1 = [1] * p.ndim
+    shape1[axis] = s.shape[0]
+    shape1 = tuple(shape1)
+
+    k_n, k_1 = s[-1], s[1]
+    a = (p[slice1] - p[slice2]) / (k_n - k_1)
+    b = p.mean(axis=axis, keepdims=True)
+    s = s.reshape(shape1)
+
+    phase_calib = p - a * s - b
     return phase_calib
 
 
-def phy_ifft(x, axis=0, bw=20, ng=2):
+def phy_ifft(x, bw=20, ng=2, axis=1):
     """802.11n IFFT
 
     Return discrete inverse Fourier transform of real or complex sequence. It
@@ -61,7 +73,7 @@ def phy_ifft(x, axis=0, bw=20, ng=2):
     assert bw == 20, "Only bw=20 is allowed"
 
     x = np.expand_dims(x.swapaxes(-1, axis), -2)
-    k = get_subcarriers_index(bw, ng)
+    k = scidx(bw, ng)
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
@@ -71,7 +83,7 @@ def phy_ifft(x, axis=0, bw=20, ng=2):
     return out
 
 
-def phy_fft(x, axis=0, bw=20, ng=2):
+def phy_fft(x, bw=20, ng=2, axis=1):
     """802.11n FFT
 
     Return discrete Fourier transform of real or complex sequence.
@@ -79,7 +91,7 @@ def phy_fft(x, axis=0, bw=20, ng=2):
     assert bw == 20, "Only bw=20 is allowed"
 
     x = np.expand_dims(x.swapaxes(-1, axis), -1)
-    k = get_subcarriers_index(bw, ng)
+    k = scidx(bw, ng)
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n

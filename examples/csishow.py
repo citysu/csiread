@@ -13,7 +13,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as signal
-from utils import get_subcarriers_index, calib, phy_ifft
+from utils import scidx, calib, phy_ifft
 
 
 def func_1(csidata):
@@ -40,7 +40,7 @@ def func_2(csidata):
     """CSI: subcarrier-amplitude(CFR)"""
     csi = csidata.get_scaled_csi_sm()
     amplitude = np.abs(csi)
-    s_index = get_subcarriers_index(20, 2)
+    s_index = scidx(20, 2)
 
     plt.figure()
     plt.plot(s_index, amplitude[:100, :, 0, 0].T, 'r-', linewidth=0.3)
@@ -82,7 +82,7 @@ def func_4(csidata):
     csi = csidata.get_scaled_csi_sm()
     phase = np.unwrap(np.angle(csi), axis=1)
     phase = calib(phase)
-    s_index = get_subcarriers_index(20, 2)
+    s_index = scidx(20, 2)
 
     plt.figure(4)
     plt.plot(s_index, phase[:100, :, 0, 0].T, 'r-', linewidth=0.3)
