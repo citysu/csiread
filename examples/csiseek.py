@@ -11,11 +11,11 @@ import csiread
 import os
 import random
 from timeit import default_timer
-from utils import check_device
+from utils import infer_device
 
 
 def getPos(csifile):
-    device = check_device(csifile)
+    device = infer_device(csifile)
     if device == 'Intel':
         return getPosIntel(csifile)
     elif device == 'Atheros':

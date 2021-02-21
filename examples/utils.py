@@ -1,5 +1,6 @@
 """Common module"""
 
+import os
 
 import numpy as np
 
@@ -102,14 +103,114 @@ def phy_fft(x, bw=20, ng=2, axis=1):
     return out
 
 
-def check_device(csifile):
-    """Check the file type simplely"""
+def infer_device(csifile):
+    """Infer the CSI file format simplely
+
+    Args:
+        csifile (str): csi data file
+
+    Returns:
+        str:
+            Intel: intel 5300 csi file
+            Atheros: atheros csi file
+            Nexmon: nexmon csi file
+            AtherosPull10: `atheros pull 10 <https://github.com/xieyaxiongfly/Atheros-CSI-Tool-UserSpace-APP/pull/10/files>`_
+            NexmonPull46: `nexmon_csi pull 46 <https://github.com/seemoo-lab/nexmon_csi/pull/46/files>`_
+            Unknown: Unknown file format
+    Note:
+        This function cannot work for some nexmon csi file formats defined by
+        projects derived from nexmon_csi
+    """
     with open(csifile, 'rb') as f:
         buf = f.read(4)
         if buf[2] in [0xc1, 0xbb]:
             return 'Intel'
         elif buf in [b"\xa1\xb2\xc3\xd4", b"\xd4\xc3\xb2\xa1",
                      b"\xa1\xb2\x3c\x4d", b"\x4d\x3c\xb2\xa1"]:
-            return 'Nexmon'
+            f.seek(20 + 16 + 42, os.SEEK_CUR)
+            buf = f.read(4)
+            if buf == b'\x11\x11\x11\x11':
+                return 'Nexmon'
+            if buf[:2] == b'\x11\x11' and buf[2:] != b'\x11\x11':
+                return 'NexmonPull46'
+        elif buf[0] in [0xff, 0x00]:
+            return 'AtherosPull10'
         else:
-            return 'Atheros'
+            f.seek(2 + 16 - 4, os.SEEK_CUR)
+            buf = f.read(1)
+            if buf[0] == 56 or buf[0] == 114:
+                return 'Atheros'
+            else:
+                return 'Unknown'
+
+
+def infer_tones(csifile, device):
+    """Infer the argument `tones` of Atheros and AtherosPull10
+    
+    Args:
+        csifile (str): atheros csi file
+        device (str): Atheros or AtherosPull10
+    
+    Returns:
+        int: tones
+    
+    Examples:
+
+        >>> tones = infer_tones(csifile, 'Atheros')
+        >>> csidata = csiread.Atheros(csifile, nrxnum=3, ntxnum=3,
+        >>>                           if_report=False, tones=tones)
+    """
+    with open(csifile, 'rb') as f:
+        if device == "Atheros":
+            f.seek(18, os.SEEK_CUR)
+        elif device == 'AtherosPull10':
+            f.seek(19, os.SEEK_CUR)
+        else:
+            raise Exception("It is not a Atheros file")
+        tones = f.read(1)[0]
+    return tones
+
+
+def infer_chip_bw(csifile):
+    """Infer chip, bandwidth and band of nexmon csi file.
+
+    This function may be failed on some nexmon csi files.
+
+    Args:
+        csifile (str): nexmon csi file
+
+    Returns:
+        tuple (chip, bw, band):
+            str: chip
+            int: bw, MHz
+            int: band, GHz 
+
+    Examples:
+
+        >>> csifile = "../material/nexmon/dataset/example.pcap"
+        >>> chip, bw, band = nexchan(csifile)
+        >>> csidata = csiread.Nexmon(csifile, chip=chip, bw=bw)
+        >>> csidata.read()
+
+    References:
+        1. `D11AC_IOTYPES lines 172-188 <https://github.com/seemoo-lab/nexmon/blob/master/patches/include/bcmwifi_channels.h#L172>`_
+    """
+    csidata = csiread.Nexmon(None, 'none', 0, False, bufsize=1)
+    csidata.seek(csifile, 24, 1)
+    chan_spec = csidata.chan_spec[0]
+    chip_version = csidata.chip_version[0]
+
+    CHIP_LIST = {0x0065: '43455c0', 0xdead: '4358', 0xe834: '4366c0'}
+    WL_CHANSPEC_BW = chan_spec & 0x3800
+    WL_CHANSPEC_BAND = chan_spec & 0xc000
+    if WL_CHANSPEC_BW in [0x2800, 0x3000]:
+        raise Exception("csiread.Nexmon doesn't support WL_CHANSPEC_BW_160 "
+                        "and WL_CHANSPEC_BW_8080")
+    if WL_CHANSPEC_BAND == 255:
+        raise Exception("INVCHANSPEC")
+
+    chip = CHIP_LIST[chip_version]
+    bw = (1 << (WL_CHANSPEC_BW // 0x0800)) * 5
+    band = WL_CHANSPEC_BAND // 0x4000 + 2
+
+    return chip, bw, band

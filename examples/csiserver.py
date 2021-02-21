@@ -13,7 +13,7 @@ import argparse
 import os
 import socket
 import time
-from utils import check_device
+from utils import infer_device
 
 
 def intel_server(csifile, number, delay):
@@ -181,7 +181,7 @@ if __name__ == "__main__":
     parser.add_argument('delay', type=int, help='delay in us')
     p = parser.parse_args()
 
-    device = check_device(p.csifile)
+    device = infer_device(p.csifile)
 
     if device == "Intel":
         intel_server(p.csifile, p.number, p.delay)

@@ -65,6 +65,7 @@ class CSIChat(Namespace):
                     continue
                 code = csidata.pmsg(data)
                 if code == 0xbb:
+                    csidata.get_scaled_csi_sm(True)
                     socketio.send({
                         'csi': np.abs(csidata.csi[0, :, 0, 0]).tolist()
                     })
