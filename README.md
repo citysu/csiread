@@ -8,7 +8,7 @@ A fast channel state information parser for Intel, Atheros and Nexmon in Python.
 
 <center><b>real-time plotting</b></center>
 
-![contents of packets](docs/sample2.png )
+![real-time plotting](docs/sample2.png)
 
 ## Install
 

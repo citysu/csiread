@@ -8,10 +8,10 @@ Various CSI Tools only provide Matlab API parsing CSI data files. Those who want
 
 |        Function         | Matlab   | Python3+Numpy | csiread    | file size |
 |-------------------------|----------|---------------|------------|-----------|
-| Nexmon.read:bcm4339     | 3.2309s  | 0.2739s       | 0.0898s    | 44.0MB    |
-| Nexmon.read:bcm4358     | 3.5987s  | 23.0025s      | 0.1558s    | 44.0MB    |
-| Atheros.read            | 3.3081s  | 14.6021s      | 0.1063s    | 76.3MB    |
-| Intel.read              | 1.6102s  | 7.6624s       | 0.0529s    | 21.0MB    |
+| Nexmon.read:bcm4339     | 3.2309s  | 0.2739s       | 0.0703s    | 44.0MB    |
+| Nexmon.read:bcm4358     | 3.5987s  | 23.0025s      | 0.1227s    | 44.0MB    |
+| Atheros.read            | 3.3081s  | 14.6021s      | 0.0956s    | 76.3MB    |
+| Intel.read              | 1.6102s  | 7.6624s       | 0.0479s    | 21.0MB    |
 | Intel.get_total_rss     | 0.1786s  | 0.0030s       | 0.0030s    |           |
 | Intel.get_scaled_csi    | 0.5497s  | 0.1225s       | 0.0376s/0.0278s |      |
 | Intel.get_scaled_csi_sm | 5.0097s  | 0.3627s       | 0.0778s/0.0465s |      |
@@ -41,7 +41,7 @@ csiread is written in Cython, Cython requires a C compiler to be present on the 
 
 `examples` are the best usage instructions, and the API documentation can be found in `docstring`, so we won't repeat them here.
 
-## Desgin
+## Design
 
 csiread provides 5 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46`. Each class has 3 key methods: `read(), seek()` and `pmsg()` which are used for reading a file, reading a file from a specific position and real-time parsing respectively. `csiread.utils` provides some common functions.
 

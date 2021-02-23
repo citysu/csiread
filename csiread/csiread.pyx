@@ -220,7 +220,7 @@ cdef class Intel:
         Args:
             file (str): CSI data file.
             pos (int): Position of file descriptor corresponding to the packet.
-                Currenctly, it must be returned by the function in
+                Currently, it must be returned by the function in
                 ``example/csiseek.py``.
             num (int): Number of packets to be read. ``num <= bufsize`` must be
                 true. If ``0``, all packets after ``pos`` will be read.
@@ -1035,7 +1035,7 @@ cdef class Atheros:
         Args:
             file (str): CSI data file.
             pos (int): Position of file descriptor corresponding to the packet.
-                Currenctly, it must be returned by the function in
+                Currently, it must be returned by the function in
                 `example/csiseek.py`.
             num (int): Number of packets to be read. ``num <= bufsize`` must be
                 true. If ``0``, all packets after ``pos`` will be read.
@@ -1605,7 +1605,7 @@ cdef class Nexmon:
         Args:
             file (str): CSI data file ``.pcap``.
             pos (int): Position of file descriptor corresponding to the packet.
-                Currenctly, it must be returned by the function in 
+                Currently, it must be returned by the function in 
                 ``example/csiseek.py``.
             num (int): Number of packets to be read. ``num <= bufsize`` must be
                 true. If ``0``, all packets after ``pos`` will be read.
