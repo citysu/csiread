@@ -1,8 +1,15 @@
 # ChangeLog
 
+## v1.3.6
+
+_2021.02.23_
+
+- fix bug: Intel.timestamp_low, Athero.timestamp, Nexmon.sec and Nexmon.usec may overflow on Windows and 32-bit computers, they are stored as `np.uint64` and `np.uint32` now.
+- fix bug: DeprecationWarning raised by Numpy(version >= 1.2.0)(I forgot it)
+
 ## v1.3.5
 
-_2021.02.22__
+_2021.02.22_
 
 - new features: add support for nexmon_csi
 - new features: add `seek()` method and `csiread.utils` module.
@@ -10,7 +17,6 @@ _2021.02.22__
 - API changes: rename `Intel.rssiA` to `Intel.rssi_a` .etc
 - API changes: apply `lower_with_under` to method parameters
 - API changes: new parameter: `bufsize`
-- fix bug: remove DeprecationWarning caused by Numpy(version >= 1.2.0)
 - update examples: improve csiflask; ESP32(pure Python); `music.py` works.
 
 ## v1.3.4
@@ -20,7 +26,7 @@ _2020.11.18_
 - new feature: process data faster
 - new feature: add in-place operation in `csiread.CSI`
 - new feature: add `CSI.pmsg()` and A`theros.pmsg()` to parse message in real time.
-- new feature: both `CSI.payload` and `Atheros.payload` are MPDU and stored in `np.uint8` now.
+- new feature: both `CSI.payload` and `Atheros.payload` are MPDU and stored as `np.uint8` now.
 - fix bug: `noise` will change after calling `get_scaled_csi()`
 - fix bug: in matlab, `read_log_file` drops the last two packets(Atheros), but here we keep them.
 - fix bug: `get_scaled_csi_sm()` value error.

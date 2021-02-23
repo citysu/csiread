@@ -13,8 +13,15 @@ if default_compiler == 'unix':
 else:
     EXTRA_COMPILE_ARGS = []
 
-with open("README.md", "r", encoding='UTF-8') as fh:
-    LONG_DESCRIPTION = fh.read()
+LONG_DESCRIPTION = """\
+# csiread [![PyPI](https://img.shields.io/pypi/v/csiread?)](https://pypi.org/project/csiread/)
+
+A fast channel state information parser for Intel, Atheros and Nexmon in Python.
+
+- Full support for Linux 802.11n CSI Tool, Atheros CSI Tool and nexmon_csi
+- At least 15 times faster than the implementation in Matlab
+- Real-time parsing and visualization.
+"""
 
 EXTENSIONS = [
     Extension(
@@ -27,7 +34,7 @@ EXTENSIONS = [
 
 setup(
     name="csiread",
-    version="1.3.5",
+    version="1.3.6",
 
     description="A fast channel state information parser for Intel, " \
                 "Atheros and Nexmon.",

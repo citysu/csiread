@@ -13,7 +13,7 @@ cimport numpy as np
 cimport cython
 
 
-__version__ = "1.3.5"
+__version__ = "1.3.6"
 __all__ = ['Intel', 'Atheros', 'Nexmon']
 
 
@@ -155,7 +155,7 @@ cdef class Intel:
 
         btype = np.int_
 
-        self.buf_timestamp_low = np.zeros([pk_num], dtype=btype)
+        self.buf_timestamp_low = np.zeros([pk_num], dtype=np.uint32)
         self.buf_bfee_count = np.zeros([pk_num], dtype=btype)
         self.buf_Nrx = np.zeros([pk_num], dtype=btype)
         self.buf_Ntx = np.zeros([pk_num], dtype=btype)
@@ -248,7 +248,7 @@ cdef class Intel:
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
 
-        cdef np.int_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
+        cdef np.uint32_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
         cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
         cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
@@ -440,7 +440,7 @@ cdef class Intel:
             >>>         if code == 0xbb:
             >>>             print(csidata.csi.shape)
         """
-        cdef np.int_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
+        cdef np.uint32_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
         cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
         cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
@@ -606,7 +606,7 @@ cdef class Intel:
             >>> rssi = csidata.get_total_rss()
             >>> print(rssi.shape)
         """
-        rssi_mag = np.zeros_like(self.rssi_a, dtype=np.float)
+        rssi_mag = np.zeros_like(self.rssi_a, dtype=float)
         rssi_mag += self.__dbinvs(self.rssi_a)
         rssi_mag += self.__dbinvs(self.rssi_b)
         rssi_mag += self.__dbinvs(self.rssi_c)
@@ -964,7 +964,7 @@ cdef class Atheros:
             pk_num = bufsize
 
         btype = np.int_
-        self.buf_timestamp = np.zeros([pk_num], dtype=np.int64)
+        self.buf_timestamp = np.zeros([pk_num], dtype=np.uint64)
         self.buf_csi_len = np.zeros([pk_num], dtype=btype)
         self.buf_tx_channel = np.zeros([pk_num], dtype=btype)
         self.buf_err_info = np.zeros([pk_num], dtype=btype)
@@ -1065,7 +1065,7 @@ cdef class Atheros:
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
 
-        cdef np.int64_t[:] buf_timestamp_mem = self.buf_timestamp
+        cdef np.uint64_t[:] buf_timestamp_mem = self.buf_timestamp
         cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
         cdef np.int_t[:] buf_tx_channel_mem = self.buf_tx_channel
         cdef np.int_t[:] buf_err_info_mem = self.buf_err_info
@@ -1272,7 +1272,7 @@ cdef class Atheros:
             >>>         if code == 0xff00:
             >>>             print(csidata.csi.shape)
         """
-        cdef np.int64_t[:] buf_timestamp_mem = self.buf_timestamp
+        cdef np.uint64_t[:] buf_timestamp_mem = self.buf_timestamp
         cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
         cdef np.int_t[:] buf_tx_channel_mem = self.buf_tx_channel
         cdef np.int_t[:] buf_err_info_mem = self.buf_err_info
@@ -1551,8 +1551,8 @@ cdef class Nexmon:
             pk_num = bufsize
 
         btype = np.int_
-        self.buf_sec = np.zeros([pk_num], dtype=btype)
-        self.buf_usec = np.zeros([pk_num], dtype=btype)
+        self.buf_sec = np.zeros([pk_num], dtype=np.uint32)
+        self.buf_usec = np.zeros([pk_num], dtype=np.uint32)
         self.buf_caplen = np.zeros([pk_num], dtype=btype)
         self.buf_wirelen = np.zeros([pk_num], dtype=btype)
         self.buf_magic = np.zeros([pk_num], dtype=btype)
@@ -1634,8 +1634,8 @@ cdef class Nexmon:
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
 
-        cdef np.int_t[:] buf_sec_mem = self.buf_sec
-        cdef np.int_t[:] buf_usec_mem = self.buf_usec
+        cdef np.uint32_t[:] buf_sec_mem = self.buf_sec
+        cdef np.uint32_t[:] buf_usec_mem = self.buf_usec
         cdef np.int_t[:] buf_caplen_mem = self.buf_caplen
         cdef np.int_t[:] buf_wirelen_mem = self.buf_wirelen
         cdef np.int_t[:] buf_magic_mem = self.buf_magic
