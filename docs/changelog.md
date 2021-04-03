@@ -1,11 +1,17 @@
 # ChangeLog
 
+## v1.3.7
+
+_????.??.??_
+
+- fix bug(#4): typo in ``Nexmon.pmsg``: chip 43455c0
+
 ## v1.3.6
 
 _2021.02.23_
 
 - fix bug: Intel.timestamp_low, Athero.timestamp, Nexmon.sec and Nexmon.usec may overflow on Windows and 32-bit computers, they are stored as `np.uint64` and `np.uint32` now.
-- fix bug: DeprecationWarning raised by Numpy(version >= 1.2.0)(I forgot it)
+- fix bug: DeprecationWarning raised by Numpy(version >= 1.20.0)(I forgot it)
 
 ## v1.3.5
 

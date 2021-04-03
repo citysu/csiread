@@ -152,7 +152,7 @@ class Nexmon:
             self.chip_version[count] = chip_version
 
             buf = f.read(caplen - 42 - 18)
-            if self.chip == '4339' or self.chip == '3455c0':
+            if self.chip == '4339' or self.chip == '43455c0':
                 unpack_int16(buf, self.csi[count], nfft, endian)
             elif self.chip == '4358':
                 unpack_float(buf, self.csi[count], nfft, 9, 5, endian)

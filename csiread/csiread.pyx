@@ -1813,7 +1813,7 @@ cdef class Nexmon:
         buf_chip_version_mem[count] = nex_cu16(buf[58], buf[59])
 
         # CSI
-        if self.chip == '4339' or self.chip == '3455c0':
+        if self.chip == '4339' or self.chip == '43455c0':
             unpack_int16(&buf[60], buf_csi_mem[count], nfft, flag)
         elif self.chip == '4358':
             unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5,

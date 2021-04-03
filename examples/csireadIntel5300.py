@@ -146,7 +146,7 @@ class Intel:
         return ret
 
     def get_scaled_csi_sm(self):
-        """Converts CSI to channel matrix H(Not test this method)
+        """Converts CSI to channel matrix H
 
         This version undoes Intel's spatial mapping to return the pure
         MIMO channel matrix H.
