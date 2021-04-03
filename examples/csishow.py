@@ -101,7 +101,19 @@ def func_4(csidata):
 
 
 def func_5(csidata):
-    """timestamp_low: packet-time_difference"""
+    """timestamp_low: packet-time_difference
+
+    Tips:
+        Why are Intel.timestamp_low, Nexmon.sec and Nexmon.usec stored as
+        ``np.uint32``?
+
+        We may have such timestamp_low: ``[..., 2**32 - 2000, 2**32 - 1000,0,
+        1000, 2000, ...]``. If timestamp_low.dtype is ``np.unint32``, we can get
+        the correct time_diff by ``np.diff(csidata.timestamp_low).view(np.int32)``
+        without any concern. When timestamp_low.dtype is ``np.int64``, the
+        time_diff will contain negative values, we have to correct it by
+        ``time_diff[time_diff < 0] += 2**32``.
+    """
     time_diff = np.diff(csidata.timestamp_low)
     plt.figure(5)
     plt.plot(time_diff, linewidth=0.3, label='time diff')

@@ -1,4 +1,4 @@
-include examples/*
-include csiread/*.pyx
-include docs/*
-exclude csiread/*.c
+graft examples/
+graft csiread/
+graft docs/
+recursive-exclude csiread/ *.c

@@ -1,5 +1,2 @@
-from .csiread import *
-from .utils import *
-
-
-__version__ = "1.3.6"
+from .csiread import __version__, Intel, Atheros, Nexmon
+from .utils import scidx, calib, AtherosPull10, NexmonPull46
