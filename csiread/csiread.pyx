@@ -1,5 +1,3 @@
-"""A fast channel state information parser for Intel, Atheros and Nexmon."""
-
 from libc.stdio cimport (fopen, fread, fclose, fseek, ftell, printf, FILE,
                          SEEK_END, SEEK_SET, SEEK_CUR)
 from libc.stdint cimport (uint16_t, int16_t, uint32_t, int32_t, uint8_t,
@@ -13,76 +11,7 @@ cimport numpy as np
 cimport cython
 
 
-__version__ = "1.3.7"
-__all__ = ['Intel', 'Atheros', 'Nexmon']
-
-
 cdef class Intel:
-    """Parse CSI obtained using 'Linux 802.11n CSI Tool'.
-
-    Args:
-        file (str or None): CSI data file. If ``str``, ``read`` and ``readstp``
-            methods are allowed. If ``None``, ``seek`` and ``pmsg`` methods are
-            allowed.
-        nrxnum (int, optional): Number of receive antennas. Default: 3
-        ntxnum (int, optional): Number of transmit antennas. Default: 2
-        pl_size (int, optional): The size of payload to be used. Default: 0
-        if_report (bool, optional): Report the parsed result. Default: ``True``
-        bufsize (int, optional): The maximum amount of packets to be parsed.
-            If ``0`` and file is ``str``, all packets will be parsed. If ``0``
-            and file is ``None``, this parameter is ignored by `pmsg` method.
-            Default: 0
-
-    Attributes:
-        file (str, readonly): CSI data file
-        count (int, readonly): Count of 0xbb packets parsed
-        timestamp_low (ndarray): The low 32 bits of the NIC's 1 MHz clock. It
-            wraps about every 4300 seconds, or 72 minutes.
-        bfee_count (ndarray): The count of the total number of beamforming
-            measurements that have been recorded by the driver and sent to
-            userspace. The netlink channel between the kernel and userspace is
-            lossy, so these can be used to detect measurements that were
-            dropped in this pipe.
-        Nrx (ndarray): The number of antennas used to receive the packet.
-        Ntx (ndarray): The number of space/time streams transmitted.
-        rssi_a (ndarray): RSSI measured by the receiving NIC at the input to
-            antenna port A. This measurement is made during the packet preamble.
-            This value is in dB relative to an internal reference.
-        rssi_b (ndarray): See ``rssi_a``
-        rssi_c (ndarray): See ``rssi_a``
-        noise (ndarray): Noise
-        agc (ndarray): Automatic Gain Control (AGC) setting in dB
-        perm (ndarray): Tell us how the NIC permuted the signals from the 3
-            receive antennas into the 3 RF chains that process the measurements.
-        rate (ndarray): The rate at which the packet was sent, in the same
-            format as the ``rate_n_flags``.
-        csi (ndarray): The CSI itself, normalized to an internal reference.
-            It is a Count×30×Nrx×Ntx 4-D matrix where the second dimension is
-            across 30 subcarriers in the OFDM channel. For a 20 MHz-wide
-            channel, these correspond to about half the OFDM subcarriers, and
-            for a 40 MHz-wide channel, this is about one in every 4 subcarriers.
-        stp (ndarray): World timestamp recorded by the modified ``log_to_file``.
-        fc (ndarray): Frame control
-        dur (ndarray): Duration
-        addr_des (ndarray): Destination MAC address
-        addr_src (ndarray): Source MAC address
-        addr_bssid (ndarray): BSSID MAC address
-        seq (ndarray): Serial number of packet
-        payload (ndarray): MAC frame to be used
-
-    Examples:
-
-        >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-        >>> csidata = csiread.Intel(csifile, nrxnum=3, ntxnum=2, pl_size=10)
-        >>> csidata.read()
-        >>> csi = csidata.get_scaled_csi()
-        >>> print(csidata.csi.shape)
-
-    References:
-        1. `Linux 802.11n CSI Tool <https://dhalperi.github.io/linux-80211n-csitool/>`_
-        2. `linux-80211n-csitool-supplementary <https://github.com/dhalperi/linux-80211n-csitool-supplementary>`_
-        3. `Linux 802.11n CSI Tool-FAQ <https://dhalperi.github.io/linux-80211n-csitool/faq.html>`_
-    """
     cdef readonly str file
     cdef readonly int count
 
@@ -181,58 +110,10 @@ cdef class Intel:
                  bufsize=0):
         pass
 
-    def __getitem__(self, index):
-        ret = {
-            "timestamp_low": self.timestamp_low[index],
-            "bfee_count": self.bfee_count[index],
-            "Nrx": self.Nrx[index],
-            "Ntx": self.Ntx[index],
-            "rssi_a": self.rssi_a[index],
-            "rssi_b": self.rssi_b[index],
-            "rssi_c": self.rssi_c[index],
-            "noise": self.noise[index],
-            "agc": self.agc[index],
-            "perm": self.perm[index],
-            "rate": self.rate[index],
-            "csi": self.csi[index]
-        }
-        return ret
-
     cpdef read(self):
-        """Parse data if 0xbb and 0xc1 packets
-
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> csidata.read()
-        """
         self.seek(self.file, 0, 0)
 
     cpdef seek(self, file, long pos, long num):
-        """Read packets from a specific position
-
-        This method allows us to read different parts of different files
-        randomly. It could be useful in Machine Learning. However, it could be
-        very slow when reading files in HDD for the first time. For this case,
-        it is better to do a pre-read with ``read()`` first.
-
-        Args:
-            file (str): CSI data file.
-            pos (int): Position of file descriptor corresponding to the packet.
-                Currently, it must be returned by the function in
-                ``example/csiseek.py``.
-            num (int): Number of packets to be read. ``num <= bufsize`` must be
-                true. If ``0``, all packets after ``pos`` will be read.
-
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(None, bufsize=16)
-            >>> for i in range(10):
-            >>>     csidata.seek(csifile, 0, i+1)
-            >>>     print(csidata.csi.shape)
-        """
         cdef FILE *f
 
         tempfile = file.encode(encoding="utf-8")
@@ -417,29 +298,6 @@ cdef class Intel:
         self.payload = self.buf_payload[:count_0xc1]
 
     cpdef pmsg(self, unsigned char *data):
-        """Parse message in real time
-
-        Args:
-            data (bytes): A bytes object representing the data received by udp
-                socket
-        Returns:
-            int: The status code. If ``0xbb`` and ``0xc1``, parse message
-                successfully. Otherwise, the ``data`` is not a CSI packet.
-        
-        Examples:
-
-            >>> import socket
-            >>> import csiread
-            >>> 
-            >>> csidata = csiread.Intel(None)
-            >>> with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            >>>     s.bind(('127.0.0.1', 10011))
-            >>>     while True:
-            >>>         data, address_src = s.recvfrom(4096)
-            >>>         code = csidata.pmsg(data)
-            >>>         if code == 0xbb:
-            >>>             print(csidata.csi.shape)
-        """
         cdef np.uint32_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
         cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
         cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
@@ -574,63 +432,18 @@ cdef class Intel:
         return code
 
     def readstp(self, endian='little'):
-        """Parse timestamp recorded by the modified ``log_to_file``
-
-        ``file.dat`` and ``file.datstp`` must be in the same directory.
-
-        Args:
-            endian (str): The byte order of ``file.datstp``， it can be
-                ``little`` and ``big``. Default: ``little``
-        
-        Returns:
-            int: Timestamp of the first packet.
-
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> first_stp = csidata.readstp()
-            >>> print(first_stp)
-        """
         self.stp = read_stpfile(self.file + "stp", endian)
         return self.stp[0]
 
     def get_total_rss(self):
-        """Calculate the Received Signal Strength[RSS] in dBm from CSI
-        
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> csidata.read()
-            >>> rssi = csidata.get_total_rss()
-            >>> print(rssi.shape)
-        """
         rssi_mag = np.zeros_like(self.rssi_a, dtype=float)
-        rssi_mag += self.__dbinvs(self.rssi_a)
-        rssi_mag += self.__dbinvs(self.rssi_b)
-        rssi_mag += self.__dbinvs(self.rssi_c)
-        ret = self.__db(rssi_mag) - 44 - self.agc
+        rssi_mag += dbinvs(self.rssi_a)
+        rssi_mag += dbinvs(self.rssi_b)
+        rssi_mag += dbinvs(self.rssi_c)
+        ret = db(rssi_mag) - 44 - self.agc
         return ret
 
     cpdef get_scaled_csi(self, inplace=False):
-        """Convert CSI to channel matrix H
-
-        Args:
-            inplace (bool): Optionally do the operation in-place. Default: False
-
-        Returns:
-            ndarray: Channel matrix H
-        
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> csidata.read()
-            >>> scaled_csi = csidata.get_scaled_csi(False)
-            >>> print(scaled_csi.shape)
-            >>> print("scaled_csi is csidata.csi: ", scaled_csi is csidata.csi)
-        """
         cdef int i, j
         cdef int flat = 30 * self.nrxnum * self.ntxnum
         cdef double constant2 = 2
@@ -650,13 +463,13 @@ cdef class Intel:
             csi_pwr_mem[i] = temp_sum
         del csi_pwr_mem
         del csi_mem
-        rssi_pwr = self.__dbinv(self.get_total_rss())
+        rssi_pwr = dbinv(self.get_total_rss())
 
         scale = rssi_pwr / (csi_pwr / 30)
 
         noise_db = self.noise
-        thermal_noise_pwr = self.__dbinv(noise_db)
-        thermal_noise_pwr[noise_db == -127] = self.__dbinv(-92)
+        thermal_noise_pwr = dbinv(noise_db)
+        thermal_noise_pwr[noise_db == -127] = dbinv(-92)
 
         quant_error_pwr = scale * (self.Nrx * self.Ntx)
         total_noise_pwr = thermal_noise_pwr + quant_error_pwr
@@ -680,79 +493,10 @@ cdef class Intel:
             return self.csi * temp
 
     def get_scaled_csi_sm(self, inplace=False):
-        """Convert CSI to pure channel matrix H
-
-        This version undoes Intel's spatial mapping to return the pure MIMO
-        channel matrix H.
-
-        Args:
-            inplace (bool): Optionally do the operation in-place. Default: False
-        
-        Returns:
-            ndarray: The pure MIMO channel matrix H.
-        
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> csidata.read()
-            >>> scaled_csi_sm = csidata.get_scaled_csi_sm(False)
-            >>> print(scaled_csi.shape)
-            >>> print("scaled_csi_sm is csidata.csi: ", scaled_csi_sm is csidata.csi)
-        """
-        if inplace:
-            return self.__remove_sm(self.get_scaled_csi(True), True)
-        else:
-            return self.__remove_sm(self.get_scaled_csi(False), False)
+        return self.__remove_sm(self.get_scaled_csi(inplace), inplace)
 
     def apply_sm(self, scaled_csi):
-        """Undo the input spatial mapping
-
-        Args:
-            scaled_csi (ndarray): Channel matrix H.
-
-        Returns:
-            ndarray: The pure MIMO channel matrix H.
-        
-        Examples:
-
-            >>> csifile = "../material/5300/dataset/sample_0x1_ap.dat"
-            >>> csidata = csiread.Intel(csifile)
-            >>> csidata.read()
-            >>> scaled_csi = csidata.get_scaled_csi()
-            >>> scaled_csi_sm = csidata.apply_sm(scaled_csi)
-            >>> print(scaled_csi_sm.shape)
-        """
         return self.__remove_sm(scaled_csi)
-
-    def __report(self, int count_0xbb, int count_0xc1):
-        """Report parsed result."""
-        if count_0xbb == 0:
-            printf("connector_log=0x%x\n", 4)
-            printf("%d 0xc1 packets parsed\n", count_0xc1)
-        elif count_0xc1 == 0:
-            printf("connector_log=0x%x\n", 1)
-            printf("%d 0xbb packets parsed\n", count_0xbb)
-        else:
-            printf("connector_log=0x%x\n", 1 | 4)
-            printf("%d 0xc1 packets parsed\n", count_0xc1)
-            printf("%d 0xbb packets parsed\n", count_0xbb)
-
-    cdef __dbinvs(self, x):
-        """Convert from decibels specially"""
-        ret = np.power(10, x / 10)
-        ret[ret == 1] = 0
-        return ret
-
-    cdef __dbinv(self, x):
-        """Convert from decibels"""
-        ret = np.power(10, x / 10)
-        return ret
-
-    cdef __db(self, x):
-        """Calculate decibels"""
-        ret = 10 * np.log10(x)
-        return ret
 
     cdef __remove_sm(self, scaled_csi, inplace=False):
         """Actually undo the input spatial mapping
@@ -836,66 +580,21 @@ cdef class Intel:
 
         return ret
 
+    def __report(self, int count_0xbb, int count_0xc1):
+        """Report parsed result."""
+        if count_0xbb == 0:
+            printf("connector_log=0x%x\n", 4)
+            printf("%d 0xc1 packets parsed\n", count_0xc1)
+        elif count_0xc1 == 0:
+            printf("connector_log=0x%x\n", 1)
+            printf("%d 0xbb packets parsed\n", count_0xbb)
+        else:
+            printf("connector_log=0x%x\n", 1 | 4)
+            printf("%d 0xc1 packets parsed\n", count_0xc1)
+            printf("%d 0xbb packets parsed\n", count_0xbb)
+
 
 cdef class Atheros:
-    """Parse CSI obtained using 'Atheros CSI Tool'.
-
-    Args:
-        file (str or None): CSI data file. If ``str``, ``read`` and ``readstp``
-            methods are allowed. If ``None``, ``seek`` and ``pmsg`` methods are
-            allowed.
-        nrxnum (int, optional): Number of receive antennas. Default: 3
-        ntxnum (int, optional): Number of transmit antennas. Default: 2
-        pl_size (int, optional): The size of payload to be used. Default: 0
-        tones (int, optional): The number of subcarrier. It can be 56 and 114.
-            Default: 56
-        if_report (bool, optional): Report the parsed result. Default: ``True``
-        bufsize (int, optional): The maximum amount of packets to be parsed.
-            If ``0`` and file is ``str``, all packets will be parsed. If ``0``
-            and file is ``None``, this parameter is ignored by ``pmsg`` method.
-            Default: 0
-
-    Attributes:
-        file (str, readonly): CSI data file
-        count (int, readonly): Count of CSI packets parsed
-        timestamp (ndarray): The time when packet is received, expressed in μs
-        csi_len (ndarray): The csi data length in the received data buffer,
-            expressed in bytes
-        tx_channel (ndarray): The center frequency of the wireless channel,
-            expressed in MHz
-        err_info (ndarray): The phy error code, set to 0 if correctly received
-        noise_floor (ndarray): The noise floor, expressed in dB. But it needs
-            to be update and is set to 0 in current version.
-        Rate (ndarray): The data rate of the received packet. Its value is a
-            unsigned 8 bit integer number and the mapping between this value
-            and the rate choice of 802.11 protocol
-        bandWidth (ndarray): The channel bandwidth. It is 20MHz if set to 0 and
-            40MHz if set to 1
-        num_tones (ndarray): The number of subcarrier that used for data
-            transmission.
-        nr (ndarray): Number of receiving antenna
-        nc (ndarray): Number of transmitting antenna
-        rsssi (ndarray): The rssi of combination of all active chains
-        rssi_1 (ndarray): The rssi of active chain 0
-        rssi_2 (ndarray): The rssi of active chain 1
-        rssi_3 (ndarray): The rssi of active chain 2
-        payload_len (ndarray): The payload length of received packet, expressed
-            in bytes.
-        csi (ndarray): CSI
-        payload (ndarray): MAC frame(MPDU) to be used
-
-    Examples:
-
-        >>> csifile = "../material/atheros/dataset/ath_csi_1.dat"
-        >>> csidata = csiread.Atheros(csifile, nrxnum=3, ntxnum=2, pl_size=10, tones=56)
-        >>> csidata.read(endian='little')
-        >>> print(csidata.csi.shape)
-
-    References:
-        1. `Atheros CSI Tool <https://wands.sg/research/wifi/AtherosCSI/>`_
-        2. `Atheros-CSI-Tool-UserSpace-APP <https://github.com/xieyaxiongfly/Atheros-CSI-Tool-UserSpace-APP>`_
-        3. `Atheros CSI Tool User Guide <https://wands.sg/research/wifi/AtherosCSI/document/Atheros-CSI-Tool-User-Guide.pdf>`_
-    """
     cdef readonly str file
     cdef readonly int count
 
@@ -987,69 +686,10 @@ cdef class Atheros:
                  if_report=True, bufsize=0):
         pass
 
-    def __getitem__(self, index):
-        ret = {
-            "timestamp": self.timestamp[index],
-            "csi_len": self.csi_len[index],
-            "tx_channel": self.tx_channel[index],
-            "err_info": self.err_info[index],
-            "noise_floor": self.noise_floor[index],
-            "Rate": self.Rate[index],
-            "bandWidth": self.bandWidth[index],
-            "num_tones": self.num_tones[index],
-            "nr": self.nr[index],
-            "nc": self.nc[index],
-            "rssi": self.rssi[index],
-            "rssi_1": self.rssi_1[index],
-            "rssi_2": self.rssi_2[index],
-            "rssi_3": self.rssi_3[index],
-            "payload_len": self.payload_len[index],
-            "csi": self.csi[index],
-            "payload": self.payload[index]
-        }
-        return ret
-
     cpdef read(self, endian='little'):
-        """Parse data
-
-        Args:
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
-            
-        Examples:
-
-            >>> csifile = "../material/atheros/dataset/ath_csi_1.dat"
-            >>> csidata = csiread.Atheros(csifile)
-            >>> csidata.read()
-        """
         self.seek(self.file, 0, 0, endian)
 
     cpdef seek(self, file, long pos, long num, endian='little'):
-        """Read packets from a specific position
-
-        This method allows us to read different parts of different files
-        randomly. It could be useful in Machine Learning. However, it could be
-        very slow when reading files in HDD for the first time. For this case,
-        it is better to do a pre-read with ``read()`` first.
-
-        Args:
-            file (str): CSI data file.
-            pos (int): Position of file descriptor corresponding to the packet.
-                Currently, it must be returned by the function in
-                `example/csiseek.py`.
-            num (int): Number of packets to be read. ``num <= bufsize`` must be
-                true. If ``0``, all packets after ``pos`` will be read.
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
-        
-        Examples:
-
-            >>> csifile = "../material/atheros/dataset/ath_csi_1.dat"
-            >>> csidata = csiread.Atheros(None, bufsize=16)
-            >>> for i in range(10):
-            >>>     csidata.seek(csifile, 0, i+1)
-            >>>     print(csidata.csi.shape)
-        """
         cdef FILE *f
 
         tempfile = file.encode(encoding="utf-8")
@@ -1246,32 +886,6 @@ cdef class Atheros:
         self.count = count
 
     cpdef pmsg(self, unsigned char *data, endian='little'):
-        """Parse message in real time
-
-        Args:
-            data (bytes): A bytes object representing the data received by udp
-                socket
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
-
-        Returns:
-            int: The status code. If ``0xff00``, parse message successfully.
-                Otherwise, the ``data`` is not a CSI packet.
-
-        Examples:
-
-            >>> import socket
-            >>> import csiread
-            >>> 
-            >>> csidata = csiread.Atheros(None)
-            >>> with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            >>>     s.bind(('127.0.0.1', 10011))
-            >>>     while True:
-            >>>         data, address_src = s.recvfrom(4096)
-            >>>         code = csidata.pmsg(data)
-            >>>         if code == 0xff00:
-            >>>             print(csidata.csi.shape)
-        """
         cdef np.uint64_t[:] buf_timestamp_mem = self.buf_timestamp
         cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
         cdef np.int_t[:] buf_tx_channel_mem = self.buf_tx_channel
@@ -1425,21 +1039,6 @@ cdef class Atheros:
         return 0xff00
 
     def readstp(self, endian='little'):
-        """Parse timestamp recorded by the modified ``recv_csi``
-
-        ``file.dat`` and ``file.datstp`` must be in the same directory.
-
-        Args:
-            endian (str): The byte order of ``file.datstp``， it can be
-                ``little`` and ``big``. Default: ``little``
-
-        Examples:
-
-            >>> csifile = "../material/atheros/dataset/ath_csi_1.dat"
-            >>> csidata = csiread.Atheros(csifile)
-            >>> first_stp = csidata.readstp()
-            >>> print(first_stp)
-        """
         self.stp = read_stpfile(self.file + "stp", endian)
         return self.stp[0]
 
@@ -1449,56 +1048,6 @@ cdef class Atheros:
 
 
 cdef class Nexmon:
-    """Parse CSI obtained using 'nexmon_csi'.
-
-    Args:
-        file (str or None): CSI data file ``.pcap``. If ``str``, ``read``
-            methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
-            allowed.
-        chip (str): WiFi Chip, it can be '4339', '43455c0', '4358' and '4366c0'.
-        bw (int): bandwidth, it can be 20, 40 and 80.
-        if_report (bool, optional): Report the parsed result. Default: `True`
-        bufsize (int, optional): The maximum amount of packets to be parsed. If
-            ``0`` and file is ``str``, all packets will be parsed. If ``0`` and
-            file is ``None``, this parameter is ignored by `pmsg` method.
-            Default: 0
-    
-    Attributes:
-        file (str, readonly): CSI data file
-        count (int, readonly): Count of csi packets parsed
-        chip (str, readonly): Chip type we set
-        bw (int, readonly): Bandwidth we set
-        nano (bool, readonly): nanosecond-resolution or not
-        sec (ndarray): Time the packet was captured
-        usec (ndarray): The microseconds when this packet was captured, as an
-            offset to ``sec`` if ``nano`` is True. The nanoseconds when the
-            packet was captured, as an offset to ``sec`` if ``nano`` is False.
-        caplen (ndarray): The number of bytes of packet data actually captured
-            and saved in the file
-        wirelen (ndarray): The length of the packet as it appeared on the
-            network when it was captured
-        magic (ndarray): Four magic bytes ``0x11111111``
-        src_addr (ndarray): Source MAC address 
-        seq (ndarray): Sequence number of the Wi-Fi frame that triggered the
-            collection of the CSI contained in packets
-        core (ndarray): Core
-        spatial (ndarray): Spatial stream 
-        chan_spec (ndarray): (unknown)
-        chip_version (ndarray): The chip version
-        csi (ndarray): CSI
-
-    Examples:
-
-        >>> csifile = "../material/nexmon/dataset/example.pcap"
-        >>> csidata = csiread.Nexmon(csifile, chip='4358', bw=80)
-        >>> csidata.read()
-        >>> print(csidata.csi.shape)
-
-    References:
-        1. `nexmon_csi <https://github.com/seemoo-lab/nexmon_csi>`_
-        2. `rdpcap <https://github.com/secdev/scapy/blob/master/scapy/utils.py>`_
-        3. `Libpcap File Format <https://wiki.wireshark.org/Development/LibpcapFileFormat>`_
-    """
     cdef readonly str file
     cdef readonly int count
     cdef readonly str chip
@@ -1569,55 +1118,10 @@ cdef class Nexmon:
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         pass
 
-    def __getitem__(self, index):
-        ret = {
-            "magic": self.magic[index],
-            "src_addr": self.src_addr[index],
-            "seq": self.seq[index],
-            "core": self.core[index],
-            "spatial": self.spatial[index],
-            "chan_spec": self.chan_spec[index],
-            "chip_version": self.chip_version[index],
-            "csi": self.csi[index]
-        }
-        return ret
-
     cpdef read(self):
-        """Parse data
-        
-        Examples:
-
-            >>> csifile = "../material/nexmon/dataset/example.pcap"
-            >>> csidata = csiread.Nexmon(csifile, chip='4358', bw=80)
-            >>> csidata.read()
-            >>> print(csidata.csi.shape)
-        """
         self.seek(self.file, 24, 0)
 
     cpdef seek(self, file, long pos, long num):
-        """Read packets from specific position
-
-        This method allows us to read different parts of different files
-        randomly. It could be useful in Machine Learning. However, it could be
-        very slow when reading files in HDD for the first time. For this case,
-        it is better to use `read()` for a pre-read first.
-
-        Args:
-            file (str): CSI data file ``.pcap``.
-            pos (int): Position of file descriptor corresponding to the packet.
-                Currently, it must be returned by the function in 
-                ``example/csiseek.py``.
-            num (int): Number of packets to be read. ``num <= bufsize`` must be
-                true. If ``0``, all packets after ``pos`` will be read.
-
-        Examples:
-
-            >>> csifile = "../material/nexmon/dataset/example.pcap"
-            >>> csidata = csiread.Nexmon(None, chip='4358', bw=80, bufsize=4)
-            >>> for i in range(4):
-            >>>     csidata.seek(csifile, 0, i+1)
-            >>>     print(csidata.csi.shape)
-        """
         cdef FILE *f
 
         tempfile = file.encode(encoding="utf-8")
@@ -1745,31 +1249,6 @@ cdef class Nexmon:
         self.csi = self.buf_csi[:count]
 
     cpdef pmsg(self, unsigned char *data, endian='little'):
-        """Parse message in real time
-
-        Args:
-            data (bytes): A bytes object representing the data received by raw
-                socket
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
-
-        Returns:
-            int: The status code. If ``0xf100``, parse message successfully.
-                Otherwise, the ``data`` is not a CSI packet.
-        
-        Examples:
-
-            >>> import socket
-            >>> import csiread
-            >>> 
-            >>> csidata = csiread.Nexmon(None, chip='4358', bw=80)
-            >>> with socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x3)) as s:
-            >>>     while True:
-            >>>         data, address_src = s.recvfrom(4096)
-            >>>         code = csidata.pmsg(data)
-            >>>         if code == 0xf100:
-            >>>             print(csidata.csi.shape)
-        """
         cdef np.int_t[:] buf_magic_mem = self.buf_magic
         cdef np.int_t[:, :] buf_src_addr_mem = self.buf_src_addr
         cdef np.int_t[:] buf_seq_mem = self.buf_seq
@@ -1903,19 +1382,6 @@ cdef class Nexmon:
 
         fseek(f, 20, SEEK_CUR)
         return endian
-
-
-cdef read_stpfile(stpfile, endian):
-    lens = os.path.getsize(stpfile) // 8
-    stp = np.zeros(lens)
-    format_string = '<LL' if endian == 'little' else '>LL'
-    cdef int i, a, b
-    f = open(stpfile, "rb")
-    for i in range(lens):
-        a, b = struct.unpack(format_string, f.read(8))
-        stp[i] = a + b / 1000000
-    f.close()
-    return stp
 
 
 @cython.boundscheck(False)
@@ -2114,3 +1580,30 @@ cdef inline uint64_t cu64b(uint64_t a, uint64_t b, uint64_t c, uint64_t d,
                            uint64_t e, uint64_t f, uint64_t g, uint64_t h):
     return (h | (g << 8) | (f << 16) | (e << 24) |
             (d << 32) | (c << 40) | (b << 48) | (a << 56))
+
+
+cdef read_stpfile(stpfile, endian):
+    lens = os.path.getsize(stpfile) // 8
+    stp = np.empty(lens)
+    format_string = '<LL' if endian == 'little' else '>LL'
+    cdef int i, a, b
+    f = open(stpfile, "rb")
+    for i in range(lens):
+        a, b = struct.unpack(format_string, f.read(8))
+        stp[i] = a + b / 1000000
+    f.close()
+    return stp
+
+
+cdef db(x):
+    return 10 * np.log10(x)
+
+
+cdef dbinv(x):
+    return np.power(10, x / 10)
+
+
+cdef dbinvs(x):
+    ret = np.power(10, x / 10)
+    ret[ret == 1] = 0
+    return ret
