@@ -214,3 +214,11 @@ def infer_chip_bw(csifile):
     band = WL_CHANSPEC_BAND // 0x4000 + 2
 
     return chip, bw, band
+
+
+def db(x):
+    return 10 * np.log10(x) + 300 - 300
+
+
+def dbinv(x):
+    return np.power(10, x/10)
