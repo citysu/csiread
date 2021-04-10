@@ -7,18 +7,14 @@ Usage:
     python3 csispotfi.py
 
 Note:
-    This example was tested with `spotfimusicaoaestimation/sample_csi_trace.mat`
-
-Important:
-    1. This example can get the same result as `spotfimusicaoaestimation`, but it
-    hasn't been tested with WiFi Indoor Positioning Dataset. There may be some
-    issues.
-    2. Unfinished: 'Cluster AoA and ToF from multiple packets' hasn't been
-    implemented yet.
+    1. This example was tested with `spotfimusicaoaestimation/sample_csi_trace.mat`
+    2. 'Cluster AoA and ToF from multiple packets' can be implemented by
+    `sklearn.cluster` (e.g. `sklearn.mixture.GaussianMixture`). Skip.
 
 Ref:
     1. [SpotFi: Decimeter Level Localization Using WiFi](http://conferences.sigcomm.org/sigcomm/2015/pdf/papers/p269.pdf)
     2. [spotfiMusicAoaEstimation](https://bitbucket.org/mkotaru/spotfimusicaoaestimation)
+    3. [ArrayTrack: A Fine-Grained Indoor Location System](https://www.usenix.org/system/files/conference/nsdi13/nsdi13-final51.pdf)
 """
 
 from math import floor
@@ -26,17 +22,55 @@ from math import floor
 import csiread
 import matplotlib.pyplot as plt
 import numpy as np
+from csiread.utils import scidx
 from numpy.linalg import eigh, norm
+from numpy.random import randn, uniform
 from scipy.io import loadmat
 from scipy.linalg import hankel
 from scipy.stats import gmean
 from skimage.feature.peak import peak_local_max
 
-from utils import db, scidx
+from utils import db
+
+RANGE_TOF_START, RANGE_TOF_STOP, RANGE_TOF_NUM = [-25, 25, 101]
+RANGE_DOA_START, RANGE_DOA_STOP, RANGE_DOA_NUM = [-np.pi / 2, np.pi / 2, 101]
 
 
-RANGE_TOF_START, RANGE_TOF_STOP, RANGE_TOF_STEP = [-25, 25, 101]
-RANGE_DOA_START, RANGE_DOA_STOP, RANGE_DOA_STEP = [-np.pi / 2, np.pi / 2, 101]
+def signalG(T, D, nrx, d, f, bw, ng, c=3e8, correlated=False):
+    """Signal Generation
+
+    Args:
+        T: number of snapshots
+        D: number of sources
+        nrx: number receiving antennas
+        d: distance between receiving antennas, (m)
+        f: center frequency, (Hz)
+        bw: bandwitdh(20, 40), (MHz)
+        ng: grouping(1, 2, 4)
+        c: wave speed, (m/s)
+        correlated: correlated sources or not
+    """
+    s_index = scidx(bw, ng)[:, np.newaxis]
+    s_num = s_index.size
+    delta_k = 3.125e5                                           # Hz
+
+    ula = np.c_[:nrx][..., np.newaxis] * d                      # uniform linear array (ULA)
+    doa = uniform(-np.pi/3, np.pi/3, D)                         # directions of arrival (DOA)
+    tof = uniform(-20, 20, D) * 1e-9                            # time of fight (ToF)
+
+    # doa = np.deg2rad(np.array([3.6, 8.4, 50.4]))
+    # tof = np.array([6, 18, 0]) * 1e-9
+
+    a_doa = np.exp(-2.j * np.pi * f * ula * np.sin(doa) / c)    # doa steering vector
+    a_tof = np.exp(-2.j * np.pi * s_index * delta_k * tof)      # tof steering vector
+    a = a_doa * a_tof
+
+    s = (randn(T) + randn(T) * 1.j) * np.exp(1.j * np.c_[:D]) \
+        if correlated else randn(D, T) + randn(D, T) * 1.j      # sources
+    n = randn(nrx, s_num, T) + randn(nrx, s_num, T) * 1.j       # noise
+    x = a @ s + n * 0.01                                        # signal model
+
+    return x.T, doa, tof
 
 
 def loadcsi(file):
@@ -69,9 +103,9 @@ def remove_sto(csi, bw=20, ng=2):
     Ref:
         spotfiMusicAoaEstimation: removePhsSlope.m
     """
-    count, s_num = csi.shape[0], csi.shape[1]
+    count, s_num, nrx = csi.shape
     s = scidx(bw, ng)[:, np.newaxis]
-    x = np.tile(s.ravel(), 3)
+    x = np.tile(s.ravel(), nrx)
 
     # Unwrap phase
     phase = np.unwrap(np.angle(csi), axis=1)
@@ -82,7 +116,7 @@ def remove_sto(csi, bw=20, ng=2):
     lmask = np.repeat(lmask, s_num, 1)
     phase[umask] -= 2 * np.pi
     phase[lmask] += 2 * np.pi
- 
+
     # In the paper, step 1 is least-squares 
     a = np.c_[x, np.ones_like(x)]
     b = phase.T.reshape(-1, count)
@@ -108,12 +142,11 @@ def hankel2(csi):
 
     # Level 1: subcarriers
     h = [hankel(csi[:L, i], csi[-J:, i]) for i in range(N)]
-    h = np.asarray(h)       # h.shape=[nrx, L, J]
+    h = np.asarray(h)       # h.shape=[N, L, J]
 
     # Level 2: nrx
-    h2 = np.empty([L * Ln, J * Jn], csi.dtype)
-    for j in range(Jn):
-        h2[:, j*J:j*J+J] = h[j:j+Ln].reshape(-1, J)
+    h2 = [h[j:j+Ln].reshape(-1, J) for j in range(Jn)]
+    h2 = np.hstack(h2)
     return h2
 
 
@@ -140,7 +173,6 @@ def NoSS_old(X, EigDiffCutoff=4):
     Refs:
         1. GetQnBackscatter.m: line 50-64
     """
-    T, M = X.shape[2], X.shape[1]
     R = (X @ X.transpose(0, 2, 1).conj()).mean(axis=0)
     w, v = eigh(R)
     w = sorted(np.abs(w), reverse=True)[:5]
@@ -184,15 +216,15 @@ def music(X, D, nrx, d, f, bw, ng, c=3e8):
         nrx: number receiving antennas
         d: distance between receiving antennas, (m)
         f: center frequency, (Hz)
-        c: wave speed, (m/s)
         bw: bandwitdh(20, 40), (MHz)
         ng: grouping(1, 2, 4)
+        c: wave speed, (m/s)
     """
     T, M = X.shape[2], X.shape[1]
     Ln = floor(nrx / 2) + 1
     L = M // Ln
-    S_INDEX = scidx(bw, ng)[:, np.newaxis]
-    DELTA_K = 3.125e5           # Hz
+    s_index = scidx(bw, ng)[:, np.newaxis]
+    delta_k = 3.125e5           # Hz
 
     R = (X @ X.transpose(0, 2, 1).conj()).mean(axis=0)
     w, v = eigh(R)   # w may contain negative values
@@ -203,12 +235,12 @@ def music(X, D, nrx, d, f, bw, ng, c=3e8):
     # ULA
     ula = np.c_[:Ln] * d
     # tof search space, (s)
-    tof_space = np.linspace(RANGE_TOF_START, RANGE_TOF_STOP, RANGE_TOF_STEP) * 1e-9
+    tof_space = np.linspace(RANGE_TOF_START, RANGE_TOF_STOP, RANGE_TOF_NUM) * 1e-9
     # doa search space, (rad)
-    doa_space = np.linspace(RANGE_DOA_START, RANGE_DOA_STOP, RANGE_DOA_STEP)
+    doa_space = np.linspace(RANGE_DOA_START, RANGE_DOA_STOP, RANGE_DOA_NUM)
 
     # steering vector
-    a_tof = np.exp(-2.j * np.pi * S_INDEX[:L] * DELTA_K * tof_space)
+    a_tof = np.exp(-2.j * np.pi * s_index[:L] * delta_k * tof_space)
     a_doa = np.exp(-2.j * np.pi * f * ula * np.sin(doa_space) / c)
     a = np.kron(a_doa, a_tof)
 
@@ -222,7 +254,8 @@ def music(X, D, nrx, d, f, bw, ng, c=3e8):
     # Tips: RAPMusicGridMaxBackscatter.m finds a peak by maximum function.
     # It finds all peaks by maximum suppression and Multiple iterations
 
-    pos_doa, pos_tof = peak_local_max(p, num_peaks=D).T
+    # It could be better to find peaks along the tof-axis first, then doa-axis.
+    pos_doa, pos_tof = peak_local_max(p, min_distance=3, num_peaks=D).T
     doa = doa_space[pos_doa]
     tof = tof_space[pos_tof]
 
@@ -235,8 +268,8 @@ def plotspectrum(p, doa, tof):
     doa_space = np.rad2deg(doa_space)                                       # (degree)
     doa = np.rad2deg(doa)
     tof = tof * 1e9
-    print('Doa: ', doa)
-    print('Tof: ', tof)
+    print('Doa fake: ', doa)
+    print('Tof fake: ', tof)
 
     fig = plt.figure(figsize=(16, 9))
 
@@ -289,11 +322,31 @@ def spotfi(csi, d, f, bw, ng):
     plotspectrum(p, doa, tof)
 
 
+def test_spotfi():
+    csi, doa_real, tof_real = signalG(T=3, D=3, nrx=3, d=2.6e-2, f=5.63e9, bw=40, ng=4, correlated=True)
+
+    # Add unknown phase offset
+    unknown_phase = np.exp(2.j * np.pi * np.array([2.9, 3.9, 5.9]) / 10).reshape(1, 1, -1)
+    csi = csi * unknown_phase
+
+    # ArrayTrack: AP phase calibration
+    phase_offset = np.exp(2.j * np.pi * np.array([0.0, -1.0, -3.0]) / 10).reshape(1, 1, -1)
+    csi = csi * phase_offset
+
+    # No remove_sto
+
+    csi = smooth_csi(csi)
+    p, doa_fake, tof_fake = music(X=csi, D=NoSS(csi), nrx=3, d=2.6e-2, f=5.63e9, bw=40, ng=4)
+
+    doa_real = np.around(np.rad2deg(doa_real), 1)
+    tof_real = np.around(tof_real * 1e9, 1)
+    print('Doa real: ', doa_real)
+    print('Tof real: ', tof_real)
+    plotspectrum(p, doa_fake, tof_fake)
+
+
 if __name__ == '__main__':
     # csi = loadcsi('spotfimusicaoaestimation/sample_csi_trace.mat')
     # spotfi(csi, d=2.6e-2, f=5.63e9, bw=40, ng=4)
 
-    # d is unkown and 2.82e-2 is a random value. The following section is just a demo.
-    RANGE_TOF_START, RANGE_TOF_STOP, RANGE_TOF_STEP = [-50, 150, 201]
-    csi = loadcsi('../material/5300/dataset/sample_0x5_64_3000.dat')[1000:1002]
-    spotfi(csi, d=2.82e-2, f=5.32e9, bw=20, ng=2)
+    test_spotfi()
