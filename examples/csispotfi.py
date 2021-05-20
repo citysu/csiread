@@ -11,6 +11,11 @@ Note:
     2. 'Cluster AoA and ToF from multiple packets' can be implemented by
     `sklearn.cluster` (e.g. `sklearn.mixture.GaussianMixture`). Skip.
 
+Important:
+    This example hasn't been tested with WiFi Indoor Positioning Dataset. There
+    may be some issues. For example, it may just work with [bw=40, ng=4] (only
+    scidx(40, 4) is an arithmetic progression).
+
 Ref:
     1. [SpotFi: Decimeter Level Localization Using WiFi](http://conferences.sigcomm.org/sigcomm/2015/pdf/papers/p269.pdf)
     2. [spotfiMusicAoaEstimation](https://bitbucket.org/mkotaru/spotfimusicaoaestimation)
