@@ -587,7 +587,7 @@ class AtherosPull10(Atheros):
         self.seek(self.file, 1, 0, endian)
 
 
-class NexmonPull46(Nexmon):
+class NexmonPull46(_csiread.NexmonPull46):
     """Parse CSI obtained using 'nexmon_csi' pull 46.
 
     Args:
@@ -603,20 +603,21 @@ class NexmonPull46(Nexmon):
     """
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         super(NexmonPull46, self).__init__(file, chip, bw, if_report, bufsize)
-        self.rssi = None
-        self.fc = None
-        self._autoscale = 0
 
     def __getitem__(self, index):
-        ret = super().__getitem__(index)
-        ret['rssi'] = self.rssi[index]
-        ret['fc'] = self.fc[index]
+        ret = {
+            "magic": self.magic[index],
+            "rssi": self.rssi[index],
+            "fc": self.fc[index],
+            "src_addr": self.src_addr[index],
+            "seq": self.seq[index],
+            "core": self.core[index],
+            "spatial": self.spatial[index],
+            "chan_spec": self.chan_spec[index],
+            "chip_version": self.chip_version[index],
+            "csi": self.csi[index]
+        }
         return ret
-
-    def seek(self, file, pos, num):
-        """Read packets from specific position, see ``Nexmon.seek``"""
-        super().seek(file, pos, num)
-        self.__pull46()
 
     def pmsg(self, data, endian='little'):
         """Parse message in real time
@@ -631,18 +632,4 @@ class NexmonPull46(Nexmon):
             int: The status code. If ``0xf101``, parse message successfully.
                 Otherwise, the ``data`` is not a CSI packet.
         """
-        super().pmsg(data, endian)
-        self.__pull46()
-        return 0xf101
-
-    def __pull46(self):
-        if self.magic[0] & 0x0000ffff == 0x1111:
-            self.rssi = ((self.magic & 0x00ff0000) >> 16)
-            self.rssi = self.rssi.astype('i1').astype(int)
-            self.fc = (self.magic & 0xff000000) >> 24
-            self.magic &= 0x0000ffff
-        else:
-            self.rssi = ((self.magic & 0x0000ff00) >> 8)
-            self.rssi = self.rssi.astype('i1').astype(int)
-            self.fc = self.magic & 0x000000ff
-            self.magic = (self.magic & 0xffff0000) >> 16
+        return super().pmsg(data, endian)
