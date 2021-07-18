@@ -25,7 +25,7 @@ A fast channel state information parser for Intel, Atheros and Nexmon in Python.
 
 EXTENSIONS = [
     Extension(
-        "csiread._csiread", ["csiread/csiread.pyx"],
+        "csiread._csiread", ["csiread/_csiread.pyx"],
         include_dirs=[numpy.get_include()],
         define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
         extra_compile_args=EXTRA_COMPILE_ARGS,
