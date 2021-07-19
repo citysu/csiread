@@ -1277,28 +1277,28 @@ cdef class Nexmon:
             nex_cu32 = cu32b
             flag = False
 
-        # we don't care about enth+ip+udp header
-        if buf[6:12] != b'NEXMON':
+        # magic number
+        if buf[:4] != b'\x11\x11\x11\x11':
             return
 
         # nexmon header
-        buf_magic_mem[count] = nex_cu32(buf[42], buf[43], buf[44], buf[45])
+        buf_magic_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
         for i in range(6):
-            buf_src_addr_mem[count, i] = buf[46+i]
-        buf_seq_mem[count] = nex_cu16(buf[52], buf[53])
-        buf_core_mem[count] = nex_cu16(buf[54], buf[55]) & 0x7
-        buf_spatial_mem[count] = (nex_cu16(buf[54], buf[55]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = nex_cu16(buf[56], buf[57])
-        buf_chip_version_mem[count] = nex_cu16(buf[58], buf[59])
+            buf_src_addr_mem[count, i] = buf[4+i]
+        buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
+        buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
+        buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
+        buf_chan_spec_mem[count] = nex_cu16(buf[14], buf[15])
+        buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[60], buf_csi_mem[count], nfft, flag)
+            unpack_int16(&buf[18], buf_csi_mem[count], nfft, flag)
         elif self.chip == '4358':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5,
+            unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
                          self._autoscale, flag)
         elif self.chip == '4366c0':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6,
+            unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
                          self._autoscale, flag)
         else:
             pass
@@ -1591,30 +1591,30 @@ cdef class NexmonPull46(Nexmon):
             nex_cu32 = cu32b
             flag = False
 
-        # we don't care about enth+ip+udp header
-        if buf[6:12] != b'NEXMON':
+        # magic number
+        if buf[:2] != b'\x11\x11':
             return
 
         # nexmon header
-        buf_magic_mem[count] = nex_cu16(buf[42], buf[43])
-        buf_rssi_mem[count] = buf[44]
-        buf_fc_mem[count] = buf[45]
+        buf_magic_mem[count] = nex_cu16(buf[0], buf[1])
+        buf_rssi_mem[count] = buf[2]
+        buf_fc_mem[count] = buf[3]
         for i in range(6):
-            buf_src_addr_mem[count, i] = buf[46+i]
-        buf_seq_mem[count] = nex_cu16(buf[52], buf[53])
-        buf_core_mem[count] = nex_cu16(buf[54], buf[55]) & 0x7
-        buf_spatial_mem[count] = (nex_cu16(buf[54], buf[55]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = nex_cu16(buf[56], buf[57])
-        buf_chip_version_mem[count] = nex_cu16(buf[58], buf[59])
+            buf_src_addr_mem[count, i] = buf[4+i]
+        buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
+        buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
+        buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
+        buf_chan_spec_mem[count] = nex_cu16(buf[114], buf[15])
+        buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[60], buf_csi_mem[count], nfft, flag)
+            unpack_int16(&buf[18], buf_csi_mem[count], nfft, flag)
         elif self.chip == '4358':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 9, 5,
+            unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
                          self._autoscale, flag)
         elif self.chip == '4366c0':
-            unpack_float(&buf[60], buf_csi_mem[count], nfft, 12, 6,
+            unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
                          self._autoscale, flag)
         else:
             pass

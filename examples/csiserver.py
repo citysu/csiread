@@ -6,7 +6,7 @@
 Usage:
     Intel5300: python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 1000
     Atheros: python3 csiserver.py ../material/atheros/dataset/ath_csi_1.dat 100 100000
-    Nexmon: sudo python3 csiserver_nexmon.py ../material/nexmon/dataset/example.pcap 12 10000
+    Nexmon: python3 csiserver.py ../material/nexmon/dataset/example.pcap 12 10000
 """
 
 import argparse
@@ -22,7 +22,7 @@ def intel_server(csifile, number, delay):
     Args:
         csifile: csi smaple file
         number: packets number, unlimited if number=0
-        delay: packets rate(us), the sending rate is inaccurate because of `sleep`
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
 
     Note:
         set address for remoting connection
@@ -82,7 +82,7 @@ def atheros_server(csifile, number, delay, endian):
     Args:
         csifile: csi smaple file
         number: packets number, unlimited if number=0
-        delay: packets rate(us), the sending rate is inaccurate because of `sleep`
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
         endian: the endian of csifile.
 
     Note:
@@ -135,8 +135,22 @@ def atheros_server(csifile, number, delay, endian):
 
 
 def nexmon_server(csifile, number, delay):
-    s = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.IPPROTO_IP)
-    s.bind(("wlp4s0", socket.IPPROTO_IP))
+    """nexmon server
+
+    Args:
+        csifile: csi smaple file
+        number: packets number, unlimited if number=0
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
+
+    Note:
+        set address for remoting connection
+    """
+    # config
+    address_src = ('127.0.0.1', 10086)
+    address_des = ('127.0.0.1', 10010)
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(address_src)
 
     f = open(csifile, 'rb')
     magic = f.read(4)
@@ -154,9 +168,8 @@ def nexmon_server(csifile, number, delay):
         caplen = int.from_bytes(f.read(16)[8:12], byteorder=endian)
         if f.read(42)[6:12] == b'NEXMON':
             time.sleep(delay/1000000)
-            f.seek(-42, os.SEEK_CUR)
-            data = f.read(caplen)
-            s.send(data)
+            data = f.read(caplen - 42)
+            s.sendto(data, address_des)
 
             count += 1
             if count % 1000 == 0:

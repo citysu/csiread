@@ -38,8 +38,11 @@ def update_background():
     # config
     global cache_data1, mutex
     count = 0
+    address_src = ('127.0.0.1', 10086)
+    address_des = ('127.0.0.1', 10010)
 
-    with socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x3)) as s:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind(address_des)
         while True:
             data, address_src = s.recvfrom(4096)
             msg_len = len(data)
