@@ -187,6 +187,26 @@ def nexmon_server(csifile, number, delay):
     print()
 
 
+def nexmon_server_2(csifile, number, delay):
+    """nexmon server 2
+
+    Args:
+        csifile: csi smaple file
+        number: packets number, unlimited if number=0
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
+
+    Note:
+        - This function only works on Linux. It needs root or sudo permissions.
+        - Client cannot receive data if you run the client and server 2 on the
+            same computer.
+    """
+    from scapy.all import rdpcap, sendp
+    data = rdpcap(csifile)
+    data[0].display()
+    sendp(data, inter=delay/1e6, count=number//len(data))
+    sendp(data[:number%len(data)], inter=delay/1e6)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('csifile', type=str, help='csi smaple file')
