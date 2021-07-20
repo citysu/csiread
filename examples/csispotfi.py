@@ -212,7 +212,38 @@ def NoSS(X, method='MDL'):
     return D
 
 
-def music(X, D, nrx, d, f, bw, ng, c=3e8):
+def extend_scidx(bw, ng):
+    a, b = int(bw * 1.5 - 2), int(bw / 20)
+    return np.r_[-a:a+1]
+
+
+def extand_csi(csi, bw, ng):
+    """ extend csi
+
+    Args:
+        csi.shape=[count, subcarriers, nrx]
+
+    Ref:
+        [CSIworks](https://github.com/OlympusKnight/CSIworks/blob/master/Functions/WiFiArrMUSICAnalysis.py)
+    """
+    s_index_new = extend_scidx(bw, ng)
+    s_index_old = scidx(bw, ng)
+    newcsi = np.empty([csi.shape[0], s_index_new.size, csi.shape[2]], csi.dtype)
+
+    steps = np.cumsum(np.diff(s_index_old))
+    steps = np.r_[0, steps]
+    j = 0
+    for i, sd_new in enumerate(s_index_new):
+        if i == steps[j]:
+            newcsi[:, i] = csi[:, j]
+            j += 1
+        else:
+            jj = j - 1
+            newcsi[:, i] = csi[:, jj] + (csi[:, jj+1] - csi[:, jj]) / (steps[jj + 1] - steps[jj]) * (i - steps[jj])
+    return newcsi
+
+
+def music(X, D, nrx, d, f, bw, ng, c=3e8, extend=False):
     """MUSIC for SpotFi
 
     Args:
@@ -224,11 +255,12 @@ def music(X, D, nrx, d, f, bw, ng, c=3e8):
         bw: bandwitdh(20, 40), (MHz)
         ng: grouping(1, 2, 4)
         c: wave speed, (m/s)
+        extend: extend csi or not
     """
     T, M = X.shape[2], X.shape[1]
     Ln = floor(nrx / 2) + 1
     L = M // Ln
-    s_index = scidx(bw, ng)[:, np.newaxis]
+    s_index = extend_scidx(bw, ng)[:, np.newaxis] if extend else scidx(bw, ng)[:, np.newaxis]
     delta_k = 3.125e5           # Hz
 
     R = (X @ X.transpose(0, 2, 1).conj()).mean(axis=0)
@@ -267,14 +299,24 @@ def music(X, D, nrx, d, f, bw, ng, c=3e8):
     return p, doa, tof
 
 
-def plotspectrum(p, doa, tof):
+def plotspectrum(p, doa_fake, tof_fake, doa_real=None, tof_real=None):
     tof_space = np.linspace(RANGE_TOF_START, RANGE_TOF_STOP, p.shape[1])    # (ns)
     doa_space = np.linspace(RANGE_DOA_START, RANGE_DOA_STOP, p.shape[0])
     doa_space = np.rad2deg(doa_space)                                       # (degree)
-    doa = np.rad2deg(doa)
-    tof = tof * 1e9
-    print('Doa fake: ', doa)
-    print('Tof fake: ', tof)
+
+    doa_fake = np.rad2deg(doa_fake)
+    tof_fake = tof_fake * 1e9
+    print('Doa fake: ', doa_fake)
+    print('Tof fake: ', tof_fake)
+
+    if doa_real is None or tof_real is None:
+        doa_real = np.zeros(0)
+        tof_real = np.zeros(0)
+    else:
+        doa_real = np.around(np.rad2deg(doa_real), 1)
+        tof_real = np.around(tof_real * 1e9, 1)
+        print('Doa real: ', doa_real)
+        print('Tof real: ', tof_real)
 
     fig = plt.figure(figsize=(16, 9))
 
@@ -284,14 +326,16 @@ def plotspectrum(p, doa, tof):
     ax1.set_ylabel('tof [ns]')
     ax1.pcolormesh(doa_space, tof_space, p.T, shading='gouraud',
                    cmap='jet', antialiased=True)
-    ax1.plot(doa, tof, 'o', color='black', markersize=10, alpha=0.5)
+    ax1.plot(doa_fake, tof_fake, 'o', color='black', markersize=10, alpha=0.5, label='fake')
+    ax1.plot(doa_real, tof_real, 'x', color='black', markersize=10, alpha=1.0, label='real')
+    ax1.legend(framealpha=0.5)
 
     ax2 = fig.add_subplot(222, sharey=ax1)
     ax2.set_title('MUSIC-tof')
     ax2.set_xlabel('Power [dB]')
     ax2.set_ylabel('tof [ns]')
     ax2.plot(p.max(0), tof_space)
-    ax2.hlines(tof, p.min(), p.max(),
+    ax2.hlines(tof_fake, p.min(), p.max(),
                colors='orange', linewidth=2, linestyles='--')
 
     ax3 = fig.add_subplot(223, sharex=ax1)
@@ -299,7 +343,7 @@ def plotspectrum(p, doa, tof):
     ax3.set_xlabel('doa [deg]')
     ax3.set_ylabel('Power [dB]')
     ax3.plot(doa_space, p.max(1))
-    ax3.vlines(doa, p.min(), p.max(),
+    ax3.vlines(doa_fake, p.min(), p.max(),
                colors='orange', linewidth=2, linestyles='--')
 
     ax4 = fig.add_subplot(224, projection='3d')
@@ -327,8 +371,8 @@ def spotfi(csi, d, f, bw, ng):
     plotspectrum(p, doa, tof)
 
 
-def test_spotfi():
-    csi, doa_real, tof_real = signalG(T=3, D=3, nrx=3, d=2.6e-2, f=5.63e9, bw=40, ng=4, correlated=True)
+def test_spotfi(T=10, bw=40, ng=4, extend=False):
+    csi, doa_real, tof_real = signalG(T=T, D=3, nrx=3, d=2.6e-2, f=5.63e9, bw=bw, ng=ng, correlated=True)
 
     # Add unknown phase offset
     unknown_phase = np.exp(2.j * np.pi * np.array([2.9, 3.9, 5.9]) / 10).reshape(1, 1, -1)
@@ -339,19 +383,14 @@ def test_spotfi():
     csi = csi * phase_offset
 
     # No remove_sto
+    csi = smooth_csi(extand_csi(csi, bw=bw, ng=ng) if extend else csi)
+    p, doa_fake, tof_fake = music(X=csi, D=NoSS(csi), nrx=3, d=2.6e-2, f=5.63e9, bw=bw, ng=ng, extend=extend)
 
-    csi = smooth_csi(csi)
-    p, doa_fake, tof_fake = music(X=csi, D=NoSS(csi), nrx=3, d=2.6e-2, f=5.63e9, bw=40, ng=4)
-
-    doa_real = np.around(np.rad2deg(doa_real), 1)
-    tof_real = np.around(tof_real * 1e9, 1)
-    print('Doa real: ', doa_real)
-    print('Tof real: ', tof_real)
-    plotspectrum(p, doa_fake, tof_fake)
+    plotspectrum(p, doa_fake, tof_fake, doa_real=doa_real, tof_real=tof_real)
 
 
 if __name__ == '__main__':
     # csi = loadcsi('spotfimusicaoaestimation/sample_csi_trace.mat')
     # spotfi(csi, d=2.6e-2, f=5.63e9, bw=40, ng=4)
 
-    test_spotfi()
+    test_spotfi(10, 40, 4, False)
