@@ -209,7 +209,6 @@ helpinfo = r"""Plot Type
 6   CSI-time-amplitude(CIR: OFDM symbol view)
 8   CSI-time-amplitude(butterworth filter)
 9   CSI-time-amplitude(Convolve)
-10  CSI-stft
 """
 
 

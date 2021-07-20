@@ -2,6 +2,7 @@
 
 import os
 
+import csiread
 import numpy as np
 
 
@@ -22,10 +23,14 @@ def scidx(bw, ng):
 def calib(phase, bw=20, ng=2, axis=1):
     """Phase calibration
 
-    Note:
-        phase: it must be unwrapped, it should be a 2-D, 3-D or 4-D array and
-            the second dimension must be subcarriers
-        bw, ng: the same as `scidx`
+    Args:
+        phase (ndarray): Unwrapped phase of CSI.
+        bw (int): Bandwidth, it can be 20 and 40. Default: 20
+        ng (int): Grouping, it can be 1, 2 and 4. Default: 2
+        axis (int): Axis along which is subcarrier. Default: 1
+
+    Returns:
+        ndarray: Phase calibrated
 
     ref:
         [Enabling Contactless Detection of Moving Humans with Dynamic Speeds Using CSI]
@@ -72,15 +77,18 @@ def phy_ifft(x, bw=20, ng=2, axis=1):
         802.11-2012), vol., no., pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
     """
     assert bw == 20, "Only bw=20 is allowed"
-
-    x = np.expand_dims(x.swapaxes(-1, axis), -2)
-    k = scidx(bw, ng)
+    M = x.shape[axis]
+    x = x.swapaxes(-1, axis)
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
-    t = np.arange(n).reshape(-1, 1) / (bw * 1e6)
+    k = scidx(bw, ng)
+    t = np.c_[:n] / (bw * 1e6)
 
-    out = (x * np.exp(1.j * 2 * np.pi * k * delta_f * t)).mean(axis=-1).swapaxes(-1, axis)
+    g = np.exp(2.j * np.pi * k * delta_f * t) / M
+    out = x @ g.T
+
+    out = out.swapaxes(-1, axis)
     return out
 
 
@@ -91,15 +99,18 @@ def phy_fft(x, bw=20, ng=2, axis=1):
     """
     assert bw == 20, "Only bw=20 is allowed"
 
-    x = np.expand_dims(x.swapaxes(-1, axis), -1)
-    k = scidx(bw, ng)
+    x = x.swapaxes(-1, axis)
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
-    t = np.arange(n).reshape(-1, 1) / (bw * 1e6)
+    k = scidx(bw, ng)
+    t = np.c_[:n] / (bw * 1e6)
+    
+    g = np.exp(-2.j * np.pi * k * delta_f * t)
+    out = x @ g
 
     scale = k.size / n
-    out = (x * np.exp(1.j * -2 * np.pi * k * delta_f * t)).sum(axis=-2).swapaxes(-1, axis) * scale
+    out = out.swapaxes(-1, axis) * scale
     return out
 
 
@@ -188,7 +199,7 @@ def infer_chip_bw(csifile):
     Examples:
 
         >>> csifile = "../material/nexmon/dataset/example.pcap"
-        >>> chip, bw, band = nexchan(csifile)
+        >>> chip, bw, band = infer_chip_bw(csifile)
         >>> csidata = csiread.Nexmon(csifile, chip=chip, bw=bw)
         >>> csidata.read()
 
