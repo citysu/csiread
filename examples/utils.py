@@ -6,17 +6,58 @@ import csiread
 import numpy as np
 
 
-def scidx(bw, ng):
+def scidx(bw, ng, standard='n'):
     """subcarriers index
 
     Args:
-        bw: bandwitdh(20, 40)
+        bw: bandwitdh(20, 40, 80)
         ng: grouping(1, 2, 4)
+        standard: 'n' - 802.11n， 'ac' - 802.11ac.
+    Ref:
+        1. 802.11n-2016: IEEE Standard for Information technology—Telecommunications
+        and information exchange between systems Local and metropolitan area
+        networks—Specific requirements - Part 11: Wireless LAN Medium Access
+        Control (MAC) and Physical Layer (PHY) Specifications, in
+        IEEE Std 802.11-2016 (Revision of IEEE Std 802.11-2012), vol., no.,
+        pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
+        2. 802.11ac-2013 Part 11: ["IEEE Standard for Information technology--
+        Telecommunications and information exchange between systemsLocal and
+        metropolitan area networks-- Specific requirements--Part 11: Wireless
+        LAN Medium Access Control (MAC) and Physical Layer (PHY) Specifications
+        --Amendment 4: Enhancements for Very High Throughput for Operation in 
+        Bands below 6 GHz.," in IEEE Std 802.11ac-2013 (Amendment to IEEE Std
+        802.11-2012, as amended by IEEE Std 802.11ae-2012, IEEE Std 802.11aa-2012,
+        and IEEE Std 802.11ad-2012) , vol., no., pp.1-425, 18 Dec. 2013,
+        doi: 10.1109/IEEESTD.2013.6687187.](https://www.academia.edu/19690308/802_11ac_2013)
     """
-    if bw not in [20, 40] or ng not in [1, 2, 4]:
-        raise ValueError("bw should be [20, 40] and ng should be [1, 2, 4]")
-    a, b = int(bw * 1.5 - 2), int(bw / 20)
-    k = np.r_[range(-a, -b, ng), -b, range(b, a, ng), a]
+
+    PILOT_AC = {
+        20: [-21, -7, 7, 21],
+        40: [-53, -25, -11, 11, 25, 53],
+        80: [-103, -75, -39, -11, 11, 39, 75, 103],
+        160: [-231, -203, -167, -139, -117, -89, -53, -25, 25, 53, 89, 117, 139, 167, 203, 231]
+    }
+    SKIP_AC_160 = {1: [-129, -128, -127, 127, 128, 129], 2: [-128, 128], 4: []}
+    AB = {20: [28, 1], 40: [58, 2], 80: [122, 2], 160: [250, 6]}
+    a, b = AB[bw]
+
+    if standard == 'n':
+        if bw not in [20, 40] or ng not in [1, 2, 4]:
+            raise ValueError("bw should be [20, 40] and ng should be [1, 2, 4]")
+        k = np.r_[-a:-b:ng, -b, b:a:ng, a]
+    if standard == 'ac':
+        if bw not in [20, 40, 80] or ng not in [1, 2, 4]:
+            raise ValueError("bw should be [20, 40, 80] and ng should be [1, 2, 4]")
+
+        g = np.r_[-a:-b:ng, -b]
+        k = np.r_[g, -g[::-1]]
+
+        if ng == 1:
+            index = np.searchsorted(k, PILOT_AC[bw])
+            k = np.delete(k, index)
+        if bw == 160:
+            index = np.searchsorted(k, SKIP_AC_160[ng])
+            k = np.delete(k, index)
     return k
 
 
@@ -62,7 +103,8 @@ def phy_ifft(x, bw=20, ng=2, axis=1):
     """802.11n IFFT
 
     Return discrete inverse Fourier transform of real or complex sequence. It
-    is based on Equation (19-25)(P2373)
+    is based on Equation (19-25)(P2373) and Table 19-6—Timing-related constants(P2354) in 
+    802.11n-2016, Table 22-5—Timing-related constants un 802.11ac-2013
 
     Note:
         1. No ifftshift
@@ -70,13 +112,21 @@ def phy_ifft(x, bw=20, ng=2, axis=1):
         3. BE CAREFUL! I haven't found any code about CSI like this.
 
     Ref:
-        IEEE Standard for Information technology—Telecommunications and information
-        exchange between systems Local and metropolitan area networks—Specific 
+        1. IEEE Standard for Information technology—Telecommunications and information
+        exchange between systems Local and metropolitan area networks—Specific
         requirements - Part 11: Wireless LAN Medium Access Control (MAC) and Physical
         Layer (PHY) Specifications, in IEEE Std 802.11-2016 (Revision of IEEE Std
         802.11-2012), vol., no., pp.1-3534, 14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
+        2. "IEEE Standard for Information technology-- Telecommunications
+        and information exchange between systemsLocal and metropolitan area
+        networks-- Specific requirements--Part 11: Wireless LAN Medium Access
+        Control (MAC) and Physical Layer (PHY) Specifications--Amendment 4:
+        Enhancements for Very High Throughput for Operation in Bands below
+        6 GHz.," in IEEE Std 802.11ac-2013 (Amendment to IEEE Std 802.11-2012,
+        as amended by IEEE Std 802.11ae-2012, IEEE Std 802.11aa-2012, and IEEE
+        Std 802.11ad-2012) , vol., no., pp.1-425, 18 Dec. 2013,
+        doi: 10.1109/IEEESTD.2013.6687187.
     """
-    assert bw == 20, "Only bw=20 is allowed"
     M = x.shape[axis]
     x = x.swapaxes(-1, axis)
 
@@ -97,15 +147,13 @@ def phy_fft(x, bw=20, ng=2, axis=1):
 
     Return discrete Fourier transform of real or complex sequence.
     """
-    assert bw == 20, "Only bw=20 is allowed"
-
     x = x.swapaxes(-1, axis)
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
     k = scidx(bw, ng)
     t = np.c_[:n] / (bw * 1e6)
-    
+
     g = np.exp(-2.j * np.pi * k * delta_f * t)
     out = x @ g
 
@@ -157,14 +205,14 @@ def infer_device(csifile):
 
 def infer_tones(csifile, device):
     """Infer the argument `tones` of Atheros and AtherosPull10
-    
+
     Args:
         csifile (str): atheros csi file
         device (str): Atheros or AtherosPull10
-    
+
     Returns:
         int: tones
-    
+
     Examples:
 
         >>> tones = infer_tones(csifile, 'Atheros')
@@ -194,7 +242,7 @@ def infer_chip_bw(csifile):
         tuple (chip, bw, band):
             str: chip
             int: bw, MHz
-            int: band, GHz 
+            int: band, GHz
 
     Examples:
 
