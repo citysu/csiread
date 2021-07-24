@@ -594,6 +594,8 @@ class NexmonPull46(_csiread.NexmonPull46):
         See ``Nexmon``
 
     Attributes:
+        _autoscale (int): It can be 0 and 1, Pull 46 set it to 0. If you got a
+            bad plotting, you may want it to be 1.
         rssi (ndarray): rssi
         fc (ndarray): frame control
         others: see ``Nexmon``
@@ -603,6 +605,7 @@ class NexmonPull46(_csiread.NexmonPull46):
     """
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         super(NexmonPull46, self).__init__(file, chip, bw, if_report, bufsize)
+        self._autoscale = 0     # Undetermined
 
     def __getitem__(self, index):
         ret = {
