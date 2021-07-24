@@ -50,10 +50,11 @@ from utils import scidx, phy_ifft, calib
 
 os.environ['QT_SCALE_FACTOR'] = '1'
 
-Device = 'Intel'    # Intel or Atheros
+Device = 'Intel'    # Intel, Atheros, Nexmon
 
 if Device == 'Intel':
     csidata = csiread.Intel(None, 3, 2)
+    PK_COUNT = 800
     RX_NUM = 3
     PK_NUM = 10
     BW = 20
@@ -64,6 +65,7 @@ if Device == 'Intel':
     S_INDEX = scidx(BW, NG, 'n')
 elif Device == 'Atheros':
     csidata = csiread.Atheros(None, 3, 2)
+    PK_COUNT = 800
     RX_NUM = 3
     PK_NUM = 10
     BW = 20
@@ -72,13 +74,24 @@ elif Device == 'Atheros':
     YRange_B = 300
     YRange_D = 200
     S_INDEX = scidx(BW, NG, 'n')
+elif Device == 'Nexmon':
+    csidata = csiread.Nexmon(None, '4358', 80)
+    PK_COUNT = 100
+    RX_NUM = 1
+    PK_NUM = 10
+    BW = 80
+    NG = 1
+    YRange_A = 2000
+    YRange_B = 2000
+    YRange_D = 1000
+    S_INDEX = scidx(BW, NG, 'ac')
 else:
-    raise ValueError("Device = 'Intel' or 'Atheros'")
+    raise ValueError("Device = 'Intel', 'Atheros', 'Nexmon'")
 
 SUBCARRIERS_NUM = S_INDEX.size
 T = np.r_[:64 * (BW / 20)]
 
-cache_amptiA = np.zeros([SUBCARRIERS_NUM, 800])                 # [subcarriers, packets]
+cache_amptiA = np.zeros([SUBCARRIERS_NUM, PK_COUNT])            # [subcarriers, packets]
 cache_amptiB = np.zeros([SUBCARRIERS_NUM, PK_NUM, RX_NUM])      # [subcarriers, packets, Nrx]
 cache_phaseC = np.zeros([SUBCARRIERS_NUM, PK_NUM, RX_NUM])      # [subcarriers, packets, Nrx]
 cache_cirD = np.zeros([len(T), PK_NUM, RX_NUM])                 # [time(samples), packets, Nrx]
@@ -125,6 +138,11 @@ class GetDataThread(QThread):
                     csi = csidata.get_scaled_csi_sm(True)
                 elif code == 0xff00:        # Atheros
                     csi = csidata.csi
+                elif code == 0xf100:        # Nexmon
+                    # if csidata.core != 0 or csidata.spatial != 0:
+                    #     continue
+                    csi = np.fft.ifftshift(csidata.csi, axes=1)
+                    csi = csi[:, S_INDEX + 32 * (BW // 20), np.newaxis, np.newaxis]
                 else:
                     continue
 
@@ -233,7 +251,7 @@ class MainWindow(QWidget):
         p3.setLabel('bottom', "Subcarriers", units='')
         p3.enableAutoRange('xy', False)
         p3.setXRange(S_INDEX[0] - 2, S_INDEX[-1] + 2, padding=0.01)
-        p3.setYRange(-np.pi, np.pi, padding=0.01)
+        p3.setYRange(-np.pi * 2, np.pi * 2, padding=0.01)
 
         self.curvesC = []
         for i in range(PK_NUM*RX_NUM):
