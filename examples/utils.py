@@ -61,13 +61,12 @@ def scidx(bw, ng, standard='n'):
     return k
 
 
-def calib(phase, bw=20, ng=2, axis=1):
+def calib(phase, k, axis=1):
     """Phase calibration
 
     Args:
         phase (ndarray): Unwrapped phase of CSI.
-        bw (int): Bandwidth, it can be 20 and 40. Default: 20
-        ng (int): Grouping, it can be 1, 2 and 4. Default: 2
+        k (ndarray): Subcarriers index
         axis (int): Axis along which is subcarrier. Default: 1
 
     Returns:
@@ -78,7 +77,7 @@ def calib(phase, bw=20, ng=2, axis=1):
         (http://tns.thss.tsinghua.edu.cn/wifiradar/papers/QianKun-TECS2017.pdf)
     """
     p = np.asarray(phase)
-    s = scidx(bw, ng)
+    k = np.asarray(k)
 
     slice1 = [slice(None, None)] * p.ndim
     slice1[axis] = slice(-1, None)
@@ -87,24 +86,24 @@ def calib(phase, bw=20, ng=2, axis=1):
     slice2[axis] = slice(None, 1)
     slice2 = tuple(slice2)
     shape1 = [1] * p.ndim
-    shape1[axis] = s.shape[0]
+    shape1[axis] = k.shape[0]
     shape1 = tuple(shape1)
 
-    k_n, k_1 = s[-1], s[1]
+    k_n, k_1 = k[-1], k[1]
     a = (p[slice1] - p[slice2]) / (k_n - k_1)
     b = p.mean(axis=axis, keepdims=True)
-    s = s.reshape(shape1)
+    k = k.reshape(shape1)
 
-    phase_calib = p - a * s - b
+    phase_calib = p - a * k - b
     return phase_calib
 
 
-def phy_ifft(x, bw=20, ng=2, axis=1):
-    """802.11n IFFT
+def phy_ifft(x, k, axis=1):
+    """PHY IFFT
 
     Return discrete inverse Fourier transform of real or complex sequence. It
-    is based on Equation (19-25)(P2373) and Table 19-6—Timing-related constants(P2354) in 
-    802.11n-2016, Table 22-5—Timing-related constants un 802.11ac-2013
+    is based on Equation (19-25)(P2373) and Table 19-6—Timing-related constants(P2354) in
+    802.11n-2016, Table 22-5—Timing-related constants in 802.11ac-2013
 
     Note:
         1. No ifftshift
@@ -129,10 +128,11 @@ def phy_ifft(x, bw=20, ng=2, axis=1):
     """
     M = x.shape[axis]
     x = x.swapaxes(-1, axis)
+    k = np.asarray(k)
+    bw = np.around(k[-1] / 30) * 20
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
-    k = scidx(bw, ng)
     t = np.c_[:n] / (bw * 1e6)
 
     g = np.exp(2.j * np.pi * k * delta_f * t) / M
@@ -142,16 +142,17 @@ def phy_ifft(x, bw=20, ng=2, axis=1):
     return out
 
 
-def phy_fft(x, bw=20, ng=2, axis=1):
-    """802.11n FFT
+def phy_fft(x, k, axis=1):
+    """PHY FFT
 
     Return discrete Fourier transform of real or complex sequence.
     """
     x = x.swapaxes(-1, axis)
+    k = np.asarray(k)
+    bw = np.around(k[-1] / 30) * 20
 
     n = 64 * (bw / 20)
     delta_f = bw * 1e6 / n
-    k = scidx(bw, ng)
     t = np.c_[:n] / (bw * 1e6)
 
     g = np.exp(-2.j * np.pi * k * delta_f * t)

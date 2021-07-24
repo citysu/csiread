@@ -64,7 +64,7 @@ def func_3(csidata):
     csi = csidata.get_scaled_csi_sm()
     t = csidata.timestamp_low/1000000 - csidata.timestamp_low[0]/1000000
     phase = np.unwrap(np.angle(csi), axis=1)
-    phase = calib(phase)
+    phase = calib(phase, scidx(20, 2))
 
     plt.figure()
     plt.plot(t, phase[:, s_index, 0, 0], linewidth=0.3, label='subcarrier_15_0_0')
@@ -80,9 +80,9 @@ def func_3(csidata):
 def func_4(csidata):
     """CSI: subcarrier-phase"""
     csi = csidata.get_scaled_csi_sm()
-    phase = np.unwrap(np.angle(csi), axis=1)
-    phase = calib(phase)
     s_index = scidx(20, 2)
+    phase = np.unwrap(np.angle(csi), axis=1)
+    phase = calib(phase, s_index)
 
     plt.figure(4)
     plt.plot(s_index, phase[:100, :, 0, 0].T, 'r-', linewidth=0.3)
@@ -128,9 +128,10 @@ def func_6(csidata):
     """CSI: time-amplitude(CIR: OFDM symbol view)"""
     csi = csidata.get_scaled_csi_sm()
 
-    amplitude1 = np.abs(phy_ifft(csi[:100, :, 0, 0], axis=1)).T
-    amplitude2 = np.abs(phy_ifft(csi[:100, :, 1, 0], axis=1)).T
-    amplitude3 = np.abs(phy_ifft(csi[:100, :, 2, 0], axis=1)).T
+    s_index = scidx(20, 2)
+    amplitude1 = np.abs(phy_ifft(csi[:100, :, 0, 0], s_index, axis=1)).T
+    amplitude2 = np.abs(phy_ifft(csi[:100, :, 1, 0], s_index, axis=1)).T
+    amplitude3 = np.abs(phy_ifft(csi[:100, :, 2, 0], s_index, axis=1)).T
     t = np.linspace(0, 64, 64)
 
     plt.figure(6)

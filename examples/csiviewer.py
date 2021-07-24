@@ -44,39 +44,44 @@ import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import QMutex, Qt, QThread, QTimer, pyqtSlot
 from PyQt5.QtGui import QApplication
-from PyQt5.QtWidgets import QLabel, QMenuBar, QPushButton, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QMenuBar, QVBoxLayout, QWidget
 from utils import scidx, phy_ifft, calib
 
 
 os.environ['QT_SCALE_FACTOR'] = '1'
 
-Device = 'Intel' # Intel or Atheros
+Device = 'Intel'    # Intel or Atheros
 
 if Device == 'Intel':
     csidata = csiread.Intel(None, 3, 2)
-    SUBCARRIERS_NUM = 30
+    RX_NUM = 3
+    PK_NUM = 10
     BW = 20
     NG = 2
     YRange_A = 70
     YRange_B = 70
     YRange_D = 40
+    S_INDEX = scidx(BW, NG, 'n')
 elif Device == 'Atheros':
     csidata = csiread.Atheros(None, 3, 2)
-    SUBCARRIERS_NUM = 56
+    RX_NUM = 3
+    PK_NUM = 10
     BW = 20
     NG = 1
     YRange_A = 300
     YRange_B = 300
     YRange_D = 200
+    S_INDEX = scidx(BW, NG, 'n')
 else:
     raise ValueError("Device = 'Intel' or 'Atheros'")
 
+SUBCARRIERS_NUM = S_INDEX.size
+T = np.r_[:64 * (BW / 20)]
 
-
-cache_amptiA = np.zeros([SUBCARRIERS_NUM, 800])       # [subcarriers, packets]
-cache_amptiB = np.zeros([SUBCARRIERS_NUM, 10, 3])     # [subcarriers, packets, Nrx]
-cache_phaseC = np.zeros([SUBCARRIERS_NUM, 10, 3])     # [subcarriers, packets, Nrx]
-cache_cirD = np.zeros([64, 10, 3])       # [time(samples), packets, Nrx]
+cache_amptiA = np.zeros([SUBCARRIERS_NUM, 800])                 # [subcarriers, packets]
+cache_amptiB = np.zeros([SUBCARRIERS_NUM, PK_NUM, RX_NUM])      # [subcarriers, packets, Nrx]
+cache_phaseC = np.zeros([SUBCARRIERS_NUM, PK_NUM, RX_NUM])      # [subcarriers, packets, Nrx]
+cache_cirD = np.zeros([len(T), PK_NUM, RX_NUM])                 # [time(samples), packets, Nrx]
 
 mutex = QMutex()
 state = True
@@ -130,8 +135,8 @@ class GetDataThread(QThread):
                 cache_cirD[:, :-1] = cache_cirD[:, 1:]
                 cache_amptiA[:, -1] = np.abs(csi[0, :, 0, 0])
                 cache_amptiB[:, -1] = np.abs(csi[0, :, :, 0])
-                cache_phaseC[:, -1] = calib(np.unwrap(np.angle(csi), axis=1), bw=BW, ng=NG)[0, :, :, 0]
-                cache_cirD[:, -1] = np.abs(phy_ifft(csi[0, :, :, 0], axis=0, bw=BW, ng=NG))
+                cache_phaseC[:, -1] = calib(np.unwrap(np.angle(csi), axis=1), S_INDEX)[0, :, :, 0]
+                cache_cirD[:, -1] = np.abs(phy_ifft(csi[0, :, :, 0], S_INDEX, axis=0))
                 state = True
                 mutex.unlock()
                 count += 1
@@ -142,7 +147,6 @@ class GetDataThread(QThread):
 class MainWindow(QWidget):
     def __init__(self, parent=None, flags=Qt.WindowFlags()):
         super(MainWindow, self).__init__(parent=parent, flags=flags)
-        self.subcarriers_index = scidx(bw=BW, ng=NG)
         self.configUI()
         self.configLayout()
         self.show()
@@ -208,45 +212,45 @@ class MainWindow(QWidget):
         self.X = np.linspace(-int(pk_num/2), int(pk_num/2), pk_num)
 
         # csi amplitude (subcarriers view) ===============================================
-        p2 = self.plot.addPlot(title="CFR of CSI_10_%s_3_0" % (SUBCARRIERS_NUM))
+        p2 = self.plot.addPlot(title="CFR of CSI_%s_%s_%s_0" % (PK_NUM, SUBCARRIERS_NUM, RX_NUM))
         p2.showGrid(x=False, y=True)
         p2.setLabel('left', "Amplitude")
         p2.setLabel('bottom', "Subcarriers", units='')
         p2.enableAutoRange('xy', False)
-        p2.setXRange(-30, 30, padding=0.01)
+        p2.setXRange(S_INDEX[0] - 2, S_INDEX[-1] + 2, padding=0.01)
         p2.setYRange(0, YRange_B, padding=0.01)
 
         self.curvesB = []
-        for i in range(10*3):
+        for i in range(PK_NUM*RX_NUM):
             color = self.color_define(i)
             self.curvesB.append(p2.plot(pen=color))
 
         self.plot.nextRow()
         # csi phase (subcarriers view) ===================================================
-        p3 = self.plot.addPlot(title="Phase of CSI_10_%s_3_0" % (SUBCARRIERS_NUM))
+        p3 = self.plot.addPlot(title="Phase of CSI_%s_%s_%s_0" % (PK_NUM, SUBCARRIERS_NUM, RX_NUM))
         p3.showGrid(x=False, y=True)
         p3.setLabel('left', "Phase")
         p3.setLabel('bottom', "Subcarriers", units='')
         p3.enableAutoRange('xy', False)
-        p3.setXRange(-30, 30, padding=0.01)
+        p3.setXRange(S_INDEX[0] - 2, S_INDEX[-1] + 2, padding=0.01)
         p3.setYRange(-np.pi, np.pi, padding=0.01)
 
         self.curvesC = []
-        for i in range(10*3):
+        for i in range(PK_NUM*RX_NUM):
             color = self.color_define(i)
             self.curvesC.append(p3.plot(pen=color))
 
         # cir csi (time view) ============================================================
-        p4 = self.plot.addPlot(title="CIR of CSI_10_%s_3_0" % (SUBCARRIERS_NUM))
+        p4 = self.plot.addPlot(title="CIR of CSI_%s_%s_%s_0" % (PK_NUM, SUBCARRIERS_NUM, RX_NUM))
         p4.showGrid(x=False, y=True)
         p4.setLabel('left', "Amplitude")
-        p4.setLabel('bottom', "Time", units='50ns')
+        p4.setLabel('bottom', "Time", units='%.1fns' % (1e3/BW))
         p4.enableAutoRange('xy', False)
-        p4.setXRange(0, 64, padding=0.01)
+        p4.setXRange(T[0] - 2, T[-1] + 2, padding=0.01)
         p4.setYRange(0, YRange_D, padding=0.01)
 
         self.curvesD = []
-        for i in range(10*3):
+        for i in range(PK_NUM*RX_NUM):
             color = self.color_define(i)
             self.curvesD.append(p4.plot(pen=color))
 
@@ -270,10 +274,11 @@ class MainWindow(QWidget):
         if state:
             for i in range(SUBCARRIERS_NUM):
                 self.curvesA[i].setData(self.X, cache_amptiA[i])
-            for i in range(10*3):
-                self.curvesB[i].setData(self.subcarriers_index, cache_amptiB[:, i%10 , i//10])
-                self.curvesC[i].setData(self.subcarriers_index, cache_phaseC[:, i%10 , i//10])
-                self.curvesD[i].setData(np.arange(64), cache_cirD[:, i%10 , i//10])
+            for i in range(PK_NUM*RX_NUM):
+                I_PK, I_RX = np.divmod(i, PK_NUM)
+                self.curvesB[i].setData(S_INDEX, cache_amptiB[:, I_RX, I_PK])
+                self.curvesC[i].setData(S_INDEX, cache_phaseC[:, I_RX, I_PK])
+                self.curvesD[i].setData(T, cache_cirD[:, I_RX, I_PK])
             state = False
         mutex.unlock()
 

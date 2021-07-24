@@ -40,7 +40,7 @@ def fig_2(csidata, index=34):
     """
     csi = csidata.csi
 
-    pdp = np.power(np.abs(phy_ifft(csi, axis=1)), 2.0) / csi.shape[1]
+    pdp = np.power(np.abs(phy_ifft(csi, scidx(20, 2), axis=1)), 2.0) / csi.shape[1]
     norm = lambda x: x / np.max(x)
 
     plt.figure()
@@ -62,7 +62,7 @@ def fig_4(athdata, index=26):
 
     # Fig.4(a)
     phase = np.unwrap(np.angle(csi), axis=1)
-    phase = calib(phase, 20, 1)
+    phase = calib(phase, scidx(20, 1))
     plt.subplot(3, 1, 1)
     plt.plot(phase[index].reshape(csi.shape[1], -1))
 
@@ -159,7 +159,8 @@ def alg_2(csi):
 
     Note: N_p = 1
     """
-    p = np.power(np.abs(phy_ifft(csi, axis=1)), 2.0)
+
+    p = np.power(np.abs(phy_ifft(csi, scidx(20, 2), axis=1)), 2.0)
     # find_peak() is better
     s = p[:, :20].argmax(axis=1).reshape(csi.shape[0], -1)
     N_sto = scidx(20, 2)[mode(s, axis=1)[0][:, 0]]
@@ -196,15 +197,14 @@ def algshow(csidata):
     # alg_1
     csi = alg_1(csi)
     phase = np.unwrap(np.angle(csi), axis=1)
-    phase = calib(phase)
-    phase0 = phase
+    phase = calib(phase, s_index)
     plt.subplot(3, 1, 1)
     plt.plot(s_index, phase[200:300, :, 0, 0].T)
 
     # alg_2
     csi = alg_2(csi)
     phase = np.unwrap(np.angle(csi), axis=1)
-    phase = calib(phase)
+    phase = calib(phase, s_index)
     plt.subplot(3, 1, 2)
     plt.plot(s_index, phase[200:300, :, 0, 0].T)
 
@@ -213,7 +213,7 @@ def algshow(csidata):
     # for i in range(100, 200):
     #     csicopy[i] = alg_3(csi, i)
     # phase = np.unwrap(np.angle(csicopy), axis=1)
-    # phase = calib(phase)
+    # phase = calib(phase, s_index)
     # plt.subplot(3, 1, 3)
     # plt.plot(s_index, phase[100:200, :, 0, 0].T)
     plt.show()
