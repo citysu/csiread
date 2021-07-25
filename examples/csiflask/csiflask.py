@@ -53,6 +53,7 @@ class CSIChat(Namespace):
 
     def background_task(self):
         csidata = csiread.Intel(None, 3, 2)
+        # csidata = csiread.Nexmon(None, '4358', 80)
         address_des = ('127.0.0.1', 10010)
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
@@ -69,6 +70,12 @@ class CSIChat(Namespace):
                     socketio.send({
                         'csi': np.abs(csidata.csi[0, :, 0, 0]).tolist()
                     })
+                if code == 0xf100:        # Nexmon
+                    csi = np.fft.ifftshift(csidata.csi, axes=1)
+                    socketio.send({
+                        'csi': np.abs(csidata.csi[0, :]).tolist()
+                    })
+
         self.task_status = True
 
     def background_task_init(self):
