@@ -116,3 +116,88 @@ def calib(phase, k, axis=1):
 
     phase_calib = p - a * k - b
     return phase_calib
+
+
+def phy_ifft(x, k, axis=1):
+    """PHY IFFT
+
+    Return discrete inverse Fourier transform of real or complex sequence. It
+    is based on Equation (19-25)(P2373) and Table 19-6—Timing-related
+    constants(P2354) in 802.11n-2016, Table 22-5—Timing-related constants
+    in 802.11ac-2013
+
+    Args:
+        x (ndarray): CSI (CFR)
+        k (ndarray): Subcarriers index of ``x`` (returned by ``scidx``)
+        axis (int): Axis along which is subcarrier. Default: 1
+
+    Returns:
+        ndarray: CIR
+
+    Note:
+        1. No ifftshift
+        2. scipy.fftpack.ifft is different from Equation (19-25) and
+            Equation (17-9)
+        3. BE CAREFUL! I haven't found any code about CSI like this.
+
+    Ref:
+        1. IEEE Standard for Information technology—Telecommunications and
+        information exchange between systems Local and metropolitan area
+        networks—Specific requirements - Part 11: Wireless LAN Medium Access
+        Control (MAC) and Physical Layer (PHY) Specifications, in IEEE Std
+        802.11-2016 (Revision of IEEE Std 802.11-2012), vol., no., pp.1-3534,
+        14 Dec. 2016, doi: 10.1109/IEEESTD.2016.7786995.
+        2. "IEEE Standard for Information technology-- Telecommunications
+        and information exchange between systemsLocal and metropolitan area
+        networks-- Specific requirements--Part 11: Wireless LAN Medium Access
+        Control (MAC) and Physical Layer (PHY) Specifications--Amendment 4:
+        Enhancements for Very High Throughput for Operation in Bands below
+        6 GHz.," in IEEE Std 802.11ac-2013 (Amendment to IEEE Std 802.11-2012,
+        as amended by IEEE Std 802.11ae-2012, IEEE Std 802.11aa-2012, and IEEE
+        Std 802.11ad-2012) , vol., no., pp.1-425, 18 Dec. 2013,
+        doi: 10.1109/IEEESTD.2013.6687187.
+    """
+    M = x.shape[axis]
+    x = x.swapaxes(-1, axis)
+    k = np.asarray(k)
+    bw = np.around(k[-1] / 30) * 20
+
+    n = 64 * (bw / 20)
+    delta_f = bw * 1e6 / n
+    t = np.c_[:n] / (bw * 1e6)
+
+    g = np.exp(2.j * np.pi * k * delta_f * t) / M
+    out = x @ g.T
+
+    out = out.swapaxes(-1, axis)
+    return out
+
+
+def phy_fft(x, k, axis=1):
+    """PHY FFT
+
+    Return discrete Fourier transform of real or complex sequence. See Also:
+    ``phy_ifft``
+
+    Args:
+        x (ndarray): CSI (CIR)
+        k (ndarray): Subcarriers index of ``x`` (returned by ``scidx``)
+        axis (int): Axis along which is subcarrier. Default: 1
+
+    Returns:
+        ndarray: CFR
+    """
+    x = x.swapaxes(-1, axis)
+    k = np.asarray(k)
+    bw = np.around(k[-1] / 30) * 20
+
+    n = 64 * (bw / 20)
+    delta_f = bw * 1e6 / n
+    t = np.c_[:n] / (bw * 1e6)
+
+    g = np.exp(-2.j * np.pi * k * delta_f * t)
+    out = x @ g
+
+    scale = k.size / n
+    out = out.swapaxes(-1, axis) * scale
+    return out
