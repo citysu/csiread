@@ -23,13 +23,13 @@ def read_esp32(file):
 
     # parse csi
     csi_string = ''.join(data['csi_data'].apply(lambda x: x.strip('[]')))
-    csi = np.fromstring(csi_string, dtype=int, sep=' ').reshape(-1, 64)
-    csi = csi[1::2] + csi[::2] * 1.j
+    csi = np.fromstring(csi_string, dtype=int, sep=' ').reshape(-1, 128)
+    csi = csi[:, 1::2] + csi[:, ::2] * 1.j
 
     return csi
 
 if __name__ == '__main__':
     last = default_timer()
     csifile = '../material/esp32/dataset/example_csi.csv'
-    read_esp(csifile)
+    read_esp32(csifile)
     print(default_timer() - last, 's')

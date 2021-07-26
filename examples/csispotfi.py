@@ -217,7 +217,7 @@ def extend_scidx(bw, ng):
     return np.r_[-a:a+1]
 
 
-def extand_csi(csi, bw, ng):
+def extend_csi(csi, bw, ng):
     """ extend csi
 
     Args:
@@ -383,7 +383,7 @@ def test_spotfi(T=10, bw=40, ng=4, extend=False):
     csi = csi * phase_offset
 
     # No remove_sto
-    csi = smooth_csi(extand_csi(csi, bw=bw, ng=ng) if extend else csi)
+    csi = smooth_csi(extend_csi(csi, bw=bw, ng=ng) if extend else csi)
     p, doa_fake, tof_fake = music(X=csi, D=NoSS(csi), nrx=3, d=2.6e-2, f=5.63e9, bw=bw, ng=ng, extend=extend)
 
     plotspectrum(p, doa_fake, tof_fake, doa_real=doa_real, tof_real=tof_real)

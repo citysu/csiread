@@ -76,7 +76,7 @@ class ESP32:
                 self.real_timestamp[count] = float(line[23])
                 self.len[count] = int(line[24])
                 cline = line[-1].strip('[]').split(' ')[:-1]
-                csi = [int(i) + int(j) * 1.j for i, j in zip(cline[::2], cline[1::2])]
+                csi = [int(i) + int(j) * 1.j for i, j in zip(cline[1::2], cline[::2])]
                 self.csi_data[count] = csi
                 count += 1
 
