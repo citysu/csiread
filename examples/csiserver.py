@@ -7,6 +7,7 @@ Usage:
     Intel5300: python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 1000
     Atheros: python3 csiserver.py ../material/atheros/dataset/ath_csi_1.dat 100 100000
     Nexmon: python3 csiserver.py ../material/nexmon/dataset/example.pcap 12 10000
+    ESP32-CSI-Tool: python3 csiserver.py ../material/esp32/dataset/example_csi.csv 3000 100000
 """
 
 import argparse
@@ -207,6 +208,29 @@ def nexmon_server_2(csifile, number, delay):
     sendp(data[:number%len(data)], inter=delay/1e6)
 
 
+def esp32_server(csifile, number, delay):
+    """nexmon server
+
+    Args:
+        csifile: csi smaple file
+        number: packets number, unlimited if number=0
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
+    """
+    assert number >= 0
+    count = 0
+    with open(csifile) as f:
+        while True:
+            time.sleep(delay/1000000)
+            line = f.readline().strip('\n')
+            if line:
+                print(line)
+                count += 1
+            else:
+                f.seek(0, os.SEEK_SET)
+            if number != 0 and count >= number:
+                break
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('csifile', type=str, help='csi smaple file')
@@ -220,5 +244,7 @@ if __name__ == "__main__":
         intel_server(p.csifile, p.number, p.delay)
     elif device == "Atheros":
         atheros_server(p.csifile, p.number, p.delay, 'little')
-    else:
+    elif device == "Nexmon":
         nexmon_server(p.csifile, p.number, p.delay)
+    else:
+        esp32_server(p.csifile, p.number, p.delay)

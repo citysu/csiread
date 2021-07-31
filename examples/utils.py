@@ -176,11 +176,15 @@ def infer_device(csifile):
             Nexmon: nexmon csi file
             AtherosPull10: `atheros pull 10 <https://github.com/xieyaxiongfly/Atheros-CSI-Tool-UserSpace-APP/pull/10/files>`_
             NexmonPull46: `nexmon_csi pull 46 <https://github.com/seemoo-lab/nexmon_csi/pull/46/files>`_
+            ESP32: esp32-csi-tool csi file
             Unknown: Unknown file format
     Note:
         This function cannot work for some nexmon csi file formats defined by
         projects derived from nexmon_csi
     """
+    if csifile.endswith('.csv'):
+        return 'ESP32'
+
     with open(csifile, 'rb') as f:
         buf = f.read(4)
         if buf[2] in [0xc1, 0xbb]:
