@@ -33,6 +33,17 @@ Note:
         Icon=/opt/csiread/csiviewer.png
         Exec=python3 /opt/csiread/csiviewer.py %F
         Name[en_US]=csiviewer.desktop
+    3. Alternate pseudocode for Nexmon with multiple spatial stream:
+
+        ```python
+        last_seq = None
+        cache_csi = np.zeros([frame_num, s_num, c_num, subcarrier])
+        ...
+        if csidata.seq[0] != last_seq:
+            last_seq = csidata.seq[0]
+            cache_csi[:-1] = cache_csi[1:]
+        cache_csi[-1:, csidata.core[0], csidata.spatial[0], :] = csidata.csi[0]
+        ```
 """
 
 import os

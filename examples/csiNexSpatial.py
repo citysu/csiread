@@ -13,7 +13,6 @@ Note:
 import numpy as np
 import csiread as cr
 import matplotlib.pyplot as plt
-from utils import scidx
 import os
 
 
@@ -132,7 +131,7 @@ def set_core_spatial(csidata, offset, c_num=4, s_num=4):
     p = np.r_[:ant_num]
     px, py = p // s_num, p % s_num
     csidata.core[offset] = px
-    csidata.spatial[offset] =py
+    csidata.spatial[offset] = py
 
 
 def plotting(csidata):

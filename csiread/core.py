@@ -1,5 +1,7 @@
 """A fast channel state information parser for Intel, Atheros and Nexmon."""
 
+import numpy as np
+
 from . import _csiread
 
 
@@ -564,6 +566,33 @@ class Nexmon(_csiread.Nexmon):
         """
         return super().pmsg(data, endian)
 
+    def group(self, c_num=4, s_num=4):
+        """Build spatial stream index (experimental)
+
+        There are 2 steps:
+
+        1. Combine adjacent packets with the same sequence number into a frame.
+        2. Permute the order of antennas in each frame
+
+        Step 1 drops the broken frames. Step 2 doesn't work if core and spatial
+        are unknown.
+
+        Args:
+            c_num (int): the number of core. Default: 4
+            s_num (int): the number of spatial. Default: 4
+
+        Returns:
+            ndarray: offset, the position of frames.
+                shape=[frame_count, c_num, s_num]
+
+        Examples:
+
+            >>> offset = csidata.group(4, 4)
+            >>> csi = csidata.csi[offset]
+            >>> sec = csidata.sec[offset]
+        """
+        return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
+
 
 class AtherosPull10(Atheros):
     """Parse CSI obtained using 'Atheros CSI Tool' pull 10.
@@ -636,3 +665,32 @@ class NexmonPull46(_csiread.NexmonPull46):
                 Otherwise, the ``data`` is not a CSI packet.
         """
         return super().pmsg(data, endian)
+
+    def group(self, c_num=4, s_num=4):
+        """Build spatial stream index (experimental)
+
+        See `Nexmon.group`
+        """
+        return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
+
+
+def _nex_group(seq, core, spatial, c_num=4, s_num=4):
+    """Build spatial stream index"""
+    # step 1
+    ant_num = c_num * s_num
+    seq_diff = np.diff(seq)
+    offset = np.where(seq_diff != 0)[0]
+    offset = np.r_[0, offset + 1]
+    count = np.diff(np.r_[offset, len(seq)])
+    offset = offset[count == ant_num]
+    offset = offset[:, None] + np.r_[:ant_num]
+
+    # step 2
+    core = core[offset]
+    spatial = spatial[offset]
+    p = core * s_num + spatial
+    p = np.argsort(p, axis=-1)
+    offset = offset[:, :1] + p
+    offset = offset.resahpe(-1, c_num, s_num)
+
+    return offset
