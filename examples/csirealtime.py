@@ -64,7 +64,7 @@ class GetDataThread(threading.Thread):
                     count += 1
                 if code == 0xf100:  # nexmon
                     mutex.acquire()
-                    cache_data4 = np.fft.ifftshift(self.csidata.csi[0])
+                    cache_data4 = np.fft.fftshift(self.csidata.csi[0])
                     mutex.release()
                     count += 1
 

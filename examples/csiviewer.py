@@ -152,7 +152,7 @@ class GetDataThread(QThread):
                 elif code == 0xf100:        # Nexmon
                     # if csidata.core != 0 or csidata.spatial != 0:
                     #     continue
-                    csi = np.fft.ifftshift(csidata.csi, axes=1)
+                    csi = np.fft.fftshift(csidata.csi, axes=1)
                     csi = csi[:, S_INDEX + 32 * (BW // 20), np.newaxis, np.newaxis]
                 else:
                     continue

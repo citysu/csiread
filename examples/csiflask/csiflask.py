@@ -71,7 +71,7 @@ class CSIChat(Namespace):
                         'csi': np.abs(csidata.csi[0, :, 0, 0]).tolist()
                     })
                 if code == 0xf100:        # Nexmon
-                    csi = np.fft.ifftshift(csidata.csi, axes=1)
+                    csidata.csi = np.fft.fftshift(csidata.csi, axes=1)
                     socketio.send({
                         'csi': np.abs(csidata.csi[0, :]).tolist()
                     })

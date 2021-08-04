@@ -21,7 +21,7 @@ def loadcsi(csifile):
         raise FileNotFoundError("%s doesn't exist" % (csifile))
     csidata = cr.Nexmon(csifile, '4366c0', 80, if_report=False)
     csidata.read()
-    csidata.csi = np.fft.ifftshift(csidata.csi)
+    csidata.csi = np.fft.fftshift(csidata.csi)
     return csidata
 
 
