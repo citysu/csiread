@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """ESP32-CSI-Tool realtime plotting
 
 Usage(linux):
@@ -9,11 +12,11 @@ Note:
 
 import threading
 import sys
+
+import csiread
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import numpy as np
-
-from esp32 import pmsg_esp32
 
 
 packet_num, subcarrier_num = 10, 64
@@ -26,14 +29,15 @@ class GetDataThread(threading.Thread):
         self.update_background()
 
     def update_background(self):
+        csidata = csiread.ESP32(None, False)
         global cache_data, mutex
         while True:
             data = sys.stdin.readline().strip('\n')
-            csi = pmsg_esp32(data)
-            if csi is not None:
+            code = csidata.pmsg(data)
+            if code == 0xf200:
                 mutex.acquire()
                 cache_data[:-1] = cache_data[1:]
-                cache_data[1:] = csi
+                cache_data[1:] = csidata.csi[0]
                 mutex.release()
 
 

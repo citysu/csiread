@@ -159,9 +159,57 @@ def nexmon(csifile, index, chip, bw):
     print(" csi                 ", csidata.csi[index].shape)
 
 
+def esp32(csifile, index):
+    print("="*40+"[esp32]")
+
+    if csiread.__version__ < '1.3.7':
+        print("csiread.ESP32: version >= 1.3.7 is required");return
+
+    members = [s for s in dir(csiread.ESP32) if not s.startswith("__") and callable(getattr(csiread.ESP32, s))]
+    print("Methods: \n", members)
+
+    print('Time:')
+    last = default_timer()
+    csidata = csiread.ESP32(csifile, if_report=False)
+    csidata.read()
+    print(" read                ", default_timer() - last, "s")
+
+    print('-'*40)
+    print("%dth packet: " % index)
+    print(" file                ", csidata.file)
+    print(" count               ", csidata.count)
+    print(" type                ", csidata.type[index])
+    print(" role                ", csidata.role[index])
+    print(" mac                 ", csidata.mac[index])
+    print(" rssi                ", csidata.rssi[index])
+    print(" rate                ", csidata.rate[index])
+    print(" sig_mode            ", csidata.sig_mode[index])
+    print(" mcs                 ", csidata.mcs[index])
+    print(" bandwidth           ", csidata.bandwidth[index])
+    print(" smoothing           ", csidata.smoothing[index])
+    print(" not_sounding        ", csidata.not_sounding[index])
+    print(" aggregation         ", csidata.aggregation[index])
+    print(" stbc                ", csidata.stbc[index])
+    print(" fec_coding          ", csidata.fec_coding[index])
+    print(" sgi                 ", csidata.sgi[index])
+    print(" noise_floor         ", csidata.noise_floor[index])
+    print(" ampdu_cnt           ", csidata.ampdu_cnt[index])
+    print(" channel             ", csidata.channel[index])
+    print(" secondary_channel   ", csidata.secondary_channel[index])
+    print(" local_timestamp     ", csidata.local_timestamp[index])
+    print(" ant                 ", csidata.ant[index])
+    print(" sig_len             ", csidata.sig_len[index])
+    print(" rx_state            ", csidata.rx_state[index])
+    print(" real_time_set       ", csidata.real_time_set[index])
+    print(" real_timestamp      ", csidata.real_timestamp[index])
+    print(" len                 ", csidata.len[index])
+    print(" csi                 ", csidata.csi[index].shape)
+
+
 if __name__ == "__main__":
     print("csiread.__version__: ", csiread.__version__)
     intel("../material/5300/dataset/sample_0x1_ap.dat", 10, ntxnum=2)
     intel("../material/5300/dataset/sample_0x5_64_3000.dat", 10, ntxnum=1)
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)
+    esp32("../material/esp32/dataset/example_csi.csv", 2)

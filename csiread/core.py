@@ -1,5 +1,6 @@
 """A fast channel state information parser for Intel, Atheros and Nexmon."""
 
+import os
 import numpy as np
 
 from . import _csiread
@@ -672,6 +673,224 @@ class NexmonPull46(_csiread.NexmonPull46):
         See `Nexmon.group`
         """
         return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
+
+
+class ESP32:
+    """Parse CSI obtained using 'ESP32-CSI-Tool'.(experimental)
+
+    For better flexibility, please consider ``pandas.read_csv``
+
+    Args:
+        file (str or None): CSI data file ``.csv``. If ``str``, ``read``
+            methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
+            allowed.
+        if_report (bool, optional): Report the parsed result. Default: `True`
+        mixed (bool, optional): Designed for issue #12 of ESP32-CSI-Tool.
+            Default: False.
+
+    Attributes:
+        pass
+
+    References:
+        1. `ESP32-CSI-Tool <https://github.com/StevenMHernandez/ESP32-CSI-Tool>`_
+    """
+    def __init__(self, file, if_report=True, mixed=False):
+        self.file = file
+        self.if_report = if_report
+        self.mixed = mixed
+        self.placeholder = 256 * " 0"
+
+        self.type = None
+        self.role = None
+        self.mac = None
+        self.rssi = None
+        self.rate = None
+        self.sig_mode = None
+        self.mcs = None
+        self.bandwidth = None
+        self.smoothing = None
+        self.not_sounding = None
+        self.aggregation = None
+        self.stbc = None
+        self.fec_coding = None
+        self.sgi = None
+        self.noise_floor = None
+        self.ampdu_cnt = None
+        self.channel = None
+        self.secondary_channel = None
+        self.local_timestamp = None
+        self.ant = None
+        self.sig_len = None
+        self.rx_state = None
+        self.real_time_set = None
+        self.real_timestamp = None
+        self.len = None
+        self.csi = None
+
+    def __getitem__(self, index):
+        ret = {
+            "type": self.type[index],
+            "role": self.role[index],
+            "mac": self.mac[index],
+            "rssi": self.rssi[index],
+            "rate": self.rate[index],
+            "sig_mode": self.sig_mode[index],
+            "mcs": self.mcs[index],
+            "bandwidth": self.bandwidth[index],
+            "smoothing": self.smoothing[index],
+            "not_sounding": self.not_sounding[index],
+            "aggregation": self.aggregation[index],
+            "stbc": self.stbc[index],
+            "fec_coding": self.fec_coding[index],
+            "sgi": self.sgi[index],
+            "noise_floor": self.noise_floor[index],
+            "ampdu_cnt": self.ampdu_cnt[index],
+            "channel": self.channel[index],
+            "secondary_channel": self.secondary_channel[index],
+            "local_timestamp": self.local_timestamp[index],
+            "ant": self.ant[index],
+            "sig_len": self.sig_len[index],
+            "rx_state": self.rx_state[index],
+            "real_time_set": self.real_time_set[index],
+            "real_timestamp": self.real_timestamp[index],
+            "len": self.len[index],
+            "csi": self.csi[index]
+        }
+        return ret
+
+    def read(self):
+        """Parse data
+
+        Examples:
+
+            >>> csifile = "../material/esp32/dataset/example_csi.csv"
+            >>> csidata = csiread.ESP32(csifile)
+            >>> csidata.read()
+            >>> print(csidata.csi.shape)
+        """
+        self.seek(self.file, 0, 0)
+        if self.if_report:
+            print("%d packets parsed", self.count)
+
+    def seek(self, file, pos, num):
+        """Read packets from specific position
+
+        This method allows us to read different parts of different files
+        randomly. It could be useful in Machine Learning. However, it could be
+        very slow when reading files in HDD for the first time. For this case,
+        it is better to use `read()` for a pre-read first.
+
+        Args:
+            file (str): CSI data file ``.csv``.
+            pos (int): Position of file descriptor corresponding to the packet.
+                Currently, it must be returned by the function in
+                ``example/csiseek.py``.
+            num (int): Number of packets to be read. If ``0``, all packets
+                after ``pos`` will be read.
+
+        Examples:
+
+            >>> csifile = "../material/esp32/dataset/example_csi.csv"
+            >>> csidata = csiread.ESP32(None)
+            >>> for i in range(4):
+            >>>     csidata.seek(csifile, 0, i+1)
+            >>>     print(csidata.csi.shape)
+        """
+        str_data, int_data, flo_data, csi_data = [[], [], []], [], [], []
+        count = 0
+        if num == 0:
+            num = np.iinfo(np.int).max
+        f = open(file)
+        f.seek(pos, os.SEEK_CUR)
+        while True:
+            line = f.readline()
+            if not line or count >= num:
+                break
+            line = line.split(',')
+            str_data[0].append(line[0])
+            str_data[1].append(line[1])
+            str_data[2].append(line[2])
+            int_data.append(' '.join(line[3:23] + line[24:25]))
+            flo_data.append(' '.join(line[23:24]))
+            csi_data.append(line[-1][1:-2])
+            if self.mixed:
+                if line[-1][1:-2].count(' ') < 384:
+                    csi_data.append(self.placeholder)
+            count += 1
+        f.close()
+        int_data = ' '.join(int_data)
+        flo_data = ' '.join(flo_data)
+        csi_data = ' '.join(csi_data)
+        self.__parse(str_data, int_data, flo_data, csi_data)
+
+    def pmsg(self, data):
+        """Parse message in real time
+
+        Args:
+            data (string): A string object representing the data received by
+                pipe
+
+        Returns:
+            int: The status code. If ``0xf200``, parse message successfully.
+                Otherwise, the ``data`` is not a CSI packet.
+
+        Examples:
+
+            >>> import sys
+            >>> 
+            >>> csidata = ESP32(None, False)
+            >>> while True:
+            >>>     data = sys.stdin.readline().strip('\n')
+            >>>     code = csidata.pmsg(data)
+            >>>     if code == 0xf200:
+            >>>         print(csidata.csi.shape)
+        """
+        if data.startswith('CSI_DATA'):
+            line = data.split(',')
+            str_data = [[li] for li in line[:3]]
+            int_data = ' '.join(line[3:23] + line[24:25])
+            flo_data = ' '.join(line[23:24])
+            csi_data = line[-1][1:-2]
+            if self.mixed:
+                if csi_data.count(' ') < 384:
+                    csi_data = csi_data + self.placeholder
+            self.__parse(str_data, int_data, flo_data, csi_data)
+            return 0xf200
+
+    def __parse(self, str_data, int_data, flo_data, csi_data):
+        count = len(str_data[0])
+        str_array = str_data
+        int_array = np.fromstring(int_data, int, sep=' ').reshape(count, -1)
+        flo_array = np.fromstring(flo_data, float, sep=' ').reshape(count, -1)
+        csi_array = np.fromstring(csi_data, int, sep=' ').reshape(count, -1)
+
+        self.type = str_array[0]
+        self.role = str_array[1]
+        self.mac = str_array[2]
+        self.rssi = int_array[:, 0]
+        self.rate = int_array[:, 1]
+        self.sig_mode = int_array[:, 2]
+        self.mcs = int_array[:, 3]
+        self.bandwidth = int_array[:, 4]
+        self.smoothing = int_array[:, 5]
+        self.not_sounding = int_array[:, 6]
+        self.aggregation = int_array[:, 7]
+        self.stbc = int_array[:, 8]
+        self.fec_coding = int_array[:, 9]
+        self.sgi = int_array[:, 10]
+        self.noise_floor = int_array[:, 11]
+        self.ampdu_cnt = int_array[:, 12]
+        self.channel = int_array[:, 13]
+        self.secondary_channel = int_array[:, 14]
+        self.local_timestamp = int_array[:, 15]
+        self.ant = int_array[:, 16]
+        self.sig_len = int_array[:, 17]
+        self.rx_state = int_array[:, 18]
+        self.real_time_set = int_array[:, 19]
+        self.real_timestamp = flo_array[:, 0]
+        self.len = int_array[:, 20]
+        self.csi = csi_array[:, 1::2] + csi_array[:, ::2] * 1.j
+        self.count = count
 
 
 def _nex_group(seq, core, spatial, c_num=4, s_num=4):
