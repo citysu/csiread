@@ -2,9 +2,15 @@
 
 ## v1.3.7
 
-_????.??.??_
+_2021.08.08_
 
-- fix bug(#4): typo in ``Nexmon.pmsg``: chip 43455c0
+- fix bug(#4): typo in `Nexmon.pmsg`: chip 43455c0
+- new feature: `scidx` supports 802.11ac, add `utils.phy_ifft` and `utils.phy_fft`
+- new feature: add `Nexmon.group` to build spatial stream index
+- new feature: add support for ESP32-CSI-Tool
+- API changes: `Nexmon.pmsg(raw packet)` -> `Nexmon.pmsg(udp packet)`
+- API changes: `calib(phase, bw, ng, axis)`-> `calib(phase, k, axis)`, where `k` is subcarrier index.
+- update examples: improve csispotfi, csiviewer .etc
 
 ## v1.3.6
 

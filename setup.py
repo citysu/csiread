@@ -16,9 +16,9 @@ else:
 LONG_DESCRIPTION = """\
 # csiread [![PyPI](https://img.shields.io/pypi/v/csiread?)](https://pypi.org/project/csiread/)
 
-A fast channel state information parser for Intel, Atheros and Nexmon in Python.
+A fast channel state information parser for Intel, Atheros, Nexmon and ESP32 in Python.
 
-- Full support for Linux 802.11n CSI Tool, Atheros CSI Tool and nexmon_csi
+- Full support for Linux 802.11n CSI Tool, Atheros CSI Tool and nexmon_csi, ESP32-CSI-Tool
 - At least 15 times faster than the implementation in Matlab
 - Real-time parsing and visualization.
 """

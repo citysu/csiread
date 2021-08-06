@@ -2,7 +2,7 @@
 
 ## Introduction
 
-**csiread** aims at parsing CSI data of Intel5300, Atheros and Nexmon_csi with Python **fast**. 
+**csiread** aims at parsing CSI data of Intel5300, Atheros, Nexmon_csi and ESP32-CSI-Tool with Python **fast**. 
 
 Various CSI Tools only provide Matlab API parsing CSI data files. Those who want to process CSI with Python have to install Matlab to convert `.dat` to `.mat`. This process is redundant and inefficient. Therefore, **Python API** is recommended. Unfortunately, the API implemented in pure Python is inefficient. With this in mind, I implemented csiread in Cython(Pybind11 may be another great choice). The table below shows the efficiency comparison of different implementations. They were all tested with **40k** packets on the same computer.
 
@@ -43,6 +43,8 @@ csiread is written in Cython, Cython requires a C compiler to be present on the 
 
 ## Design
 
-csiread provides 5 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46`. Each class has 3 key methods: `read(), seek()` and `pmsg()` which are used for reading a file, reading a file from a specific position and real-time parsing respectively. `csiread.utils` provides some common functions.
+csiread provides 5 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32`. Each class has 3 key methods: `read(), seek()` and `pmsg()` which are used for reading a file, reading a file from a specific position and real-time parsing respectively. `csiread.utils` provides some common functions.
+
+Notice: `pandas.read_csv` and `csiread.ESP32` have the similar performance, but `pandas.read_csv` is much more flexible.
 
 csiread is not only the translation of the Matlab API, but also a **CSI toolbox**. I added some utilities, real-time visualization and algorithms code in the `examples` folder. These would be useful for Python-based CSI researchers.
