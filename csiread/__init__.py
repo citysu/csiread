@@ -1,4 +1,4 @@
-from .core import Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46
+from .core import Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32
 from .utils import scidx, calib, phy_ifft, phy_fft
 
 

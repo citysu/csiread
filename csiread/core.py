@@ -685,8 +685,10 @@ class ESP32:
             methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
         if_report (bool, optional): Report the parsed result. Default: `True`
-        mixed (bool, optional): Designed for issue #12 of ESP32-CSI-Tool.
-            Default: False.
+        csi_only (bool, optional): Only parse csi and ignore the others.
+            Default: `False`.
+        maxlen (int, optional): The max length of csi_data filed. Designed for
+            the issue #12 of ESP32-CSI-Tool. Default: `128`.
 
     Attributes:
         pass
@@ -694,68 +696,29 @@ class ESP32:
     References:
         1. `ESP32-CSI-Tool <https://github.com/StevenMHernandez/ESP32-CSI-Tool>`_
     """
-    def __init__(self, file, if_report=True, mixed=False):
+    def __init__(self, file, if_report=True, csi_only=False, maxlen=128):
         self.file = file
         self.if_report = if_report
-        self.mixed = mixed
-        self.placeholder = 256 * " 0"
-
-        self.type = None
-        self.role = None
-        self.mac = None
-        self.rssi = None
-        self.rate = None
-        self.sig_mode = None
-        self.mcs = None
-        self.bandwidth = None
-        self.smoothing = None
-        self.not_sounding = None
-        self.aggregation = None
-        self.stbc = None
-        self.fec_coding = None
-        self.sgi = None
-        self.noise_floor = None
-        self.ampdu_cnt = None
-        self.channel = None
-        self.secondary_channel = None
-        self.local_timestamp = None
-        self.ant = None
-        self.sig_len = None
-        self.rx_state = None
-        self.real_time_set = None
-        self.real_timestamp = None
-        self.len = None
-        self.csi = None
+        self.csi_only = csi_only
+        self.maxlen = maxlen
+        self.dt = {'csi': list} if csi_only else \
+                  {'type': str, 'role': str, 'mac': str, 'rssi': int,
+                   'rate': int, 'sig_mode': int, 'mcs': int, 'bandwidth': int,
+                   'smoothing': int, 'not_sounding': int, 'aggregation': int,
+                   'stbc': int, 'fec_coding': int, 'sgi': int,
+                   'noise_floor': int, 'ampdu_cnt': int, 'channel': int,
+                   'secondary_channel': int, 'local_timestamp': int, 'ant': int,
+                   'sig_len': int, 'rx_state': int, 'real_time_set': int,
+                   'real_timestamp': float, 'len': int, 'csi': list}
+        self.dt_str = [k for k, v in self.dt.items() if v is str]
+        self.dt_int = [k for k, v in self.dt.items() if v is int]
+        self.dt_flo = [k for k, v in self.dt.items() if v is float]
+        self.dt_csi = [k for k, v in self.dt.items() if v is list]
+        for k in self.dt.keys():
+            self.__setattr__(k, None)
 
     def __getitem__(self, index):
-        ret = {
-            "type": self.type[index],
-            "role": self.role[index],
-            "mac": self.mac[index],
-            "rssi": self.rssi[index],
-            "rate": self.rate[index],
-            "sig_mode": self.sig_mode[index],
-            "mcs": self.mcs[index],
-            "bandwidth": self.bandwidth[index],
-            "smoothing": self.smoothing[index],
-            "not_sounding": self.not_sounding[index],
-            "aggregation": self.aggregation[index],
-            "stbc": self.stbc[index],
-            "fec_coding": self.fec_coding[index],
-            "sgi": self.sgi[index],
-            "noise_floor": self.noise_floor[index],
-            "ampdu_cnt": self.ampdu_cnt[index],
-            "channel": self.channel[index],
-            "secondary_channel": self.secondary_channel[index],
-            "local_timestamp": self.local_timestamp[index],
-            "ant": self.ant[index],
-            "sig_len": self.sig_len[index],
-            "rx_state": self.rx_state[index],
-            "real_time_set": self.real_time_set[index],
-            "real_timestamp": self.real_timestamp[index],
-            "len": self.len[index],
-            "csi": self.csi[index]
-        }
+        ret = {k: self.__getattribute__(k)[index] for k in self.dt.keys()}
         return ret
 
     def read(self):
@@ -770,7 +733,7 @@ class ESP32:
         """
         self.seek(self.file, 0, 0)
         if self.if_report:
-            print("%d packets parsed", self.count)
+            print("%d packets parsed" % self.count)
 
     def seek(self, file, pos, num):
         """Read packets from specific position
@@ -796,32 +759,40 @@ class ESP32:
             >>>     csidata.seek(csifile, 0, i+1)
             >>>     print(csidata.csi.shape)
         """
-        str_data, int_data, flo_data, csi_data = [[], [], []], [], [], []
-        count = 0
         if num == 0:
             num = np.iinfo(np.int).max
-        f = open(file)
-        f.seek(pos, os.SEEK_CUR)
-        while True:
-            line = f.readline()
-            if not line or count >= num:
-                break
-            line = line.split(',')
-            str_data[0].append(line[0])
-            str_data[1].append(line[1])
-            str_data[2].append(line[2])
-            int_data.append(' '.join(line[3:23] + line[24:25]))
-            flo_data.append(' '.join(line[23:24]))
-            csi_data.append(line[-1][1:-2])
-            if self.mixed:
-                if line[-1][1:-2].count(' ') < 384:
-                    csi_data.append(self.placeholder)
-            count += 1
-        f.close()
+        count = 0
+        str_data = [[], [], []]
+        int_data, flo_data, csi_data = [], [], []
+
+        with open(file) as f:
+            f.seek(pos, os.SEEK_CUR)
+            for line in f:
+                if count >= num:
+                    break
+
+                if self.csi_only:
+                    line = line.split(',[')
+                else:
+                    line = line.split(',')
+                    line[23], line[24] = line[24], line[23]
+                    str_data[0].append(line[0])
+                    str_data[1].append(line[1])
+                    str_data[2].append(line[2])
+                    int_data.append(' '.join(line[3:24]))
+                    flo_data.append(line[24])
+
+                line_csi = line[-1][:-2].lstrip('[')
+                csi_data.append(line_csi)
+                if self.maxlen != 128:
+                    ph_num = self.maxlen - line_csi.count(' ')
+                    csi_data.append(ph_num * ' 0')
+                count += 1
+
         int_data = ' '.join(int_data)
         flo_data = ' '.join(flo_data)
         csi_data = ' '.join(csi_data)
-        self.__parse(str_data, int_data, flo_data, csi_data)
+        self.__parse(str_data, int_data, flo_data, csi_data, count)
 
     def pmsg(self, data):
         """Parse message in real time
@@ -846,50 +817,34 @@ class ESP32:
             >>>         print(csidata.csi.shape)
         """
         if data.startswith('CSI_DATA'):
-            line = data.split(',')
-            str_data = [[li] for li in line[:3]]
-            int_data = ' '.join(line[3:23] + line[24:25])
-            flo_data = ' '.join(line[23:24])
-            csi_data = line[-1][1:-2]
-            if self.mixed:
-                if csi_data.count(' ') < 384:
-                    csi_data = csi_data + self.placeholder
-            self.__parse(str_data, int_data, flo_data, csi_data)
+            if self.csi_only:
+                line = line.split(',[')
+            else:
+                line = data.split(',')
+                str_data = [[li] for li in line[:3]]
+                int_data = ' '.join(line[3:23] + line[24:25])
+                flo_data = ' '.join(line[23:24])
+            csi_data = line[-1][:-2].lstrip('[')
+            if self.maxlen != 128:
+                ph_num = self.maxlen - csi_data.count(' ')
+                csi_data = csi_data + ph_num * ' 0'
+            self.__parse(str_data, int_data, flo_data, csi_data, 1)
             return 0xf200
 
-    def __parse(self, str_data, int_data, flo_data, csi_data):
-        count = len(str_data[0])
+    def __parse(self, str_data, int_data, flo_data, csi_data, count):
         str_array = str_data
         int_array = np.fromstring(int_data, int, sep=' ').reshape(count, -1)
         flo_array = np.fromstring(flo_data, float, sep=' ').reshape(count, -1)
         csi_array = np.fromstring(csi_data, int, sep=' ').reshape(count, -1)
 
-        self.type = str_array[0]
-        self.role = str_array[1]
-        self.mac = str_array[2]
-        self.rssi = int_array[:, 0]
-        self.rate = int_array[:, 1]
-        self.sig_mode = int_array[:, 2]
-        self.mcs = int_array[:, 3]
-        self.bandwidth = int_array[:, 4]
-        self.smoothing = int_array[:, 5]
-        self.not_sounding = int_array[:, 6]
-        self.aggregation = int_array[:, 7]
-        self.stbc = int_array[:, 8]
-        self.fec_coding = int_array[:, 9]
-        self.sgi = int_array[:, 10]
-        self.noise_floor = int_array[:, 11]
-        self.ampdu_cnt = int_array[:, 12]
-        self.channel = int_array[:, 13]
-        self.secondary_channel = int_array[:, 14]
-        self.local_timestamp = int_array[:, 15]
-        self.ant = int_array[:, 16]
-        self.sig_len = int_array[:, 17]
-        self.rx_state = int_array[:, 18]
-        self.real_time_set = int_array[:, 19]
-        self.real_timestamp = flo_array[:, 0]
-        self.len = int_array[:, 20]
-        self.csi = csi_array[:, 1::2] + csi_array[:, ::2] * 1.j
+        for idx, k in enumerate(self.dt_str):
+            self.__setattr__(k, str_array[idx])
+        for idx, k in enumerate(self.dt_int):
+            self.__setattr__(k, int_array[:, idx])
+        for idx, k in enumerate(self.dt_flo):
+            self.__setattr__(k, flo_array[:, idx])
+        for idx, k in enumerate(self.dt_csi):
+            self.__setattr__(k, csi_array[:, 1::2] + csi_array[:, ::2] * 1.j)
         self.count = count
 
 
