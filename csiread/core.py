@@ -1,4 +1,5 @@
-"""A fast channel state information parser for Intel, Atheros and Nexmon."""
+"""A fast channel state information parser for Intel, Atheros, Nexmon and
+ESP32."""
 
 import os
 import numpy as np
@@ -543,7 +544,7 @@ class Nexmon(_csiread.Nexmon):
         """Parse message in real time
 
         Args:
-            data (bytes): A bytes object representing the data received by raw
+            data (bytes): A bytes object representing the data received by udp
                 socket
             endian (str): The byte order of ``file.dat``， it can be ``little``
                 and ``big``. Default: ``little``
@@ -558,7 +559,8 @@ class Nexmon(_csiread.Nexmon):
             >>> import csiread
             >>> 
             >>> csidata = csiread.Nexmon(None, chip='4358', bw=80)
-            >>> with socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x3)) as s:
+            >>> with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            >>>     s.bind(('127.0.0.1', 10011))
             >>>     while True:
             >>>         data, address_src = s.recvfrom(4096)
             >>>         code = csidata.pmsg(data)
@@ -656,7 +658,7 @@ class NexmonPull46(_csiread.NexmonPull46):
         """Parse message in real time
 
         Args:
-            data (bytes): A bytes object representing the data received by raw
+            data (bytes): A bytes object representing the data received by udp
                 socket
             endian (str): The byte order of ``file.dat``， it can be ``little``
                 and ``big``. Default: ``little``

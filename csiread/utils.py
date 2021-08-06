@@ -4,7 +4,7 @@ import numpy as np
 def scidx(bw, ng, standard='n'):
     """SubCarrier InDeX
 
-    Table 9-54-Number of matrices and carrier grouping (in 802.11n-2016) and
+    Table 9-54-Number of matrices and carrier grouping (in 802.11n-2016);
     Table 8-53g—Subcarriers for which a Compressed Beamforming Feedback
     Matrix subfield is sent back (in 802.11ac-2013)
 
@@ -80,7 +80,7 @@ def calib(phase, k, axis=1):
 
     Args:
         phase (ndarray): Unwrapped phase of CSI.
-        k (ndarray): Subcarriers index
+        k (ndarray): Subcarrier index
         axis (int): Axis along which is subcarrier. Default: 1
 
     Returns:
@@ -90,7 +90,7 @@ def calib(phase, k, axis=1):
 
         >>> csi = csidata.csi[:10]
         >>> phase = np.unwrap(np.angle(csi), axis=1)
-        >>> phase = calib(phase, bw=20, ng=2, axis=1)
+        >>> phase = calib(phase, k=scidx(20, 2), axis=1)
 
     References:
         1. `Enabling Contactless Detection of Moving Humans with Dynamic Speeds
@@ -134,13 +134,17 @@ def phy_ifft(x, k, axis=1):
     Returns:
         ndarray: CIR
 
-    Note:
-        1. No ifftshift
-        2. scipy.fftpack.ifft is different from Equation (19-25) and
-            Equation (17-9)
-        3. BE CAREFUL! I haven't found any code about CSI like this.
+    Examples:
 
-    Ref:
+        >>> cfr = csidata.csi[:10]
+        >>> cir = phy_ifft(cfr, k=scidx(20, 2), axis=1)
+
+    Note:
+        1. scipy.fftpack.ifft is different from Equation (19-25) and
+            Equation (17-9)
+        2. BE CAREFUL! I haven't found any code about CSI like this.
+
+    References:
         1. IEEE Standard for Information technology—Telecommunications and
         information exchange between systems Local and metropolitan area
         networks—Specific requirements - Part 11: Wireless LAN Medium Access
