@@ -820,7 +820,7 @@ class ESP32:
         """
         if data.startswith('CSI_DATA'):
             if self.csi_only:
-                line = line.split(',[')
+                line = data.split(',[')
             else:
                 line = data.split(',')
                 str_data = [[li] for li in line[:3]]
