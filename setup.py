@@ -34,10 +34,10 @@ EXTENSIONS = [
 
 setup(
     name="csiread",
-    version="1.3.7",
+    version="1.3.8",
 
     description="A fast channel state information parser for Intel, " \
-                "Atheros and Nexmon.",
+                "Atheros, Nexmon and ESP32.",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
 

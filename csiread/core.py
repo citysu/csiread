@@ -456,10 +456,10 @@ class Nexmon(_csiread.Nexmon):
         chip (str, readonly): Chip type we set
         bw (int, readonly): Bandwidth we set
         nano (bool, readonly): nanosecond-resolution or not
-        sec (ndarray): Time the packet was captured
+        sec (ndarray): Time when the packet was captured
         usec (ndarray): The microseconds when this packet was captured, as an
-            offset to ``sec`` if ``nano`` is True. The nanoseconds when the
-            packet was captured, as an offset to ``sec`` if ``nano`` is False.
+            offset to ``sec`` if ``nano`` is False. The nanoseconds when the
+            packet was captured, as an offset to ``sec`` if ``nano`` is True.
         caplen (ndarray): The number of bytes of packet data actually captured
             and saved in the file
         wirelen (ndarray): The length of the packet as it appeared on the
@@ -867,6 +867,6 @@ def _nex_group(seq, core, spatial, c_num=4, s_num=4):
     p = core * s_num + spatial
     p = np.argsort(p, axis=-1)
     offset = offset[:, :1] + p
-    offset = offset.resahpe(-1, c_num, s_num)
+    offset = offset.reshape(-1, c_num, s_num)
 
     return offset
