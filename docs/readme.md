@@ -43,8 +43,14 @@ csiread is written in Cython, Cython requires a C compiler to be present on the 
 
 ## Design
 
-csiread provides 5 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32`. Each class has 3 key methods: `read(), seek()` and `pmsg()` which are used for reading a file, reading a file from a specific position and real-time parsing respectively. `csiread.utils` provides some common functions.
-
-Notice: `pandas.read_csv` and `csiread.ESP32` have the similar performance, but `pandas.read_csv` is much more flexible.
+csiread provides 6 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32`. Each class has 4 key methods: `read(), seek()`, `pmsg()` and `display` which are used for reading a file, reading a file from a specific position, real-time parsing and viewing the contents of a packet respectively. `csiread.utils` provides some common functions.
 
 csiread is not only the translation of the Matlab API, but also a **CSI toolbox**. I added some utilities, real-time visualization and algorithms code in the `examples` folder. These would be useful for Python-based CSI researchers.
+
+### Nexmon CSI
+
+The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spatial`. `core` and `spatial` are ZERO or not recorded correctly in some files. I don't know how to solve it.
+
+### ESP32-CSI-Tool
+
+`pandas.read_csv` and `csiread.ESP32` have the similar performance, but `pandas.read_csv` is much more flexible.

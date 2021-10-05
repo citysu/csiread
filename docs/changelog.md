@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v1.3.8
+
+_2021.10.08_
+
+- fix bug: typo(#11): `resahpe` -> `reshape`
+- fix bug: exit abnormally if file does not exist.
+- fix bug: two bytes contain core and spatial stream number(Nexmon), one is always zero. `or` them to avoid endian issue now.
+- fix bug: `setup.py`: Get the compiler type correctly
+- new feature: add `display` method to view a packet quickly.
+
 ## v1.3.7
 
 _2021.08.08_
