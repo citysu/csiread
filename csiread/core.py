@@ -7,6 +7,10 @@ import numpy as np
 from . import _csiread
 
 
+def stringify(array, sep=':'):
+    return sep.join([hex(element)[2:].zfill(2) for element in array])
+
+
 class Intel(_csiread.Intel):
     """Parse CSI obtained using 'Linux 802.11n CSI Tool'.
 
@@ -256,6 +260,36 @@ class Intel(_csiread.Intel):
         """
         return super().apply_sm(scaled_csi)
 
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+        tab = " " * 2
+
+        s = "%dth packet:\n" % index
+        s += T % (tab, "file", self.file)
+        s += T % (tab, "count", self.count)
+        s += T % (tab, "timestamp_low", self.timestamp_low[index])
+        s += T % (tab, "bfee_count", self.bfee_count[index])
+        s += T % (tab, "Nrx", self.Nrx[index])
+        s += T % (tab, "Ntx", self.Ntx[index])
+        s += T % (tab, "rssi_b", self.rssi_b[index])
+        s += T % (tab, "rssi_c", self.rssi_c[index])
+        s += T % (tab, "rssi_a", self.rssi_a[index])
+        s += T % (tab, "noise", self.noise[index])
+        s += T % (tab, "agc", self.agc[index])
+        s += T % (tab, "perm", self.perm[index])
+        s += T % (tab, "rate", self.rate[index])
+        s += T % (tab, "csi", self.csi[index].shape)
+        if self.fc.size > index:
+            s += T % (tab, "fc", self.fc[index])
+            s += T % (tab, "dur", self.dur[index])
+            s += T % (tab, "addr_src", stringify(self.addr_src[index]))
+            s += T % (tab, "addr_des", stringify(self.addr_des[index]))
+            s += T % (tab, "addr_bssid", stringify(self.addr_bssid[index]))
+            s += T % (tab, "seq", self.seq[index])
+            s += T % (tab, "payload", stringify(self.payload[index], ' '))
+        print(s, end='')
+
 
 class Atheros(_csiread.Atheros):
     """Parse CSI obtained using 'Atheros CSI Tool'.
@@ -434,6 +468,33 @@ class Atheros(_csiread.Atheros):
         """
         return super().readstp(endian)
 
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+        tab = " " * 2
+
+        s = "%dth packet:\n" % index
+        s += T % (tab, "file", self.file)
+        s += T % (tab, "count", self.count)
+        s += T % (tab, "timestamp", self.timestamp[index])
+        s += T % (tab, "csi_len", self.csi_len[index])
+        s += T % (tab, "tx_channel", self.tx_channel[index])
+        s += T % (tab, "err_info", self.err_info[index])
+        s += T % (tab, "noise_floor", self.noise_floor[index])
+        s += T % (tab, "Rate", self.Rate[index])
+        s += T % (tab, "bandWidth", self.bandWidth[index])
+        s += T % (tab, "num_tones", self.num_tones[index])
+        s += T % (tab, "nr", self.nr[index])
+        s += T % (tab, "nc", self.nc[index])
+        s += T % (tab, "rssi", self.rssi[index])
+        s += T % (tab, "rssi_1", self.rssi_1[index])
+        s += T % (tab, "rssi_2", self.rssi_2[index])
+        s += T % (tab, "rssi_3", self.rssi_3[index])
+        s += T % (tab, "payload_len", self.payload_len[index])
+        s += T % (tab, "csi", self.csi[index].shape)
+        s += T % (tab, "payload", stringify(self.payload[index], ' '))
+        print(s, end='')
+
 
 class Nexmon(_csiread.Nexmon):
     """Parse CSI obtained using 'nexmon_csi'.
@@ -595,6 +656,29 @@ class Nexmon(_csiread.Nexmon):
         """
         return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
 
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+        tab = " " * 2
+
+        s = "%dth packet:\n" % index
+        s += T % (tab, "file", self.file)
+        s += T % (tab, "count", self.count)
+        s += T % (tab, "nano", self.nano)
+        s += T % (tab, "sec", self.sec[index])
+        s += T % (tab, "usec", self.usec[index])
+        s += T % (tab, "caplen", self.caplen[index])
+        s += T % (tab, "wirelen", self.wirelen[index])
+        s += T % (tab, "magic", hex(self.magic[index]))
+        s += T % (tab, "src_addr", stringify(self.src_addr[index]))
+        s += T % (tab, "seq", self.seq[index])
+        s += T % (tab, "core", self.core[index])
+        s += T % (tab, "spatial", self.spatial[index])
+        s += T % (tab, "chan_spec", hex(self.chan_spec[index]))
+        s += T % (tab, "chip_version", hex(self.chip_version[index]))
+        s += T % (tab, "csi", self.csi[index].shape)
+        print(s, end='')
+
 
 class AtherosPull10(Atheros):
     """Parse CSI obtained using 'Atheros CSI Tool' pull 10.
@@ -673,6 +757,31 @@ class NexmonPull46(_csiread.NexmonPull46):
         See `Nexmon.group`
         """
         return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
+
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+        tab = " " * 2
+
+        s = "%dth packet:\n" % index
+        s += T % (tab, "file", self.file)
+        s += T % (tab, "count", self.count)
+        s += T % (tab, "nano", self.nano)
+        s += T % (tab, "sec", self.sec[index])
+        s += T % (tab, "usec", self.usec[index])
+        s += T % (tab, "caplen", self.caplen[index])
+        s += T % (tab, "wirelen", self.wirelen[index])
+        s += T % (tab, "magic", hex(self.magic[index]))
+        s += T % (tab, "src_addr", stringify(self.src_addr[index]))
+        s += T % (tab, "seq", self.seq[index])
+        s += T % (tab, "core", self.core[index])
+        s += T % (tab, "spatial", self.spatial[index])
+        s += T % (tab, "chan_spec", hex(self.chan_spec[index]))
+        s += T % (tab, "chip_version", hex(self.chip_version[index]))
+        s += T % (tab, "csi", self.csi[index].shape)
+        s += T % (tab, "rssi", self.rssi[index])
+        s += T % (tab, "fc", self.fc[index])
+        print(s, end='')
 
 
 class ESP32:
@@ -846,6 +955,21 @@ class ESP32:
         for idx, k in enumerate(self.dt_csi):
             self.__setattr__(k, csi_array[:, 1::2] + csi_array[:, ::2] * 1.j)
         self.count = count
+
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+        tab = " " * 2
+
+        s = "%dth packet:\n" % index
+        s += T % (tab, "file", self.file)
+        s += T % (tab, "count", self.count)
+        for k, v in self.dt.items():
+            if v is list:
+                s += T % (tab, k, getattr(self, k)[index].shape)
+            else:
+                s += T % (tab, k, getattr(self, k)[index])
+        print(s, end='')
 
 
 def _nex_group(seq, core, spatial, c_num=4, s_num=4):
