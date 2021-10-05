@@ -1130,7 +1130,7 @@ cdef class Nexmon:
             printf("Open failed!\n")
             exit(-1)
 
-        endian = self.__pcapheader(f)
+        pcap_endian = self.__pcapheader(f)
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
@@ -1153,33 +1153,30 @@ cdef class Nexmon:
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
         cdef uint32_t caplen
-        cdef bint flag
-        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
-        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
+        cdef uint16_t (*pcap_cu16)(uint8_t, uint8_t) 
+        cdef uint32_t (*pcap_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         if num == 0:
             num = lens
 
-        if endian == "little":
-            nex_cu16 = cu16l
-            nex_cu32 = cu32l
-            flag = True
+        if pcap_endian == "little":
+            pcap_cu16 = cu16l
+            pcap_cu32 = cu32l
         else:
-            nex_cu16 = cu16b
-            nex_cu32 = cu32b
-            flag = False
+            pcap_cu16 = cu16b
+            pcap_cu32 = cu32b
 
         while pos < (lens - 24):
             # global header
             l = <int>fread(&buf, sizeof(unsigned char), 16, f)
             if l < 16:
                 break
-            caplen = nex_cu32(buf[8], buf[9], buf[10], buf[11])
-            buf_sec_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
-            buf_usec_mem[count] = nex_cu32(buf[4], buf[5], buf[6], buf[7])
+            caplen = pcap_cu32(buf[8], buf[9], buf[10], buf[11])
+            buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
+            buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
             buf_caplen_mem[count] = caplen
-            buf_wirelen_mem[count] = nex_cu32(buf[12], buf[13], buf[14],
-                                              buf[15])
+            buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
+                                               buf[15])
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
@@ -1188,27 +1185,30 @@ cdef class Nexmon:
                 fseek(f, caplen - 42, SEEK_CUR)
                 continue
 
+            # Endian of the following payload is different from
+            # `pcap_endian`. Here, we assume it is always `little`.
+
             # nexmon header
             l = <int>fread(&buf, sizeof(unsigned char), 18, f)
-            buf_magic_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
+            buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
             for i in range(6):
                 buf_src_addr_mem[count, i] = buf[4+i]
-            buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
-            buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
-            buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
-            buf_chan_spec_mem[count] = nex_cu16(buf[14], buf[15])
-            buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
+            buf_seq_mem[count] = cu16l(buf[10], buf[11])
+            buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
+            buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+            buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+            buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
             # CSI
             l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
-                unpack_int16(buf, buf_csi_mem[count], nfft, flag)
+                unpack_int16(buf, buf_csi_mem[count], nfft, True)
             elif self.chip == '4358':
                 unpack_float(buf, buf_csi_mem[count], nfft, 9, 5,
-                             self._autoscale, flag)
+                             self._autoscale, True)
             elif self.chip == '4366c0':
                 unpack_float(buf, buf_csi_mem[count], nfft, 12, 6,
-                             self._autoscale, flag)
+                             self._autoscale, True)
             else:
                 pass
 
@@ -1259,44 +1259,32 @@ cdef class Nexmon:
         cdef unsigned char *buf
         cdef int i
         cdef int nfft = <int>(self.bw * 3.2)
-        cdef bint flag
-        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
-        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         buf = data
-
-        if endian == "little":
-            nex_cu16 = cu16l
-            nex_cu32 = cu32l
-            flag = True
-        else:
-            nex_cu16 = cu16b
-            nex_cu32 = cu32b
-            flag = False
 
         # magic number
         if buf[:4] != b'\x11\x11\x11\x11':
             return
 
         # nexmon header
-        buf_magic_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
+        buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
         for i in range(6):
             buf_src_addr_mem[count, i] = buf[4+i]
-        buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
-        buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
-        buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = nex_cu16(buf[14], buf[15])
-        buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
+        buf_seq_mem[count] = cu16l(buf[10], buf[11])
+        buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
+        buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+        buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+        buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[18], buf_csi_mem[count], nfft, flag)
+            unpack_int16(&buf[18], buf_csi_mem[count], nfft, True)
         elif self.chip == '4358':
             unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
-                         self._autoscale, flag)
+                         self._autoscale, True)
         elif self.chip == '4366c0':
             unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
-                         self._autoscale, flag)
+                         self._autoscale, True)
         else:
             pass
 
@@ -1337,8 +1325,8 @@ cdef class Nexmon:
         cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         # pcap header: head: endian
-        endian = self.__pcapheader(f)
-        if endian == 'little':
+        pcap_endian = self.__pcapheader(f)
+        if pcap_endian == 'little':
             nex_cu32 = cu32l
         else:
             nex_cu32 = cu32b
@@ -1432,7 +1420,7 @@ cdef class NexmonPull46(Nexmon):
             printf("Open failed!\n")
             exit(-1)
 
-        endian = self.__pcapheader(f)
+        pcap_endian = self.__pcapheader(f)
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
@@ -1457,33 +1445,30 @@ cdef class NexmonPull46(Nexmon):
         cdef int l, i
         cdef int nfft = <int>(self.bw * 3.2)
         cdef uint32_t caplen
-        cdef bint flag
-        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
-        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
+        cdef uint16_t (*pcap_cu16)(uint8_t, uint8_t) 
+        cdef uint32_t (*pcap_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         if num == 0:
             num = lens
 
-        if endian == "little":
-            nex_cu16 = cu16l
-            nex_cu32 = cu32l
-            flag = True
+        if pcap_endian == "little":
+            pcap_cu16 = cu16l
+            pcap_cu32 = cu32l
         else:
-            nex_cu16 = cu16b
-            nex_cu32 = cu32b
-            flag = False
+            pcap_cu16 = cu16b
+            pcap_cu32 = cu32b
 
         while pos < (lens - 24):
             # global header
             l = <int>fread(&buf, sizeof(unsigned char), 16, f)
             if l < 16:
                 break
-            caplen = nex_cu32(buf[8], buf[9], buf[10], buf[11])
-            buf_sec_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
-            buf_usec_mem[count] = nex_cu32(buf[4], buf[5], buf[6], buf[7])
+            caplen = pcap_cu32(buf[8], buf[9], buf[10], buf[11])
+            buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
+            buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
             buf_caplen_mem[count] = caplen
-            buf_wirelen_mem[count] = nex_cu32(buf[12], buf[13], buf[14],
-                                              buf[15])
+            buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
+                                               buf[15])
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
@@ -1492,29 +1477,32 @@ cdef class NexmonPull46(Nexmon):
                 fseek(f, caplen - 42, SEEK_CUR)
                 continue
 
+            # Endian of the following payload is different from
+            # `pcap_endian`. Here, we assume it is always `little`.
+
             # nexmon header
             l = <int>fread(&buf, sizeof(unsigned char), 18, f)
-            buf_magic_mem[count] = nex_cu16(buf[0], buf[1])
+            buf_magic_mem[count] = cu16l(buf[0], buf[1])
             buf_rssi_mem[count] = buf[2]
             buf_fc_mem[count] = buf[3]
             for i in range(6):
                 buf_src_addr_mem[count, i] = buf[4+i]
-            buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
-            buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
-            buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
-            buf_chan_spec_mem[count] = nex_cu16(buf[14], buf[15])
-            buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
+            buf_seq_mem[count] = cu16l(buf[10], buf[11])
+            buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
+            buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+            buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+            buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
             # CSI
             l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
-                unpack_int16(buf, buf_csi_mem[count], nfft, flag)
+                unpack_int16(buf, buf_csi_mem[count], nfft, True)
             elif self.chip == '4358':
                 unpack_float(buf, buf_csi_mem[count], nfft, 9, 5,
-                             self._autoscale, flag)
+                             self._autoscale, True)
             elif self.chip == '4366c0':
                 unpack_float(buf, buf_csi_mem[count], nfft, 12, 6,
-                             self._autoscale, flag)
+                             self._autoscale, True)
             else:
                 pass
 
@@ -1571,46 +1559,34 @@ cdef class NexmonPull46(Nexmon):
         cdef unsigned char *buf
         cdef int i
         cdef int nfft = <int>(self.bw * 3.2)
-        cdef bint flag
-        cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
-        cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         buf = data
-
-        if endian == "little":
-            nex_cu16 = cu16l
-            nex_cu32 = cu32l
-            flag = True
-        else:
-            nex_cu16 = cu16b
-            nex_cu32 = cu32b
-            flag = False
 
         # magic number
         if buf[:2] != b'\x11\x11':
             return
 
         # nexmon header
-        buf_magic_mem[count] = nex_cu16(buf[0], buf[1])
+        buf_magic_mem[count] = cu16l(buf[0], buf[1])
         buf_rssi_mem[count] = buf[2]
         buf_fc_mem[count] = buf[3]
         for i in range(6):
             buf_src_addr_mem[count, i] = buf[4+i]
-        buf_seq_mem[count] = nex_cu16(buf[10], buf[11])
-        buf_core_mem[count] = nex_cu16(buf[12], buf[13]) & 0x7
-        buf_spatial_mem[count] = (nex_cu16(buf[12], buf[13]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = nex_cu16(buf[114], buf[15])
-        buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
+        buf_seq_mem[count] = cu16l(buf[10], buf[11])
+        buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
+        buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+        buf_chan_spec_mem[count] = cu16l(buf[114], buf[15])
+        buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[18], buf_csi_mem[count], nfft, flag)
+            unpack_int16(&buf[18], buf_csi_mem[count], nfft, True)
         elif self.chip == '4358':
             unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
-                         self._autoscale, flag)
+                         self._autoscale, True)
         elif self.chip == '4366c0':
             unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
-                         self._autoscale, flag)
+                         self._autoscale, True)
         else:
             pass
 

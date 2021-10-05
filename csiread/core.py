@@ -546,8 +546,7 @@ class Nexmon(_csiread.Nexmon):
         Args:
             data (bytes): A bytes object representing the data received by udp
                 socket
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
+            endian (str): Invalid parameter, just for future use.
 
         Returns:
             int: The status code. If ``0xf100``, parse message successfully.
@@ -660,8 +659,7 @@ class NexmonPull46(_csiread.NexmonPull46):
         Args:
             data (bytes): A bytes object representing the data received by udp
                 socket
-            endian (str): The byte order of ``file.dat``， it can be ``little``
-                and ``big``. Default: ``little``
+            endian (str): Invalid parameter, just for future use.
 
         Returns:
             int: The status code. If ``0xf101``, parse message successfully.
