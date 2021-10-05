@@ -122,8 +122,7 @@ cdef class Intel:
         f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
-            fclose(f)
-            return -1
+            exit(-1)
 
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
@@ -167,12 +166,12 @@ cdef class Intel:
             num = lens
 
         while pos < (lens-3):
-            l = fread(&buf, sizeof(unsigned char), 3, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 3, f)
             field_len = buf[1] + (buf[0] << 8)
             code = buf[2]
 
             if code == 0xbb:
-                l = fread(buf, sizeof(unsigned char), field_len - 1, f)
+                l = <int>fread(buf, sizeof(unsigned char), field_len - 1, f)
                 if l != (field_len - 1):
                     break  # finished
 
@@ -224,7 +223,7 @@ cdef class Intel:
                 count_0xbb += 1
 
             elif code == 0xc1:
-                l = fread(buf, sizeof(unsigned char), field_len - 1, f)
+                l = <int>fread(buf, sizeof(unsigned char), field_len - 1, f)
                 if l != (field_len - 1):
                     break  # finished
 
@@ -698,8 +697,7 @@ cdef class Atheros:
         f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
-            fclose(f)
-            return -1
+            exit(-1)
 
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
@@ -748,13 +746,13 @@ cdef class Atheros:
             raise ValueError("endian must be either 'little' or 'big'")
 
         while pos < (lens - 4):
-            l = fread(&buf, sizeof(unsigned char), 2, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 2, f)
             field_len = ath_cu16(buf[0], buf[1])
             pos += 2
             if (pos + field_len) > lens:
                 break
 
-            l = fread(&buf, sizeof(unsigned char), 25, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 25, f)
             buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
                                                 buf[4], buf[5], buf[6], buf[7])
             buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
@@ -782,7 +780,7 @@ cdef class Atheros:
 
             c_len = buf_csi_len_mem[count]
             if c_len > 0:
-                l = fread(&csi_buf, sizeof(unsigned char), c_len, f)
+                l = <int>fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
                 bitmask = (1 << 10) - 1
 
@@ -832,7 +830,7 @@ cdef class Atheros:
             pl_len = buf_payload_len_mem[count]
             pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
-                l = fread(&buf, sizeof(unsigned char), pl_len, f)
+                l = <int>fread(&buf, sizeof(unsigned char), pl_len, f)
                 for i in range(pl_stop):
                     buf_payload_mem[count, i] = buf[i]
                 pos += pl_len
@@ -1130,8 +1128,7 @@ cdef class Nexmon:
         f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
-            fclose(f)
-            return -1
+            exit(-1)
 
         endian = self.__pcapheader(f)
         fseek(f, 0, SEEK_END)
@@ -1174,7 +1171,7 @@ cdef class Nexmon:
 
         while pos < (lens - 24):
             # global header
-            l = fread(&buf, sizeof(unsigned char), 16, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 16, f)
             if l < 16:
                 break
             caplen = nex_cu32(buf[8], buf[9], buf[10], buf[11])
@@ -1186,13 +1183,13 @@ cdef class Nexmon:
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
-            l = fread(&buf, sizeof(unsigned char), 42, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 42, f)
             if buf[6:12] != b'NEXMON':
                 fseek(f, caplen - 42, SEEK_CUR)
                 continue
 
             # nexmon header
-            l = fread(&buf, sizeof(unsigned char), 18, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 18, f)
             buf_magic_mem[count] = nex_cu32(buf[0], buf[1], buf[2], buf[3])
             for i in range(6):
                 buf_src_addr_mem[count, i] = buf[4+i]
@@ -1203,7 +1200,7 @@ cdef class Nexmon:
             buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
 
             # CSI
-            l = fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
+            l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
                 unpack_int16(buf, buf_csi_mem[count], nfft, flag)
             elif self.chip == '4358':
@@ -1260,7 +1257,7 @@ cdef class Nexmon:
 
         cdef int count = 0
         cdef unsigned char *buf
-        cdef int l, i
+        cdef int i
         cdef int nfft = <int>(self.bw * 3.2)
         cdef bint flag
         cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
@@ -1331,8 +1328,7 @@ cdef class Nexmon:
         f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
-            fclose(f)
-            return -1
+            exit(-1)
 
         cdef int count = 0
         cdef int l
@@ -1349,7 +1345,7 @@ cdef class Nexmon:
 
         # count
         while True:
-            l = fread(&buf, sizeof(unsigned char), 16+42, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 16+42, f)
             if l < 16:
                 break
             if buf[22:28] == b'NEXMON':
@@ -1363,7 +1359,7 @@ cdef class Nexmon:
         cdef unsigned char buf[16]
         cdef int l
 
-        l = fread(&buf, sizeof(unsigned char), 4, f)
+        l = <int>fread(&buf, sizeof(unsigned char), 4, f)
         magic = buf[:4]
         if magic == b"\xa1\xb2\xc3\xd4":    # big endian
             endian = "big"
@@ -1434,8 +1430,7 @@ cdef class NexmonPull46(Nexmon):
         f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
-            fclose(f)
-            return -1
+            exit(-1)
 
         endian = self.__pcapheader(f)
         fseek(f, 0, SEEK_END)
@@ -1480,7 +1475,7 @@ cdef class NexmonPull46(Nexmon):
 
         while pos < (lens - 24):
             # global header
-            l = fread(&buf, sizeof(unsigned char), 16, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 16, f)
             if l < 16:
                 break
             caplen = nex_cu32(buf[8], buf[9], buf[10], buf[11])
@@ -1492,13 +1487,13 @@ cdef class NexmonPull46(Nexmon):
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
-            l = fread(&buf, sizeof(unsigned char), 42, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 42, f)
             if buf[6:12] != b'NEXMON':
                 fseek(f, caplen - 42, SEEK_CUR)
                 continue
 
             # nexmon header
-            l = fread(&buf, sizeof(unsigned char), 18, f)
+            l = <int>fread(&buf, sizeof(unsigned char), 18, f)
             buf_magic_mem[count] = nex_cu16(buf[0], buf[1])
             buf_rssi_mem[count] = buf[2]
             buf_fc_mem[count] = buf[3]
@@ -1511,7 +1506,7 @@ cdef class NexmonPull46(Nexmon):
             buf_chip_version_mem[count] = nex_cu16(buf[16], buf[17])
 
             # CSI
-            l = fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
+            l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
                 unpack_int16(buf, buf_csi_mem[count], nfft, flag)
             elif self.chip == '4358':
@@ -1574,7 +1569,7 @@ cdef class NexmonPull46(Nexmon):
 
         cdef int count = 0
         cdef unsigned char *buf
-        cdef int l, i
+        cdef int i
         cdef int nfft = <int>(self.bw * 3.2)
         cdef bint flag
         cdef uint16_t (*nex_cu16)(uint8_t, uint8_t) 
