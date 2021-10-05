@@ -1194,8 +1194,8 @@ cdef class Nexmon:
             for i in range(6):
                 buf_src_addr_mem[count, i] = buf[4+i]
             buf_seq_mem[count] = cu16l(buf[10], buf[11])
-            buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
-            buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+            buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+            buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
             buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
             buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
@@ -1271,8 +1271,8 @@ cdef class Nexmon:
         for i in range(6):
             buf_src_addr_mem[count, i] = buf[4+i]
         buf_seq_mem[count] = cu16l(buf[10], buf[11])
-        buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
-        buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+        buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+        buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
         buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
         buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
@@ -1488,8 +1488,8 @@ cdef class NexmonPull46(Nexmon):
             for i in range(6):
                 buf_src_addr_mem[count, i] = buf[4+i]
             buf_seq_mem[count] = cu16l(buf[10], buf[11])
-            buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
-            buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+            buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+            buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
             buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
             buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
@@ -1573,8 +1573,8 @@ cdef class NexmonPull46(Nexmon):
         for i in range(6):
             buf_src_addr_mem[count, i] = buf[4+i]
         buf_seq_mem[count] = cu16l(buf[10], buf[11])
-        buf_core_mem[count] = cu16l(buf[12], buf[13]) & 0x7
-        buf_spatial_mem[count] = (cu16l(buf[12], buf[13]) >> 3) & 0x7
+        buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+        buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
         buf_chan_spec_mem[count] = cu16l(buf[114], buf[15])
         buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
