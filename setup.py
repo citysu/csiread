@@ -10,6 +10,9 @@ from setuptools.command.build_ext import build_ext
 from setuptools.extension import Extension
 
 
+ENABLE_PICO = False
+
+
 def find_files(root, ext):
     ret = list()
     if os.path.exists(root):
@@ -25,6 +28,9 @@ class Build(build_ext):
             for e in self.extensions:
                 if e.name == "csiread._csiread":
                     e.extra_compile_args = ['-g0']
+                if e.name == "csiread._picoscenes":
+                    e.extra_compile_args = ['-std=c++2a', '-Wno-attributes',
+                                            '-g0']
                 if os.name == 'nt':
                     e.extra_compile_args += ['-DMS_WIN64']
                     e.library_dirs = [os.path.dirname(sys.executable)]
@@ -32,6 +38,8 @@ class Build(build_ext):
             for e in self.extensions:
                 if e.name == "csiread._csiread":
                     e.extra_compile_args = []
+                if e.name == "csiread._picoscenes":
+                    e.extra_compile_args = ['/std:c++latest']
         super(Build, self).build_extensions()
 
 
@@ -55,6 +63,21 @@ csiread_extension = Extension(
     define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
 )
 EXTENSIONS = [csiread_extension]
+
+
+# picoscenes extension
+pico_root = "csiread/rxs_parsing_core"
+pico_generated = os.path.join(pico_root, 'preprocessor/generated')
+pico_include = os.path.join(pico_root, 'preprocessor')
+pico_source = find_files(pico_root, '.cxx') + find_files(pico_generated, '.cpp')
+pico_extension = Extension(
+    "csiread._picoscenes", ["csiread/_picoscenes.pyx"] + pico_source,
+    include_dirs=[numpy.get_include(), pico_include],
+    define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')],
+)
+if ENABLE_PICO and os.path.exists(pico_root):
+    EXTENSIONS.append(pico_extension)
+
 
 setup(
     name="csiread",

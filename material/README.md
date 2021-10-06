@@ -1,6 +1,16 @@
 # Material
 
-All the files are from [linux-80211n-csitool-supplementary](https://github.com/dhalperi/linux-80211n-csitool-supplementary), [Atheros-CSI-Tool-UserSpace-APP](https://github.com/xieyaxiongfly/Atheros-CSI-Tool-UserSpace-APP), [nexmon_csi](https://github.com/seemoo-lab/nexmon_csi) and [ESP32-CSI-Tool](https://github.com/StevenMHernandez/ESP32-CSI-Tool) expect `5300/dataset` and `atheros/dataset`. Some of them were modified.
+`5300` folder is from [linux-80211n-csitool-supplementary](https://github.com/dhalperi/linux-80211n-csitool-supplementary) except `5300/dataset`。
+
+`atheros` folder is from [Atheros-CSI-Tool-UserSpace-APP](https://github.com/xieyaxiongfly/Atheros-CSI-Tool-UserSpace-APP) except `atheros/dataset`
+
+`nexmon` folder is from [nexmon_csi](https://github.com/seemoo-lab/nexmon_csi)
+
+`esp32` folder is from [ESP32-CSI-Tool](https://github.com/StevenMHernandez/ESP32-CSI-Tool)
+
+`picoscenes` folder is from [PicoScenes](https://ps.zpj.io)'s PicoScenes MATLAB Toolbox.
+
+Some of above files have been modified
 
 ## Intel 5300
 
@@ -24,3 +34,7 @@ __recvCSI/main.c__: record timestamp when the csi packet was received in userspa
 __sendData/sendData.c__: control the time interval more precisely when sending packets.
 
 __dataset/ath_csi_1.dat__: sample data of atheros.
+
+## PicoScenes
+
+__parser_basic/RXSParser.cxx__: I just backed it up for updating `_picoscenes.pyx` conveniently.

@@ -1,10 +1,20 @@
-"""A fast channel state information parser for Intel, Atheros, Nexmon and
-ESP32."""
+"""A fast channel state information parser for Intel, Atheros, Nexmon, ESP32
+and Picoscenes."""
 
 import os
+import warnings
+
 import numpy as np
 
 from . import _csiread
+
+try:
+    from . import _picoscenes
+except ModuleNotFoundError:
+    class _picoscenes:
+        class Picoscenes:
+            def __init__(self, *argv, **kw):
+                raise NotImplementedError
 
 
 def stringify(array, sep=':'):
@@ -992,3 +1002,194 @@ def _nex_group(seq, core, spatial, c_num=4, s_num=4):
     offset = offset.reshape(-1, c_num, s_num)
 
     return offset
+
+
+class Pico:
+    """A container for Picoscenes's dynamic attributes"""
+    pass
+
+
+class Picoscenes(_picoscenes.Picoscenes):
+    """Parse CSI obtained using 'PicoScenes'.
+
+    Args:
+        file (str or None): CSI data file ``.csi``. If ``str``, ``read``
+            methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
+            allowed.
+        if_report (bool, optional): Report the parsed result. Default: `True`
+
+    Attributes:
+        file (str, readonly): CSI data file
+        count (int, readonly): Count of csi packets parsed
+        raw (list): Each item is a dictionary. See ``PicoScenes documentation:
+            PicoScenes MATLAB Toolbox`` for more details.
+        others: Others are dynamic attributes, they are only available after
+            calling ``bundle`` method.
+
+    Examples:
+
+        >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+        >>> csidata = csiread.Picoscenes(csifile)
+        >>> csidata.read()
+        >>> print(csidata.raw[10]["CSI"].keys())
+
+    References:
+        1. Zhiping Jiang, Tom H. Luan, Xincheng Ren, Dongtao Lv, Han Hao,
+        Jing Wang, Kun Zhao, Wei Xi, Yueshen Xu, Rui Li, Eliminating the
+        Barriers: Demystifying Wi-Fi Baseband Design and Introducing the
+        PicoScenes Wi-Fi Sensing Platform, in IEEE Internet of Things
+        Journal (IEEE IOT-J), doi: 10.1109/JIOT.2021.3104666, preprint
+        on arxiv.
+        2. `PicoScenes documentation <https://ps.zpj.io>`_
+    """
+    def __init__(self, file, if_report=True):
+        super(Picoscenes, self).__init__(file, if_report)
+
+    def __getitem__(self, index):
+        return self.raw[index]
+
+    def read(self):
+        """Parse data
+
+        Examples:
+
+            >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+            >>> csidata = csiread.Picoscenes(csifile)
+            >>> csidata.read()
+            >>> print(csidata.raw[10]["CSI"].keys())
+
+        """
+        super().read()
+
+    def seek(self, file, pos, num):
+        """Read packets from a specific position
+
+        This method allows us to read different parts of different files
+        randomly. It could be useful in Machine Learning. However, it could be
+        very slow when reading files in HDD for the first time. For this case,
+        it is better to do a pre-read with ``read()`` first.
+
+        Args:
+            file (str): CSI data file.
+            pos (int): Position of file descriptor corresponding to the packet.
+                Currently, it must be returned by the function in
+                ``example/csiseek.py``.
+            num (int): Number of packets to be read. If ``0``, all packets
+                after ``pos`` will be read.
+
+        Examples:
+
+            >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+            >>> csidata = csiread.Picoscenes(csifile)
+            >>> for i in range(10):
+            >>>     csidata.seek(csifile, 0, i+1)
+            >>>     print(len(csidata.raw))
+        """
+        super().seek(file, pos, num)
+
+    def pmsg(self, data):
+        """Parse message in real time
+
+        This method hasn't been READY.
+        """
+        return super().pmsg(data)
+
+    def bundle(self):
+        """The Bundled Parsing
+
+        To overcome the inconveniences of the Raw Parsing, this method
+        tries to merge the dictionarys into a unified structure–much easier
+        for analysis. However, the merging may fail if the internal data
+        structures are different across all measurements.
+
+        Different from ``parseRXSBundle`` of PMT, we keep the same structure
+        as ``self.raw``. You can visit ``csidata.StandardHeader.Addr1[10]``
+        instead of ``csidata.raw[10]["StandardHeader"]["Addr1"]``. If you set
+        ``csidata.StandardHeader.Addr1[10] = [1, 2, 3, 4, 5, 6]``, the value of
+        ``csidata.raw[10]["StandardHeader"]["Addr1"]`` will not change.
+
+        Notice:
+            This method is not thread-safe due to ``warnings.catch_warnings``.
+            If two or more threads use the catch_warnings context manager at
+            the same time, the behavior is undefined.
+        """
+        def merge_2(ret, raw, vv, kk, k):
+            """ControlField"""
+            for kkk, vvv in vv.items():
+                ret[kkk] = np.asarray( [r[k][kk][kkk] for r in raw], np.uint8)
+
+        def merge_1(ret, raw, v, k):
+            for kk, vv in v.items():
+                if isinstance(vv, dict):
+                    merge_2(ret, raw, vv, kk, k)
+                else:
+                    ret[kk] = np.asarray([r[k][kk] for r in raw])
+
+        def merge(raw):
+            ret = dict()
+            for k, v in raw[0].items():
+                if isinstance(v, dict):
+                    merge_1(ret, raw, v, k)
+                else:
+                    ret[k] = np.asarray([r[k] for r in raw])
+            return ret
+
+        def linkattr(obj, d, ret):
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    obj.__setattr__(k, Pico())
+                    linkattr(obj.__getattribute__(k), v, ret)
+                else:
+                    obj.__setattr__(k, ret[k])
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            try:
+                tribe = merge(self.raw)
+                linkattr(self, self.raw[0], tribe)
+            except:
+                print("WARNING: %s has inconsistent fields. Bundling failed."
+                      % os.path.basename(self.file))
+
+    def display(self, index):
+        """Prints the formatted representation of ``index`` packet"""
+        T = "%s%-20s: %s\n"
+
+        AtherosCFTuningPolicy = {
+            30: "30 (CFTuningByChansel)",
+            31: "31 (CFTuningByFastCC)",
+            32: "32 (CFTuningByHardwareReset)",
+            33: "33 (CFTuningByDefault)"
+        }
+
+        def report(s, x, indent=0):
+            indent += 2
+            tab = " " * indent
+            for k, v in x.items():
+                if isinstance(v, dict):
+                    s += T % (tab, k, '')
+                    s = report(s, v, indent)
+                elif isinstance(v, int):
+                    if k == "DeviceType":
+                        s += T % (tab, k, hex(v))
+                    elif k == "tuning_policy":
+                        s += T % (tab, k, AtherosCFTuningPolicy[v])
+                    else:
+                        s += T % (tab, k, v)
+                elif isinstance(v, list):
+                    if len(v) > 6:
+                        s += T % (tab, k, np.asarray(v).shape)
+                    elif len(v) == 6:
+                        s += T % (tab, k, stringify(v))
+                    else:
+                        s += T % (tab, k, v)
+                elif isinstance(v, np.ndarray):
+                    s += T % (tab, k, v.shape)
+                else:
+                    pass
+            return s
+
+        s = "%dth packet:\n" % index
+        s += T % ("  ", "file", self.file)
+        s += T % ("  ", "count", self.count)
+        print(report(s, self.raw[index], 0), end='')

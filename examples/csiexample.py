@@ -113,6 +113,30 @@ def esp32(csifile, index):
     csidata.display(index)
 
 
+def picoscenes(csifile, index):
+    """picoscenes"""
+    print("="*40+"[picoscenes]")
+    try:
+        csiread.Picoscenes(None)
+    except NotImplementedError:
+        print("csiread.Picoscenes: it is disable by default. "
+              "Please build it from source. "
+              "version >= 1.3.9 is required. ")
+        return
+
+    members = [s for s in dir(csiread.Picoscenes) if not s.startswith("__") and callable(getattr(csiread.Picoscenes, s))]
+    print("Methods: \n ", members)
+
+    print('Time:')
+    last = default_timer()
+    csidata = csiread.Picoscenes(csifile, False)
+    csidata.read()
+    print("  read                ", default_timer() - last, "s")
+
+    print('-'*40)
+    csidata.display(index)
+
+
 if __name__ == "__main__":
     print("csiread.__version__: ", csiread.__version__)
     intel("../material/5300/dataset/sample_0x1_ap.dat", 10, ntxnum=2)
@@ -120,3 +144,6 @@ if __name__ == "__main__":
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)
     esp32("../material/esp32/dataset/example_csi.csv", 2)
+    picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2)
+    picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2)
+    picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50)
