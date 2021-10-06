@@ -54,3 +54,113 @@ The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spati
 ### ESP32-CSI-Tool
 
 `pandas.read_csv` and `csiread.ESP32` have the similar performance, but `pandas.read_csv` is much more flexible.
+
+### PicoScenes
+
+The support for Picoscenes is an **experimental** feature. It is disabled by default and hasn't been available in the published package. You have to enable it from source by yourself. More importantly, PicoScenes is still under active development, and csiread cannot be updated synchronously.
+
+`csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-09-27). It does parsing by calling `rxs_parsing_core` of Picoscenes directly. They have the similar performance. The latest PMT is recommended, but you may fail to enable it with newer PMT(>2021-09-27). You have to solve it by yourself. Next, I will show you how to enable support for picoscenes on Linux and Windows.
+
+Tips: folder `csiread/csiread/rxs_parsing_core` is the copy of official PMT:`rxs_parsing_core` (without modification)
+
+```python
+# PicoScenes
+csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+csidata = csiread.Picoscenes(csifile)
+csidata.read()
+print(csidata.raw[0]["CSI"].keys())
+```
+
+#### Linux/GCC
+
+1. Open `setup.py` and set `ENABLE_PICO = True`
+2. Build from source:
+
+	```bash
+	cd csiread
+	pip3 install -r requirements.txt
+	python3 setup.py sdist bdist_wheel
+	pip3 install -U dist/csiread*.whl
+	```
+
+#### Windows/TDM-GCC 64
+
+1. Open `setup.py` and set `ENABLE_PICO = True`
+2. Install TDM-GCC 64. If you have installed MSVC on your computer, create a file named `setup.cfg` under `csiread/`. add
+
+	```txt
+	[build]
+	compiler=mingw32
+	```
+
+3. Install dependencies
+
+	```bash
+	cd csiread
+	pip3 install -r requirements.txt
+	```
+
+4. I used Window 10 and Python 3.9.7(64 bit) for test. The file `<PYTHON_ROOT>/Lib/distutils/cygwinccompiler.py` is too old to work with (Python >= 3.5.0). Open it and find function `get_msvcr`. Add the following code before `else:`:
+
+	```python
+	elif msc_ver >= '1900':
+		return ['vcruntime140']
+	```
+
+5. Build from source:
+
+	```bash
+	python3 setup.py sdist bdist_wheel
+	pip3 install -U dist/csiread*.whl
+	```
+
+6. There will be some warnings. You can open `setup.py` and disable them by replacing
+
+	```python
+	e.extra_compile_args += ['-DMS_WIN64']
+	```
+
+	with
+
+	```python
+	e.extra_compile_args += ['-DMS_WIN64', '-Wno-attributes', '-Wno-format', '-Wno-format-extra-args', '-Wno-sign-compare]
+	```
+
+#### Windows/Visual Studio
+
+`rxs_parsing_core` is designed for `gcc` and hasn't supported `msvc` yet. We have to do some modifications to avoid compilation errors.
+
+1. Open `setup.py` and set `ENABLE_PICO = True`
+2. Install Visual Studio or Bulild Tools
+3. Add `#include<functional>` into `MVMExtraSegment.hxx` and `#include<optional>` into `AbstractPicoScenesFrameSegment.hxx`
+4. `msvc` doesn't support `__attribute__ ((__packed__))` syntax. Replace
+
+	```cpp
+	struct PicoScenesFrameHeader {
+		...
+	} __attribute__ ((__packed__));
+	```
+
+	with
+
+	```cpp
+	#pragma pack(push, 1)
+	struct PicoScenesFrameHeader {
+		...
+	};
+	#pragma pack(pop)
+	```
+
+	Find all `struct` and `class` with `__attribute__ ((__packed__))` in `rxs_parsing_core`. Make the same changes. 
+	Ref: [Pragma directives and the __pragma and _Pragma keywords](https://docs.microsoft.com/en-us/cpp/preprocessor/pragma-directives-and-the-pragma-keyword?view=msvc-160)
+
+5. Build from source:
+
+	```bash
+	cd csiread
+	pip3 install -r requirements.txt
+	python3 setup.py sdist bdist_wheel
+	pip3 install -U dist/csiread*.whl
+	```
+
+6. There will be many warnings caused by `rxs_parsing_core`
