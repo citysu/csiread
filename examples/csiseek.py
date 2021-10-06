@@ -20,8 +20,12 @@ def getPos(csifile):
         return getPosIntel(csifile)
     elif device == 'Atheros':
         return getPosAtheros(csifile)
-    else:
+    elif device == "Picoscenes":
+        return getPosPicoscenes(csifile)
+    elif device == "Nexmon":
         return getPosNexmon(csifile)
+    else:
+        raise NotImplementedError
 
 
 def getPosIntel(csifile):
@@ -71,6 +75,18 @@ def getPosNexmon(csifile):
                 positions.append(cur)
             f.seek(caplen - 42, os.SEEK_CUR)
             cur += (caplen + 16)
+    return positions
+
+
+def getPosPicoscenes(csifile):
+    lens = os.path.getsize(csifile)
+    cur, positions = 0, []
+    with open(csifile, 'rb') as f:
+        while cur < (lens - 4):
+            field_len = int.from_bytes(f.read(4), byteorder='little') + 4
+            f.seek(field_len - 4, os.SEEK_CUR)
+            positions.append(cur)
+            cur += field_len
     return positions
 
 
@@ -134,10 +150,32 @@ def seekNexmon(csifile, num=36):
     print("%-18s: %18fs" % ("seek(num=%d)" % (num), cost_time))
 
 
+def seekPicoscenes(csifile, num=36):
+    positions_all = getPos(csifile)
+    positions = positions_all[::num][:-1]
+    random.shuffle(positions)
+    print("-"*40, "[Picoscenes]")
+
+    last = default_timer()
+    csidata = csiread.Picoscenes(csifile, False)
+    csidata.read()
+    cost_time = default_timer() - last
+    print("%-18s: %18fs" % ("read()", cost_time))
+
+    last = default_timer()
+    csidata = csiread.Picoscenes(None, False)
+    for pos in positions:
+        csidata.seek(csifile, pos, num)
+    cost_time = (default_timer() - last) * len(positions_all) / (len(positions) * num)
+    print("%-18s: %18fs" % ("seek(num=%d)" % (num), cost_time))
+
+
 if __name__ == "__main__":
     csifile_intel = "../material/5300/dataset/sample_0x5_64_3000.dat"
     csifile_atheros = "../material/atheros/dataset/ath_csi_1.dat"
     csifile_nexmon = "../material/nexmon/dataset/example.pcap"
+    csifile_picoscenes = "../material/picoscenes/dataset/rx_by_qca9300.csi"
     seekIntel(csifile_intel, 64)
     seekAtheros(csifile_atheros, 64)
     seekNexmon(csifile_nexmon, 2)
+    seekPicoscenes(csifile_picoscenes, 1)
