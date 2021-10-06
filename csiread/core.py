@@ -271,7 +271,7 @@ class Intel(_csiread.Intel):
         return super().apply_sm(scaled_csi)
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
         tab = " " * 2
 
@@ -479,7 +479,7 @@ class Atheros(_csiread.Atheros):
         return super().readstp(endian)
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
         tab = " " * 2
 
@@ -667,7 +667,7 @@ class Nexmon(_csiread.Nexmon):
         return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
         tab = " " * 2
 
@@ -769,7 +769,7 @@ class NexmonPull46(_csiread.NexmonPull46):
         return _nex_group(self.seq, self.core, self.spatial, s_num, c_num)
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
         tab = " " * 2
 
@@ -967,7 +967,7 @@ class ESP32:
         self.count = count
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
         tab = " " * 2
 
@@ -1152,7 +1152,7 @@ class Picoscenes(_picoscenes.Picoscenes):
                       % os.path.basename(self.file))
 
     def display(self, index):
-        """Prints the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
 
         AtherosCFTuningPolicy = {

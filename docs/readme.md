@@ -43,7 +43,7 @@ csiread is written in Cython, Cython requires a C compiler to be present on the 
 
 ## Design
 
-csiread provides 6 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32`. Each class has 4 key methods: `read(), seek()`, `pmsg()` and `display` which are used for reading a file, reading a file from a specific position, real-time parsing and viewing the contents of a packet respectively. `csiread.utils` provides some common functions.
+csiread provides 7 classes: `Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32 and Picoscenes`. Each class has 4 key methods: `read(), seek()`, `pmsg()` and `display()` which are used for reading a file, reading a file from a specific position, real-time parsing and viewing the contents of a packet respectively. `csiread.utils` provides some common functions.
 
 csiread is not only the translation of the Matlab API, but also a **CSI toolbox**. I added some utilities, real-time visualization and algorithms code in the `examples` folder. These would be useful for Python-based CSI researchers.
 
@@ -100,7 +100,7 @@ print(csidata.raw[0]["CSI"].keys())
 	pip3 install -r requirements.txt
 	```
 
-4. I used Window 10 and Python 3.9.7(64 bit) for test. The file `<PYTHON_ROOT>/Lib/distutils/cygwinccompiler.py` is too old to work with (Python >= 3.5.0). Open it and find function `get_msvcr`. Add the following code before `else:`:
+4. I used Window 10 and Python 3.9.7(64 bit) for test. The file `<PYTHON_ROOT>/Lib/distutils/cygwinccompiler.py` is too old to work with Python(version >= 3.5.0). Open it and find function `get_msvcr`. Add the following code before `else:`:
 
 	```python
 	elif msc_ver >= '1900':
@@ -114,7 +114,7 @@ print(csidata.raw[0]["CSI"].keys())
 	pip3 install -U dist/csiread*.whl
 	```
 
-6. There will be some warnings. You can open `setup.py` and disable them by replacing
+6. There will be some warnings, but there seems to be no value errors. You can open `setup.py` and disable them by replacing
 
 	```python
 	e.extra_compile_args += ['-DMS_WIN64']
@@ -123,7 +123,7 @@ print(csidata.raw[0]["CSI"].keys())
 	with
 
 	```python
-	e.extra_compile_args += ['-DMS_WIN64', '-Wno-attributes', '-Wno-format', '-Wno-format-extra-args', '-Wno-sign-compare]
+	e.extra_compile_args += ['-DMS_WIN64', '-Wno-attributes', '-Wno-format', '-Wno-format-extra-args', '-Wno-sign-compare']
 	```
 
 #### Windows/Visual Studio
@@ -132,7 +132,7 @@ print(csidata.raw[0]["CSI"].keys())
 
 1. Open `setup.py` and set `ENABLE_PICO = True`
 2. Install Visual Studio or Bulild Tools
-3. Add `#include<functional>` into `MVMExtraSegment.hxx` and `#include<optional>` into `AbstractPicoScenesFrameSegment.hxx`
+3. Add `#include <functional>` into `MVMExtraSegment.hxx` and `#include <optional>` into `AbstractPicoScenesFrameSegment.hxx`
 4. `msvc` doesn't support `__attribute__ ((__packed__))` syntax. Replace
 
 	```cpp
@@ -163,4 +163,4 @@ print(csidata.raw[0]["CSI"].keys())
 	pip3 install -U dist/csiread*.whl
 	```
 
-6. There will be many warnings caused by `rxs_parsing_core`
+6. There will be a lot of warnings caused by `rxs_parsing_core`, but there seems to be no value errors.
