@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v1.3.9
+
+_????.??.??_
+
+- new feature: add support for PicoScenes
+
 ## v1.3.8
 
 _2021.10.08_

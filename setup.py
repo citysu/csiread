@@ -38,10 +38,12 @@ class Build(build_ext):
 LONG_DESCRIPTION = """\
 # csiread [![PyPI](https://img.shields.io/pypi/v/csiread?)](https://pypi.org/project/csiread/)
 
-A fast channel state information parser for Intel, Atheros, Nexmon and ESP32 in Python.
+A fast channel state information parser for Intel, Atheros, Nexmon, ESP32 and
+PicoScenes in Python.
 
-- Full support for Linux 802.11n CSI Tool, Atheros CSI Tool and nexmon_csi, ESP32-CSI-Tool
-- At least 15 times faster than the implementation in Matlab
+- Full support for Linux 802.11n CSI Tool, Atheros CSI Tool, nexmon_csi,
+ESP32-CSI-Tool and PicoScenes.
+- At least 15 times faster than the implementation in Matlab.
 - Real-time parsing and visualization.
 """
 
@@ -56,10 +58,10 @@ EXTENSIONS = [csiread_extension]
 
 setup(
     name="csiread",
-    version="1.3.8",
+    version="1.3.9",
 
     description="A fast channel state information parser for Intel, " \
-                "Atheros, Nexmon and ESP32.",
+                "Atheros, Nexmon, ESP32 and PicoScenes.",
     long_description=LONG_DESCRIPTION,
     long_description_content_type="text/markdown",
 

@@ -6,6 +6,8 @@ A fast channel state information parser for Intel, Atheros, Nexmon and ESP32 in 
 - At least 15 times faster than the implementation in Matlab
 - Real-time parsing and visualization.
 
+Support for [PicoScenes](https://ps.zpj.io) is **experimental**. Read csiread's documentation for more details.
+
 <center><b>real-time plotting</b></center>
 
 ![real-time plotting](docs/sample2.png)
