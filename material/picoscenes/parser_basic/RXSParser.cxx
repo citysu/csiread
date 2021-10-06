@@ -278,9 +278,11 @@ mxArray *convertRxSBasic2MxArray(const RxSBasic &basic) {
     auto *rxsArray = mxCreateStructMatrix(1, 1, 0, NULL);
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "deviceType"), createScalarMxArray(basic.deviceType));
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "timestamp"), createScalarMxArray(basic.tstamp));
-    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "channelFreq"), createScalarMxArray(basic.channelFreq));
-    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "packetFormat"), createScalarMxArray(basic.packetFormat));
+    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "centerFreq"), createScalarMxArray(basic.centerFreq));
+    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "controlFreq"), createScalarMxArray(basic.controlFreq));
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "CBW"), createScalarMxArray(basic.cbw));
+    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "packetFormat"), createScalarMxArray(basic.packetFormat));
+    mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "packetCBW"), createScalarMxArray(basic.pkt_cbw));
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "GI"), createScalarMxArray(basic.guardInterval));
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "MCS"), createScalarMxArray(basic.mcs));
     mxSetFieldByNumber(rxsArray, 0, mxAddField(rxsArray, "numSTS"), createScalarMxArray(basic.numSTS));
@@ -458,6 +460,14 @@ mxArray *convertCSISegment2MxArray(const CSISegment &csiSegment) {
     return groupCell;
 }
 
+mxArray *convertMVMExtraSegment2MXArray(const IntelMVMParsedCSIHeader &mvmHeader) {
+    auto *mvmExtraArray = mxCreateStructMatrix(1, 1, 0, NULL);
+    mxSetFieldByNumber(mvmExtraArray, 0, mxAddField(mvmExtraArray, "FMTClock"), createScalarMxArray(mvmHeader.ftmClock));
+    mxSetFieldByNumber(mvmExtraArray, 0, mxAddField(mvmExtraArray, "usClock"), createScalarMxArray(mvmHeader.muClock));
+    mxSetFieldByNumber(mvmExtraArray, 0, mxAddField(mvmExtraArray, "RateNFlags"), createScalarMxArray(mvmHeader.rate_n_flags));
+    return mvmExtraArray;
+}
+
 void convertPicoScenesFrame2Struct(ModularPicoScenesRxFrame &frame, mxArray *outCell, int index) {
     auto *standardHeaderArray = convertStandardHeader2MxArray(frame.standardHeader);
     mxSetFieldByNumber(outCell, index, mxAddField(outCell, "StandardHeader"), standardHeaderArray);
@@ -467,6 +477,11 @@ void convertPicoScenesFrame2Struct(ModularPicoScenesRxFrame &frame, mxArray *out
 
     auto *rxExtraInfoArray = convertExtraInfo2MxArray(frame.rxExtraInfoSegment.getExtraInfo());
     mxSetFieldByNumber(outCell, index, mxAddField(outCell, "RxExtraInfo"), rxExtraInfoArray);
+
+    if (frame.mvmExtraSegment) {
+        auto *mvmExtraArray = convertMVMExtraSegment2MXArray(frame.mvmExtraSegment->getMvmExtra().parsedHeader);
+        mxSetFieldByNumber(outCell, index, mxAddField(outCell, "MVMExtra"), mvmExtraArray);
+    }
 
     auto *rxCSIGroups = convertCSISegment2MxArray(frame.csiSegment);
     mxSetFieldByNumber(outCell, index, mxAddField(outCell, "CSI"), rxCSIGroups);

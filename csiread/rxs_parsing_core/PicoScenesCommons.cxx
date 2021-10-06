@@ -10,6 +10,8 @@ std::string DeviceType2String(PicoScenesDeviceType type) {
             return "QCA9300";
         case PicoScenesDeviceType::IWL5300:
             return "IWL5300";
+        case PicoScenesDeviceType::IWLMVM:
+            return "IWLMVM";
         case PicoScenesDeviceType::MAC80211Compatible:
             return "MAC80211 Compatible NIC";
         case PicoScenesDeviceType::USRP:

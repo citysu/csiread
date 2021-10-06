@@ -59,9 +59,11 @@ cdef extern from "rxs_parsing_core/ModularPicoScenesFrame.hxx":
     cdef packed struct RxSBasic:
         uint16_t deviceType
         uint64_t tstamp
-        uint16_t channelFreq
-        int8_t packetFormat
+        int16_t centerFreq
+        int16_t controlFreq
         uint16_t cbw
+        uint8_t packetFormat
+        uint16_t pkt_cbw
         uint16_t guardInterval
         uint8_t mcs
         uint8_t numSTS
@@ -70,10 +72,10 @@ cdef extern from "rxs_parsing_core/ModularPicoScenesFrame.hxx":
         # uint8_t numUser
         # uint8_t userIndex
         int8_t noiseFloor
-        uint8_t rssi
-        uint8_t rssi_ctl0
-        uint8_t rssi_ctl1
-        uint8_t rssi_ctl2
+        int8_t rssi
+        int8_t rssi_ctl0
+        int8_t rssi_ctl1
+        int8_t rssi_ctl2
 
     # RxSBasicSegment.hxx
     cdef cppclass RxSBasicSegment:
@@ -208,6 +210,21 @@ cdef extern from "rxs_parsing_core/ModularPicoScenesFrame.hxx":
         const CSI &getCSI() const
 
 
+    # MVMExtraSegment.hxx
+    cdef cppclass IntelMVMParsedCSIHeader:
+        uint32_t ftmClock
+        uint32_t muClock
+        uint32_t rate_n_flags
+
+    # MVMExtraSegment.hxx
+    cdef cppclass IntelMVMExtrta:
+        IntelMVMParsedCSIHeader parsedHeader
+
+    # MVMExtraSegment.hxx
+    cdef cppclass MVMExtraSegment:
+        const IntelMVMExtrta &getMvmExtra() const
+
+
     # ModularPicoScenesFrame.hxx
     cdef packed struct PicoScenesFrameHeader:
         uint32_t magicValue
@@ -235,6 +252,7 @@ cdef extern from "rxs_parsing_core/ModularPicoScenesFrame.hxx":
         RxSBasicSegment rxSBasicSegment
         ExtraInfoSegment rxExtraInfoSegment
         CSISegment csiSegment
+        optional[MVMExtraSegment] mvmExtraSegment
         optional[PicoScenesFrameHeader] PicoScenesHeader
         optional[ExtraInfoSegment] txExtraInfoSegment
         optional[CSISegment] pilotCSISegment
@@ -327,7 +345,7 @@ cdef class Picoscenes:
         if self.if_report and self.raw[0]:
             print(frame.value().toString())
         self.count = 1
-        return 0x0900       # status code
+        return 0xf300       # status code
 
 
 cdef inline uint32_t cu32l(uint8_t a, uint8_t b, uint8_t c, uint8_t d):
@@ -362,9 +380,11 @@ cdef parse_RxSBasic(const RxSBasic *m):
     return {
         "deviceType": m.deviceType,
         "timestamp": m.tstamp,
-        "channelFreq": m.channelFreq,
-        "packetFormat": m.packetFormat,
+        "centerFreq": m.centerFreq,
+        "controlFreq": m.controlFreq,
         "CBW": m.cbw,
+        "packetFormat": m.packetFormat,
+        "packetCBW": m.pkt_cbw,
         "GI": m.guardInterval,
         "MCS": m.mcs,
         "numSTS": m.numSTS,
@@ -478,6 +498,14 @@ cdef parse_CSI(const CSI *m):
     }
 
 
+cdef parse_IntelMVMParsedCSIHeader(const IntelMVMParsedCSIHeader *m):
+    return {
+        "FMTClock": m.ftmClock,
+        "usClock": m.muClock,
+        "RateNFlags": m.rate_n_flags,
+    }
+
+
 cdef parse_PicoScenesFrameHeader(const PicoScenesFrameHeader *m):
     return {
         "MagicValue": m.magicValue,
@@ -504,6 +532,8 @@ cdef parse(optional[ModularPicoScenesRxFrame] *frame):
             "RxExtraInfo": parse_ExtraInfo(&frame_value.rxExtraInfoSegment.getExtraInfo()),
             "CSI": parse_CSI(&frame_value.csiSegment.getCSI()),
         }
+        if frame_value.mvmExtraSegment.has_value():
+            data["MVMExtra"] = parse_IntelMVMParsedCSIHeader(&frame_value.mvmExtraSegment.value().getMvmExtra().parsedHeader)
         if frame_value.PicoScenesHeader.has_value():
             data["PicoScenesHeader"] = parse_PicoScenesFrameHeader(&frame_value.PicoScenesHeader.value())
         if frame_value.txExtraInfoSegment.has_value():
