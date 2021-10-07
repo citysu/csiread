@@ -4,4 +4,4 @@ from .utils import scidx, calib, phy_ifft, phy_fft
 
 
 __version__ = "1.3.9"
-__version_picoscenes__ = "2021-09-27"
+__version_picoscenes__ = "2021-10-06"

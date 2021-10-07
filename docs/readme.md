@@ -59,7 +59,7 @@ The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spati
 
 The support for Picoscenes is an **experimental** feature. It is disabled by default and hasn't been available in the published package. You have to enable it from source by yourself. More importantly, PicoScenes is still under active development, and csiread cannot be updated synchronously.
 
-`csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-09-27). It does parsing by calling `rxs_parsing_core` of Picoscenes directly. They have the similar performance. The latest PMT is recommended, but you may fail to enable it with newer PMT(>2021-09-27). You have to solve it by yourself. Next, I will show you how to enable support for picoscenes on Linux and Windows.
+`csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-10-06). It does parsing by calling `rxs_parsing_core` of Picoscenes directly. They have the similar performance. The latest PMT is recommended, but you may fail to enable it with newer PMT(>2021-10-06). You have to solve it by yourself. Next, I will show you how to enable support for picoscenes on Linux and Windows.
 
 Tips: folder `csiread/csiread/rxs_parsing_core` is the copy of official PMT:`rxs_parsing_core` (without modification)
 

@@ -191,7 +191,7 @@ std::map<uint16_t, std::function<RxSBasic(const uint8_t *, uint32_t)>> RxSBasicS
 
 std::string RxSBasic::toString() const {
     std::stringstream ss;
-    ss << "RxSBasic:[device=" + DeviceType2String((PicoScenesDeviceType(deviceType))) + ", center=" + std::to_string(centerFreq) + ", control=" + std::to_string(controlFreq) + ", format=" + PacketFormat2String(static_cast<PacketFormatEnum>(packetFormat)) + ", CBW=" + std::to_string(cbw) + ", Pkt_CBW=" + std::to_string(pkt_cbw) + ", MCS=" + std::to_string(mcs) + ", numSTS=" + std::to_string(numSTS) + ", GI=" + GuardInterval2String(GuardIntervalEnum(guardInterval))
+    ss << "RxSBasic:[device=" + DeviceType2String((PicoScenesDeviceType(deviceType))) + ", center=" + std::to_string(centerFreq) + ", control=" + std::to_string(controlFreq) + ", CBW=" + std::to_string(cbw) + ", format=" + PacketFormat2String(static_cast<PacketFormatEnum>(packetFormat)) + ", Pkt_CBW=" + std::to_string(pkt_cbw) + ", MCS=" + std::to_string(mcs) + ", numSTS=" + std::to_string(numSTS) + ", GI=" + GuardInterval2String(GuardIntervalEnum(guardInterval))
           + ", UsrIdx/NUsr=(" + std::to_string(userIndex) + "/" + std::to_string(numUser) + ")" + ", timestamp=" + std::to_string(tstamp) + ", NF=" +
           std::to_string(noiseFloor) + ", RSS=" + std::to_string(rssi) + "]";
     return ss.str();

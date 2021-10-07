@@ -1,5 +1,5 @@
 //
-// Created by csi on 11/25/20.
+// Created by 蒋志平 on 11/25/20.
 //
 
 #ifndef PICOSCENES_PLATFORM_SIGNALMATRIX_HXX
