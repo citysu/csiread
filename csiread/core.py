@@ -10,7 +10,7 @@ from . import _csiread
 
 try:
     from . import _picoscenes
-except ModuleNotFoundError:
+except ImportError:
     class _picoscenes:
         class Picoscenes:
             def __init__(self, *argv, **kw):
