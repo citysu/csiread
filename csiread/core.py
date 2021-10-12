@@ -2,7 +2,6 @@
 and Picoscenes."""
 
 import os
-import warnings
 
 import numpy as np
 
@@ -1107,16 +1106,11 @@ class Picoscenes(_picoscenes.Picoscenes):
         instead of ``csidata.raw[10]["StandardHeader"]["Addr1"]``. If you set
         ``csidata.StandardHeader.Addr1[10] = [1, 2, 3, 4, 5, 6]``, the value of
         ``csidata.raw[10]["StandardHeader"]["Addr1"]`` will not change.
-
-        Notice:
-            This method is not thread-safe due to ``warnings.catch_warnings``.
-            If two or more threads use the catch_warnings context manager at
-            the same time, the behavior is undefined.
         """
         def merge_2(ret, raw, vv, kk, k):
             """ControlField"""
             for kkk, vvv in vv.items():
-                ret[kkk] = np.asarray( [r[k][kk][kkk] for r in raw], np.uint8)
+                ret[kkk] = np.asarray([r[k][kk][kkk] for r in raw], np.uint8)
 
         def merge_1(ret, raw, v, k):
             for kk, vv in v.items():
@@ -1142,14 +1136,13 @@ class Picoscenes(_picoscenes.Picoscenes):
                 else:
                     obj.__setattr__(k, ret[k])
 
-        with warnings.catch_warnings():
-            warnings.simplefilter("error")
-            try:
-                tribe = merge(self.raw)
-                linkattr(self, self.raw[0], tribe)
-            except:
-                print("WARNING: %s has inconsistent fields. Bundling failed."
-                      % os.path.basename(self.file))
+        if self._bundle_flag:
+            tribe = merge(self.raw)
+            linkattr(self, self.raw[0], tribe)
+        else:
+            print("WARNING: %s has inconsistent fields. Bundling failed."
+                  % os.path.basename(self.file))
+        return self._bundle_flag
 
     def display(self, index):
         """Print the formatted representation of ``index`` packet"""

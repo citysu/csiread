@@ -267,12 +267,14 @@ cdef extern from "rxs_parsing_core/ModularPicoScenesFrame.hxx":
 
 
 cdef class Picoscenes:
+    cdef readonly bint _bundle_flag
     cdef readonly str file
     cdef readonly int count
     cdef public list raw
     cdef bint if_report
 
     def __cinit__(self, file, if_report=True, *argv, **kw):
+        self._bundle_flag = True
         self.file = file
         self.if_report = if_report
         self.raw = list()
@@ -300,6 +302,7 @@ cdef class Picoscenes:
 
         cdef int count = 0
         cdef int l, i
+        cdef uint32_t field_len_pre = 0
         cdef uint32_t field_len
         cdef uint32_t buf_size = 1024
         cdef unsigned char *buf
@@ -321,6 +324,11 @@ cdef class Picoscenes:
                 buf = <unsigned char *>realloc(buf, field_len)    # CHECK NULL
                 buf_size = field_len
             l = <int>fread(buf, sizeof(unsigned char), field_len, f)
+
+            # bundle flag
+            if self._bundle_flag and field_len != field_len_pre and field_len_pre:
+                self._bundle_flag = False
+            field_len_pre = field_len
 
             # rxs_parsing_core
             frame = ModularPicoScenesRxFrame.fromBuffer(buf, field_len, True)

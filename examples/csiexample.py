@@ -118,7 +118,7 @@ def picoscenes(csifile, index):
     print("="*40+"[picoscenes]")
     try:
         csiread.Picoscenes(None)
-    except NotImplementedError:
+    except:
         print("csiread.Picoscenes: it is disable by default. "
               "Please build it from source. "
               "version >= 1.3.9 is required. ")
