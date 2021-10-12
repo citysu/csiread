@@ -1015,6 +1015,7 @@ class Picoscenes(_picoscenes.Picoscenes):
         file (str or None): CSI data file ``.csi``. If ``str``, ``read``
             methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
+        interpolate_csi (bool, optional): interpolate csi or not. Default: `True`
         if_report (bool, optional): Report the parsed result. Default: `True`
 
     Attributes:
@@ -1041,8 +1042,8 @@ class Picoscenes(_picoscenes.Picoscenes):
         on arxiv.
         2. `PicoScenes documentation <https://ps.zpj.io>`_
     """
-    def __init__(self, file, if_report=True):
-        super(Picoscenes, self).__init__(file, if_report)
+    def __init__(self, file, interpolate_csi=True, if_report=True):
+        super(Picoscenes, self).__init__(file, interpolate_csi, if_report)
 
     def __getitem__(self, index):
         return self.raw[index]
@@ -1163,7 +1164,7 @@ class Picoscenes(_picoscenes.Picoscenes):
                     s += T % (tab, k, '')
                     s = report(s, v, indent)
                 elif isinstance(v, int):
-                    if k == "DeviceType":
+                    if k.lower() == "devicetype":
                         s += T % (tab, k, hex(v))
                     elif k == "tuning_policy":
                         s += T % (tab, k, AtherosCFTuningPolicy[v])

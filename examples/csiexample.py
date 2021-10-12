@@ -129,8 +129,9 @@ def picoscenes(csifile, index):
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.Picoscenes(csifile, False)
+    csidata = csiread.Picoscenes(csifile, True, False)
     csidata.read()
+    csidata.bundle()
     print("  read                ", default_timer() - last, "s")
 
     print('-'*40)

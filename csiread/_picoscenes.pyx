@@ -271,15 +271,17 @@ cdef class Picoscenes:
     cdef readonly str file
     cdef readonly int count
     cdef public list raw
+    cdef bint interpolate_csi
     cdef bint if_report
 
-    def __cinit__(self, file, if_report=True, *argv, **kw):
+    def __cinit__(self, file, interpolate_csi=True, if_report=True, *argv, **kw):
         self._bundle_flag = True
         self.file = file
+        self.interpolate_csi = interpolate_csi
         self.if_report = if_report
         self.raw = list()
 
-    def __init__(self, file, if_report=True):
+    def __init__(self, file, interpolate_csi=True, if_report=True):
         pass
 
     cpdef read(self):
@@ -331,7 +333,8 @@ cdef class Picoscenes:
             field_len_pre = field_len
 
             # rxs_parsing_core
-            frame = ModularPicoScenesRxFrame.fromBuffer(buf, field_len, True)
+            frame = ModularPicoScenesRxFrame.fromBuffer(buf, field_len,
+                                                        self.interpolate_csi)
             self.raw.append(parse(&frame))
 
             pos += field_len
