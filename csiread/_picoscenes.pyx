@@ -308,7 +308,7 @@ cdef packed struct dt_cpy_ExtraInfo :
     int32_t sfo
 
 
-cdef packed struct dt_cpy_CSI_part1:
+cdef packed struct dt_cpy_CSI_info:
     uint16_t DeviceType
     int8_t PacketFormat
     uint16_t CBW
@@ -344,7 +344,7 @@ cdef packed struct dt_cpy_PicoScenesFrameHeader:
 cdef init_dtype(pl_size):
     if not pl_size:
         pl_size = {'CSI': 0, 'SubcarrierIndex': 0,
-                   'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0} 
+                   'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
 
     dt_npy_ieee80211_mac_frame_header_frame_control_field = np.dtype([
         ('Version', np.uint8),
@@ -441,7 +441,7 @@ cdef init_dtype(pl_size):
         ('sfo', np.int32)
     ])
 
-    dt_npy_CSI_part1 = np.dtype([
+    dt_npy_CSI_info = np.dtype([
         ('DeviceType', np.uint16),
         ('PacketFormat', np.int8),
         ('CBW', np.uint16),
@@ -457,7 +457,7 @@ cdef init_dtype(pl_size):
     ])
 
     dt_npy_CSI = np.dtype([
-        ('part1', dt_npy_CSI_part1),
+        ('info', dt_npy_CSI_info),
         ('CSI', complex, (pl_size['CSI'], )),
         ('SubcarrierIndex', np.int32, (pl_size['SubcarrierIndex'], )),
     ])
@@ -917,7 +917,7 @@ cdef parseCSIUSRP(np.complex128_t[:] csi, unsigned char *payload,
     return True
 
 
-cdef parse_CSIV1(unsigned char *buf, dt_cpy_CSI_part1 *m,
+cdef parse_CSIV1(unsigned char *buf, dt_cpy_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):
     cdef CSIV1 *csiv1 = <CSIV1*>buf
@@ -954,7 +954,7 @@ cdef parse_CSIV1(unsigned char *buf, dt_cpy_CSI_part1 *m,
         parseCSIUSRP(csi, csiv1.payload + csiv1.numTones * 2, csiv1.csiBufferLength - csiv1.numTones * 2)
 
 
-cdef parse_CSIV2(unsigned char *buf, dt_cpy_CSI_part1 *m,
+cdef parse_CSIV2(unsigned char *buf, dt_cpy_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):    
     cdef CSIV2 *csiv2 = <CSIV2*>buf
@@ -991,7 +991,7 @@ cdef parse_CSIV2(unsigned char *buf, dt_cpy_CSI_part1 *m,
         parseCSIUSRP(csi, csiv2.payload + csiv2.numTones * 2, csiv2.csiBufferLength - csiv2.numTones * 2)
 
 
-cdef parse_CSIV3(unsigned char *buf, dt_cpy_CSI_part1 *m,
+cdef parse_CSIV3(unsigned char *buf, dt_cpy_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):
     cdef CSIV3 *csiv3 = <CSIV3*>buf
@@ -1086,11 +1086,10 @@ cdef class Picoscenes:
                   *argv, **kw):
         self.file = file
         self.if_report = if_report
+
+    def __init__(self, file, pl_size={}, if_report=True, bufsize=0):
         pk_num = self.__get_pknum(bufsize)
         self.raw = init_array(pk_num, init_dtype(pl_size))
-    
-    def __init__(self, file, pl_size={}, if_report=True, bufsize=0):
-        pass
 
     cdef __get_pknum(self, bufsize):
         if bufsize == 0:
@@ -1138,16 +1137,16 @@ cdef class Picoscenes:
         cdef np.ndarray[dt_cpy_ieee80211_mac_frame_header] buf_StandardHeader_mem = self.raw["StandardHeader"]
         cdef np.ndarray[dt_cpy_RXBasic] buf_RxSBasic_mem = self.raw["RxSBasic"]
         cdef np.ndarray[dt_cpy_ExtraInfo] buf_RxExtraInfo_mem = self.raw["RxExtraInfo"]
-        cdef np.ndarray[dt_cpy_CSI_part1] buf_CSI_part1_mem = self.raw["CSI"]["part1"]
+        cdef np.ndarray[dt_cpy_CSI_info] buf_CSI_info_mem = self.raw["CSI"]["info"]
         cdef np.ndarray[np.complex128_t, ndim=2] buf_CSI_CSI_mem = self.raw["CSI"]["CSI"]
         cdef np.ndarray[np.int32_t, ndim=2] buf_CSI_SubcarrierIndex_mem = self.raw["CSI"]["SubcarrierIndex"]
         cdef np.ndarray[dt_cpy_IntelMVMExtrta] buf_MVMExtra_mem = self.raw["MVMExtra"]
         cdef np.ndarray[dt_cpy_PicoScenesFrameHeader] buf_PicoScenesHeader_mem = self.raw["PicoScenesHeader"]
         cdef np.ndarray[dt_cpy_ExtraInfo] buf_TxExtraInfo_mem = self.raw["TxExtraInfo"]
-        cdef np.ndarray[dt_cpy_CSI_part1] buf_PilotCSI_part1_mem = self.raw["PilotCSI"]["part1"]
+        cdef np.ndarray[dt_cpy_CSI_info] buf_PilotCSI_info_mem = self.raw["PilotCSI"]["info"]
         cdef np.ndarray[np.complex128_t, ndim=2] buf_PilotCSI_CSI_mem = self.raw["PilotCSI"]["CSI"]
         cdef np.ndarray[np.int32_t, ndim=2] buf_PilotCSI_SubcarrierIndex_mem = self.raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.ndarray[dt_cpy_CSI_part1] buf_LegacyCSI_part1_mem = self.raw["LegacyCSI"]["part1"]
+        cdef np.ndarray[dt_cpy_CSI_info] buf_LegacyCSI_info_mem = self.raw["LegacyCSI"]["info"]
         cdef np.ndarray[np.complex128_t, ndim=2] buf_LegacyCSI_CSI_mem = self.raw["LegacyCSI"]["CSI"]
         cdef np.ndarray[np.int32_t, ndim=2] buf_LegacyCSI_SubcarrierIndex_mem = self.raw["LegacyCSI"]["SubcarrierIndex"]
         cdef np.ndarray[np.complex128_t, ndim=2] buf_BasebandSignals_mem = self.raw["BasebandSignals"]
@@ -1202,15 +1201,15 @@ cdef class Picoscenes:
                 elif not strncmp(<const char *>apsfs.segmentName, b"CSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_CSI_part1_mem[count],
+                        parse_CSIV1(buf + cur + offset, &buf_CSI_info_mem[count],
                                     buf_CSI_CSI_mem[count],
                                     buf_CSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_CSI_part1_mem[count],
+                        parse_CSIV2(buf + cur + offset, &buf_CSI_info_mem[count],
                                     buf_CSI_CSI_mem[count],
                                     buf_CSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_CSI_part1_mem[count],
+                        parse_CSIV3(buf + cur + offset, &buf_CSI_info_mem[count],
                                     buf_CSI_CSI_mem[count],
                                     buf_CSI_SubcarrierIndex_mem[count])
                     else:
@@ -1218,15 +1217,15 @@ cdef class Picoscenes:
                 elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_PilotCSI_part1_mem[count],
+                        parse_CSIV1(buf + cur + offset, &buf_PilotCSI_info_mem[count],
                                     buf_PilotCSI_CSI_mem[count],
                                     buf_PilotCSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_PilotCSI_part1_mem[count],
+                        parse_CSIV2(buf + cur + offset, &buf_PilotCSI_info_mem[count],
                                     buf_PilotCSI_CSI_mem[count],
                                     buf_PilotCSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_PilotCSI_part1_mem[count],
+                        parse_CSIV3(buf + cur + offset, &buf_PilotCSI_info_mem[count],
                                     buf_PilotCSI_CSI_mem[count],
                                     buf_PilotCSI_SubcarrierIndex_mem[count])
                     else:
@@ -1234,15 +1233,15 @@ cdef class Picoscenes:
                 elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_LegacyCSI_part1_mem[count],
+                        parse_CSIV1(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
                                     buf_LegacyCSI_CSI_mem[count],
                                     buf_LegacyCSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_LegacyCSI_part1_mem[count],
+                        parse_CSIV2(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
                                     buf_LegacyCSI_CSI_mem[count],
                                     buf_LegacyCSI_SubcarrierIndex_mem[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_LegacyCSI_part1_mem[count],
+                        parse_CSIV3(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
                                     buf_LegacyCSI_CSI_mem[count],
                                     buf_LegacyCSI_SubcarrierIndex_mem[count])
                     else:
@@ -1295,6 +1294,7 @@ cdef class Picoscenes:
                         pass
                     else:
                         pass
+                    cur += (4 + apsfs.segmentLength)
 
             pos += (mpsrfh.frameLength + 4)
             count += 1
@@ -1306,3 +1306,6 @@ cdef class Picoscenes:
         if self.if_report:
             printf("%d packets parsed\n", count)
 
+    cpdef pmsg(self, unsigned char *data):
+        # This method hasn't been ready
+        return 0xf300       # status code

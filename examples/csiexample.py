@@ -113,29 +113,25 @@ def esp32(csifile, index):
     csidata.display(index)
 
 
-def picoscenes(csifile, index):
+def picoscenes(csifile, index, pl_size):
     """picoscenes"""
     print("="*40+"[picoscenes]")
-    try:
-        csiread.Picoscenes(None)
-    except:
-        print("csiread.Picoscenes: it is disable by default. "
-              "Please build it from source. "
-              "version >= 1.3.9 is required. ")
-        return
+
+    if csiread.__version__ < '1.3.9':
+        print("csiread.Picoscenes: version >= 1.3.9 is required");return
 
     members = [s for s in dir(csiread.Picoscenes) if not s.startswith("__") and callable(getattr(csiread.Picoscenes, s))]
     print("Methods: \n ", members)
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.Picoscenes(csifile, True, False)
+    csidata = csiread.Picoscenes(csifile, pl_size, True)
     csidata.read()
-    csidata.bundle()
     print("  read                ", default_timer() - last, "s")
 
     print('-'*40)
     csidata.display(index)
+    csidata.check()
 
 
 if __name__ == "__main__":
@@ -145,6 +141,9 @@ if __name__ == "__main__":
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)
     esp32("../material/esp32/dataset/example_csi.csv", 2)
-    picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2)
-    picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2)
-    picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50)
+    pl_size_rx_by_iwl5300 = {'CSI': 180, 'SubcarrierIndex': 30, 'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
+    pl_size_rx_by_qca9300 = {'CSI': 168, 'SubcarrierIndex': 56, 'MPDU': 0}
+    pl_size_rx_by_usrpN210 = (56, 56, 0, 0, 0)
+    picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2, pl_size_rx_by_iwl5300)
+    picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2, pl_size_rx_by_qca9300)
+    picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50, pl_size_rx_by_usrpN210)

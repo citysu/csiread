@@ -4,16 +4,10 @@ and Picoscenes."""
 import os
 
 import numpy as np
+from numpy.lib import recfunctions as rfn
 
 from . import _csiread
-
-try:
-    from . import _picoscenes
-except ImportError:
-    class _picoscenes:
-        class Picoscenes:
-            def __init__(self, *argv, **kw):
-                raise NotImplementedError
+from . import _picoscenes
 
 
 def stringify(array, sep=':'):
@@ -1015,23 +1009,33 @@ class Picoscenes(_picoscenes.Picoscenes):
         file (str or None): CSI data file ``.csi``. If ``str``, ``read``
             methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
-        interpolate_csi (bool, optional): interpolate csi or not. Default: `True`
+        pl_size (int, tuple, list, dict, optional): It can be `int, list,
+            tuple and dict`, but it will be converted into `dict` finally.
+            The Attributes `CSI, SubcarrierIndex, BasebandSignals,
+            PreEQSymbols and MPDU` can be variable length arrays. To store
+            them in 2D arrays, `pl_size` will set the length of second
+            dimensions. It controls how to parse these attributes. e.g.
+            If `len(CSI_ARRAY) > pl_size['CSI']`, parsing of `CSI` attribute
+            in this frame will be skipped. By default, `pl_size=0`, it will
+            skip parsing them.
         if_report (bool, optional): Report the parsed result. Default: `True`
+        bufsize (int, optional): The maximum amount of frames to be parsed. If
+            ``0`` and file is ``str``, all frames will be parsed. If ``0`` and
+            file is ``None``, this parameter is ignored by `pmsg` method.
+            Default: 0
 
     Attributes:
         file (str, readonly): CSI data file
-        count (int, readonly): Count of csi packets parsed
-        raw (list): Each item is a dictionary. See ``PicoScenes documentation:
+        count (int, readonly): Count of csi frames parsed
+        raw (ndarray): structured array, See ``PicoScenes documentation:
             PicoScenes MATLAB Toolbox`` for more details.
-        others: Others are dynamic attributes, they are only available after
-            calling ``bundle`` method.
 
     Examples:
-
-        >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+        >>> pl_size_rx_by_qca9300 = {'CSI': 168, 'SubcarrierIndex': 56}
+        >>> csifile = "../material/picoscenes/dataset/rx_by_qca9300.csi"
         >>> csidata = csiread.Picoscenes(csifile)
         >>> csidata.read()
-        >>> print(csidata.raw[10]["CSI"].keys())
+        >>> print(csidata.raw[10]["CSI"])
 
     References:
         1. Zhiping Jiang, Tom H. Luan, Xincheng Ren, Dongtao Lv, Han Hao,
@@ -1042,8 +1046,23 @@ class Picoscenes(_picoscenes.Picoscenes):
         on arxiv.
         2. `PicoScenes documentation <https://ps.zpj.io>`_
     """
-    def __init__(self, file, interpolate_csi=True, if_report=True):
-        super(Picoscenes, self).__init__(file, interpolate_csi, if_report)
+    def __init__(self, file, pl_size=0, if_report=True, bufsize=0):
+        self.pl_size = self.__init_pl_size(pl_size)
+        super(Picoscenes, self).__init__(file, self.pl_size, if_report, bufsize)
+
+    def __init_pl_size(self, pl_size):
+        cutoff = {'CSI':0, 'SubcarrierIndex': 0, 'BasebandSignals': 0,
+                  'PreEQSymbols': 0, 'MPDU': 0}
+        if isinstance(pl_size, int) and pl_size >= 0:
+            cutoff = {k: pl_size for k in cutoff.keys()}
+        elif isinstance(pl_size, dict):
+            cutoff.update(pl_size)
+        elif (isinstance(pl_size, list) or isinstance(pl_size, tuple)) \
+                and len(pl_size) == len(cutoff):
+            cutoff = {k: v for k, v in zip(cutoff.keys(), pl_size)}
+        else:
+            pass
+        return cutoff
 
     def __getitem__(self, index):
         return self.raw[index]
@@ -1094,96 +1113,88 @@ class Picoscenes(_picoscenes.Picoscenes):
         """
         return super().pmsg(data)
 
-    def bundle(self):
-        """The Bundled Parsing
+    def check(self):
+        """helper method"""
+        csiinfo = self.raw["CSI"]["info"]
+        CSI = (csiinfo["numTx"] + csiinfo["numESS"]) * csiinfo["numRx"] * csiinfo["numTones"]
+        SubcarrierIndex = csiinfo["numTones"]
 
-        To overcome the inconveniences of the Raw Parsing, this method
-        tries to merge the dictionarys into a unified structure–much easier
-        for analysis. However, the merging may fail if the internal data
-        structures are different across all measurements.
-
-        Different from ``parseRXSBundle`` of PMT, we keep the same structure
-        as ``self.raw``. You can visit ``csidata.StandardHeader.Addr1[10]``
-        instead of ``csidata.raw[10]["StandardHeader"]["Addr1"]``. If you set
-        ``csidata.StandardHeader.Addr1[10] = [1, 2, 3, 4, 5, 6]``, the value of
-        ``csidata.raw[10]["StandardHeader"]["Addr1"]`` will not change.
-        """
-        def merge_2(ret, raw, vv, kk, k):
-            """ControlField"""
-            for kkk, vvv in vv.items():
-                ret[kkk] = np.asarray([r[k][kk][kkk] for r in raw], np.uint8)
-
-        def merge_1(ret, raw, v, k):
-            for kk, vv in v.items():
-                if isinstance(vv, dict):
-                    merge_2(ret, raw, vv, kk, k)
-                else:
-                    ret[kk] = np.asarray([r[k][kk] for r in raw])
-
-        def merge(raw):
-            ret = dict()
-            for k, v in raw[0].items():
-                if isinstance(v, dict):
-                    merge_1(ret, raw, v, k)
-                else:
-                    ret[k] = np.asarray([r[k] for r in raw])
-            return ret
-
-        def linkattr(obj, d, ret):
-            for k, v in d.items():
-                if isinstance(v, dict):
-                    obj.__setattr__(k, Pico())
-                    linkattr(obj.__getattribute__(k), v, ret)
-                else:
-                    obj.__setattr__(k, ret[k])
-
-        if self._bundle_flag:
-            tribe = merge(self.raw)
-            linkattr(self, self.raw[0], tribe)
-        else:
-            print("WARNING: %s has inconsistent fields. Bundling failed."
-                  % os.path.basename(self.file))
-        return self._bundle_flag
+        holder = " "
+        T = "%15s%10s%10s%15s\n"
+        Delimiter = T % ("-"*15, "-"*10, "-"*10, "-"*15)
+        s = ""
+        s += Delimiter
+        s += T % ("CHECK", "min", "max", "pl_size")
+        s += Delimiter
+        s += T % ("CSI", CSI.min(), CSI.max(), self.pl_size['CSI'])
+        s += T % ("SubcarrierIndex", SubcarrierIndex.min(), SubcarrierIndex.max(), self.pl_size['SubcarrierIndex'])
+        s += T % ("BasebandSignals", holder, holder, self.pl_size['BasebandSignals'])
+        s += T % ("PreEQSymbols", holder, holder, self.pl_size['PreEQSymbols'])
+        s += T % ("MPDU", holder, holder, self.pl_size['MPDU'])
+        s += Delimiter
+        print(s, end='')
 
     def display(self, index):
         """Print the formatted representation of ``index`` packet"""
         T = "%s%-20s: %s\n"
 
         AtherosCFTuningPolicy = {
+            0: "0",                         # None
             30: "30 (CFTuningByChansel)",
             31: "31 (CFTuningByFastCC)",
             32: "32 (CFTuningByHardwareReset)",
             33: "33 (CFTuningByDefault)"
         }
 
-        def report(s, x, indent=0):
+        hfo = len(self.raw['RxExtraInfo'].dtype.names) // 2
+
+        def skip(raw, name):
+            if name == 'MVMExtra' and raw['MVMExtra']['FMTClock'] == 0:
+                return True
+            if name == 'PicoScenesHeader' and raw['PicoScenesHeader']['MagicValue'] == 0:
+                return True
+            if name == 'TxExtraInfo' and raw['TxExtraInfo']['version'] == 0:
+                return True
+            if name == 'PilotCSI' and raw['PilotCSI']['info']['DeviceType'] == 0:
+                return True
+            if name == 'LegacyCSI' and raw['LegacyCSI']['info']['DeviceType']  == 0:
+                return True
+            return False
+
+        def report(s, raw, parent=None, indent=0):
             indent += 2
             tab = " " * indent
-            for k, v in x.items():
-                if isinstance(v, dict):
-                    s += T % (tab, k, '')
-                    s = report(s, v, indent)
-                elif isinstance(v, int):
-                    if k.lower() == "devicetype":
-                        s += T % (tab, k, hex(v))
-                    elif k == "tuning_policy":
-                        s += T % (tab, k, AtherosCFTuningPolicy[v])
-                    else:
-                        s += T % (tab, k, v)
-                elif isinstance(v, list):
-                    if len(v) > 6:
-                        s += T % (tab, k, np.asarray(v).shape)
-                    elif len(v) == 6:
-                        s += T % (tab, k, stringify(v))
-                    else:
-                        s += T % (tab, k, v)
-                elif isinstance(v, np.ndarray):
-                    s += T % (tab, k, v.shape)
+            names = rfn.get_names(raw.dtype)
+            for i, name in enumerate(names):
+                if isinstance(name, tuple):
+                    if skip(raw, name[0]):
+                        continue
+                    s += T % (tab, name[0], '')
+                    s = report(s, raw[name[0]], name[0], indent)
                 else:
-                    pass
+                    if parent and parent.endswith("ExtraInfo"):
+                        if name.startswith("has") or not raw[names[i - hfo]]:
+                            continue
+                    if name == 'BasebandSignals' and raw[name].size == 0:
+                        continue
+                    elif name == 'PreEQSymbols' and raw[name].size == 0:
+                        continue
+                    elif name == 'MPDU' and raw[name].size == 0:
+                        continue
+                    elif name.lower() == "devicetype":
+                        s += T % (tab, name, hex(raw[name]))
+                    elif name.lower() == "tuning_policy":
+                        s += T % (tab, name, AtherosCFTuningPolicy[raw[name]])
+                    elif raw[name].size == 6:
+                        s += T % (tab, name, stringify(raw[name]))
+                    elif raw[name].size > 10:
+                        s += T % (tab, name, raw[name].shape)
+                    else:
+                        s += T % (tab, name, raw[name])
             return s
 
         s = "%dth packet:\n" % index
         s += T % ("  ", "file", self.file)
         s += T % ("  ", "count", self.count)
-        print(report(s, self.raw[index], 0), end='')
+        s = report(s, self.raw[index], None, 0)
+        print(s, end='')
