@@ -1112,6 +1112,9 @@ class Picoscenes(_picoscenes.Picoscenes):
         This method hasn't been READY.
         """
         return super().pmsg(data)
+    
+    def interpolate_csi(type='CSI'):
+        pass
 
     def check(self):
         """helper method"""

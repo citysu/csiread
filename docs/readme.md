@@ -59,25 +59,19 @@ The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spati
 
 The support for Picoscenes is an **experimental** feature. PicoScenes is still under active development, and csiread cannot be updated synchronously.
 
-`csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-10-06). It did parsing by calling `rxs_parsing_core` of Picoscenes directly before, and had similar performance to PMT. However, there are some bottlenecks.
+- There are some issues for parsing `BasebandSignals, PreEQSymbols and MPDU`. Please always set `pl_size={"BasebandSignals": 0, "PreEQSymbols": 0, "MPDU": 0}` to skip them.
+- `csidata.raw` is a structured array in numpy and stores the parsed result.
+- `Mag` and `Phase` fileds have been removed, use `np.abs` and `np.angle` instead.
+- call `check()` method after `read()`, Then set `pl_size` according to the report.
+- The Attributes `CSI, SubcarrierIndex, BasebandSignals, PreEQSymbols and MPDU` can be variable length arrays. To store them in 2D arrays, `pl_size` will set the length of second dimensions. It controls how to parse these attributes. e.g. If `len(CSI_ARRAY) > pl_size['CSI']`, parsing of `CSI` attribute in this frame will be skipped. By default, `pl_size=0`, it will skip parsing them.
 
-- For parsing `.csi` file in Python， There are some useless memory copy in `rxs_parsing_core`.
-- `rxs_parsing_core` copys the parsed result into `struct ModularPicoScenesRxFrame`. `csiread.Picoscenes` copys `struct ModularPicoScenesRxFrame` into `raw` list. `bundle` method copys `raw` into `ndarray`.
-- I cannot build binary package conveniently
-
-I plan to rewrite the `csiread.Picoscenes` with Cython completely. It will be about 10 times faster than before.
-
-- `#pragma` is suppored by both `gcc` and `msvc`. Replace `__attribute__ ((__packed__))` with `#pragma pack(push, 1) ... #pragma pack(pop)`
-- `raw` will be a `np.ndarray`, we don't need method `bundle` anymore. By default, `raw = np.zeros(...)`.
-- `Mag` and `Phase` fileds are redundant, use `np.abs` and `np.angle` instead, Remove them.
-- Add `interpolateCSI()` method
-- The Attributes: `CSI, SubcarrierIndex, BasebandSignals, PreEQSymbols and MPDU` might cause failure of `bundle` method before. They can be variable length arrays. To store them in fixed leanth arrays, the parameter `pl_size` will be added. It can be `int, list, tuple and dict`, but it will be converted into `dict` finally. It controls how to parse these attributes. e.g. When `len(CSI_Aarray) > pl_size['CSI']`, the parsing of `CSI` attribute in this frame will be skipped.
-- etc.
+`csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-10-06).
 
 ```python
 # PicoScenes
 csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-csidata = csiread.Picoscenes(file=csifile, pl_size=0, if_report=True, bufsize=0)
+csidata = csiread.Picoscenes(file=csifile, pl_size=(180, 30, 0, 0, 0)), if_report=True, bufsize=0)
 csidata.read()
+csidata.check()
 print(csidata.raw["CSI"].shape)
 ```
