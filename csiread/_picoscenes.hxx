@@ -4,6 +4,7 @@
 /*
 * ModularPicoScenesFrame.hxx
 */
+#pragma pack(push, 1)
 typedef struct ieee80211_mac_frame_header_frame_control_field {
     uint16_t version: 2,
             type: 2,
@@ -16,9 +17,11 @@ typedef struct ieee80211_mac_frame_header_frame_control_field {
             more: 1,
             protect: 1,
             order: 1;
-} __attribute__ ((__packed__)) ieee80211_mac_frame_header_frame_control_field;
+} ieee80211_mac_frame_header_frame_control_field;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct ieee80211_mac_frame_header {
     ieee80211_mac_frame_header_frame_control_field fc;
     uint16_t dur;
@@ -27,9 +30,11 @@ typedef struct ieee80211_mac_frame_header {
     uint8_t addr3[6];
     uint16_t frag: 4,
             seq: 12;
-} __attribute__ ((__packed__)) ieee80211_mac_frame_header;
+} ieee80211_mac_frame_header;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct PicoScenesFrameHeader {
     uint32_t magicValue;
     uint32_t version;
@@ -38,15 +43,18 @@ typedef struct PicoScenesFrameHeader {
     uint8_t frameType;
     uint16_t taskId;
     uint16_t txId;
-} __attribute__ ((__packed__)) PicoScenesFrameHeader;
+} PicoScenesFrameHeader;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct ModularPicoScenesRxFrameHeader {
     uint32_t frameLength;
     uint32_t magicWord;
     uint16_t frameVersion;
     uint8_t numRxSegments;
-} __attribute__ ((__packed__)) ModularPicoScenesRxFrameHeader;
+} ModularPicoScenesRxFrameHeader;
+#pragma pack(pop)
 
 
 /*
@@ -63,6 +71,7 @@ typedef struct AbstractPicoScenesFrameSegment {
 /*
 * CSISegment.hxx
 */
+#pragma pack(push, 1)
 typedef struct CSIV1 {
 	uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
@@ -77,9 +86,11 @@ typedef struct CSIV1 {
     uint8_t antSel;
     uint32_t csiBufferLength;
 	uint8_t payload[0];
-} __attribute__ ((__packed__)) CSIV1;
+} CSIV1;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct CSIV2 {
 	uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
@@ -95,9 +106,11 @@ typedef struct CSIV2 {
     int16_t subcarrierOffset;
     uint32_t csiBufferLength;
 	uint8_t payload[0];
-} __attribute__ ((__packed__)) CSIV2;
+} CSIV2;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct CSIV3 {
 	uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
@@ -114,12 +127,14 @@ typedef struct CSIV3 {
     int16_t subcarrierOffset;
     uint32_t csiBufferLength;
 	uint8_t payload[0];
-} __attribute__ ((__packed__)) CSIV3;
+} CSIV3;
+#pragma pack(pop)
 
 
 /*
 * MVMExtraSegment.hxx
 */
+#pragma pack(push, 1)
 typedef struct IntelMVMParsedCSIHeader {
 	uint32_t iqDataSize;
     uint8_t reserved4[4];
@@ -136,13 +151,16 @@ typedef struct IntelMVMParsedCSIHeader {
     uint8_t reserved77[11];
     uint32_t muClock; // 88
     uint32_t rate_n_flags; // 92
-} __attribute__ ((__packed__)) IntelMVMParsedCSIHeader;
+} IntelMVMParsedCSIHeader;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct IntelMVMExtrta {
 	uint16_t CSIHeaderLength;
 	IntelMVMParsedCSIHeader parsedHeader;
-} __attribute__ ((__packed__)) IntelMVMExtrta;
+} IntelMVMExtrta;
+#pragma pack(pop)
 
 
 /*
@@ -211,6 +229,7 @@ typedef enum AtherosCFTuningPolicy {
 } AtherosCFTuningPolicy;	/* uint8_t */
 
 
+#pragma pack(push, 1)
 typedef struct FeatureCode {
 	uint32_t hasVersion: 1, 
 			hasLength: 1,
@@ -237,7 +256,8 @@ typedef struct FeatureCode {
 			hasCFO: 1,
 			hasSFO: 1,
 			hasPreciseTxTiming: 1;
-} __attribute__ ((__packed__)) FeatureCode;
+} FeatureCode;
+#pragma pack(pop)
 
 
 typedef struct ExtraInfo {
@@ -272,6 +292,7 @@ typedef struct ExtraInfo {
 /*
 * RxSBasicSegment.hxx
 */
+#pragma pack(push, 1)
 typedef struct RxSBasicV1 {
     uint16_t deviceType;    /* device type code */
     uint64_t tstamp;        /* h/w assigned timestamp */
@@ -288,9 +309,11 @@ typedef struct RxSBasicV1 {
     int8_t rssi_ctl0;   	/* rx frame RSSI [ctl, chain 0] */
     int8_t rssi_ctl1;   	/* rx frame RSSI [ctl, chain 1] */
     int8_t rssi_ctl2;   	/* rx frame RSSI [ctl, chain 2] */
-} __attribute__ ((__packed__)) RxSBasicV1;
+} RxSBasicV1;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct RxSBasicV2 {
     uint16_t deviceType;    /* device type code */
     uint64_t tstamp;        /* h/w assigned timestamp */
@@ -309,9 +332,11 @@ typedef struct RxSBasicV2 {
     int8_t rssi_ctl0;   	/* rx frame RSSI [ctl, chain 0] */
     int8_t rssi_ctl1;   	/* rx frame RSSI [ctl, chain 1] */
     int8_t rssi_ctl2;   	/* rx frame RSSI [ctl, chain 2] */
-} __attribute__ ((__packed__)) RxSBasicV2;
+} RxSBasicV2;
+#pragma pack(pop)
 
 
+#pragma pack(push, 1)
 typedef struct RxSBasicV3 {
     uint16_t deviceType;    /* device type code */
     uint64_t tstamp;        /* h/w assigned timestamp */
@@ -332,7 +357,8 @@ typedef struct RxSBasicV3 {
     int8_t rssi_ctl0;   	/* rx frame RSSI [ctl, chain 0] */
     int8_t rssi_ctl1;   	/* rx frame RSSI [ctl, chain 1] */
     int8_t rssi_ctl2;   	/* rx frame RSSI [ctl, chain 2] */
-} __attribute__ ((__packed__)) RxSBasicV3;
+} RxSBasicV3;
+#pragma pack(pop)
 
 
 #endif
