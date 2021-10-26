@@ -59,7 +59,6 @@ The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spati
 
 The support for Picoscenes is an **experimental** feature. PicoScenes is still under active development, and csiread cannot be updated synchronously.
 
-- There are some issues for parsing `BasebandSignals, PreEQSymbols and MPDU`. Please always set `pl_size={"BasebandSignals": 0, "PreEQSymbols": 0, "MPDU": 0}` to skip them.
 - `csidata.raw` is a structured array in numpy and stores the parsed result.
 - `Mag` and `Phase` fileds have been removed, use `np.abs` and `np.angle` instead.
 - call `check()` method after `read()`, Then set `pl_size` according to the report.
@@ -70,8 +69,19 @@ The support for Picoscenes is an **experimental** feature. PicoScenes is still u
 ```python
 # PicoScenes
 csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-csidata = csiread.Picoscenes(file=csifile, pl_size=(180, 30, 0, 0, 0)), if_report=True, bufsize=0)
+csidata = csiread.Picoscenes(file=csifile, pl_size=([180, 30], [0, 0], 0, 0, 0)), if_report=True, bufsize=0)
 csidata.read()
 csidata.check()
-print(csidata.raw["CSI"].shape)
+csidata.display(2)
+```
+
+```json
+{
+	"CSI": [168, 56],
+	"PilotCSI": [0, 0],
+	"LegacyCSI": [168, 56],
+	"BasebandSignals": 640,
+	"PreEQSymbols": 52,
+	"MPDU": 32,
+}
 ```

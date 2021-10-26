@@ -213,7 +213,7 @@ cdef extern from "_picoscenes.hxx":
 # Section 2: cython type for `raw`
 
 
-cdef packed struct dt_cpy_ieee80211_mac_frame_header_frame_control_field:
+cdef packed struct dtc_ieee80211_mac_frame_header_frame_control_field:
     uint8_t Version
     uint8_t Type
     uint8_t SubType
@@ -227,8 +227,8 @@ cdef packed struct dt_cpy_ieee80211_mac_frame_header_frame_control_field:
     uint8_t Order
 
 
-cdef packed struct dt_cpy_ieee80211_mac_frame_header:
-    dt_cpy_ieee80211_mac_frame_header_frame_control_field ControlField
+cdef packed struct dtc_ieee80211_mac_frame_header:
+    dtc_ieee80211_mac_frame_header_frame_control_field ControlField
     uint8_t Addr1[6]
     uint8_t Addr2[6]
     uint8_t Addr3[6]
@@ -236,7 +236,7 @@ cdef packed struct dt_cpy_ieee80211_mac_frame_header:
     uint16_t Sequence
 
 
-cdef packed struct dt_cpy_RXBasic:
+cdef packed struct dtc_RXBasic:
     uint16_t deviceType
     uint64_t timestamp
     int16_t centerFreq
@@ -256,7 +256,7 @@ cdef packed struct dt_cpy_RXBasic:
     int8_t rssi3
 
 
-cdef packed struct dt_cpy_ExtraInfo :
+cdef packed struct dtc_ExtraInfo :
     uint8_t hasLength
     uint8_t hasVersion
     uint8_t hasMacAddr_cur
@@ -308,7 +308,7 @@ cdef packed struct dt_cpy_ExtraInfo :
     int32_t sfo
 
 
-cdef packed struct dt_cpy_CSI_info:
+cdef packed struct dtc_CSI_info:
     uint16_t DeviceType
     int8_t PacketFormat
     uint16_t CBW
@@ -323,13 +323,13 @@ cdef packed struct dt_cpy_CSI_info:
     uint8_t ant_sel
 
 
-cdef packed struct dt_cpy_IntelMVMExtrta:
+cdef packed struct dtc_IntelMVMExtrta:
     uint32_t FMTClock
     uint32_t usClock
     uint32_t RateNFlags
 
 
-cdef packed struct dt_cpy_PicoScenesFrameHeader:
+cdef packed struct dtc_PicoScenesFrameHeader:
     uint32_t MagicValue
     uint32_t Version
     uint16_t DeviceType
@@ -338,161 +338,18 @@ cdef packed struct dt_cpy_PicoScenesFrameHeader:
     uint16_t TxId
 
 
-# Section 3: numpy type for `raw`
+cdef packed struct dtc_SignalMatrix_info:
+    uint8_t ndim
+    uint16_t shape[3]
+    uint8_t itemsize
+    char majority
 
 
-cdef init_dtype(pl_size):
-    if not pl_size:
-        pl_size = {'CSI': 0, 'SubcarrierIndex': 0,
-                   'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
+cdef packed struct dtc_MPDU_info:
+    uint16_t length
 
-    dt_npy_ieee80211_mac_frame_header_frame_control_field = np.dtype([
-        ('Version', np.uint8),
-        ('Type', np.uint8),
-        ('SubType', np.uint8),
-        ('ToDS', np.uint8),
-        ('FromDS', np.uint8),
-        ('MoreFrags', np.uint8),
-        ('Retry', np.uint8),
-        ('PowerManagement', np.uint8),
-        ('More', np.uint8),
-        ('Protected', np.uint8),
-        ('Order', np.uint8),
-    ])
 
-    dt_npy_ieee80211_mac_frame_header = np.dtype([
-        ('ControlField', dt_npy_ieee80211_mac_frame_header_frame_control_field),
-        ('Addr1', np.uint8, (6, )),
-        ('Addr2', np.uint8, (6, )),
-        ('Addr3', np.uint8, (6, )),
-        ('Fragment', np.uint16),
-        ('Sequence', np.uint16),
-    ])
-
-    dt_npy_RxSBasic = np.dtype([
-        ('deviceType', np.uint16),
-        ('timestamp', np.uint64),
-        ('centerFreq', np.int16),
-        ('controlFreq', np.int16),
-        ('CBW', np.uint16),
-        ('packetFormat', np.uint8),
-        ('packetCBW', np.uint16),
-        ('GI', np.uint16),
-        ('MCS', np.uint8),
-        ('numSTS', np.uint8),
-        ('numESS', np.uint8),
-        ('numRx', np.uint8),
-        ('noiseFloor', np.int8),
-        ('rssi', np.int8),
-        ('rssi1', np.int8),
-        ('rssi2', np.int8),
-        ('rssi3', np.int8),
-    ])
-
-    dt_npy_ExtraInfo = np.dtype([
-        ('hasLength', bool),
-        ('hasVersion', bool),
-        ('hasMacAddr_cur', bool),
-        ('hasMacAddr_rom', bool),
-        ('hasChansel', bool),
-        ('hasBMode', bool),
-        ('hasEVM', bool),
-        ('hasTxChainMask', bool),
-        ('hasRxChainMask', bool),
-        ('hasTxpower', bool),
-        ('hasCF', bool),
-        ('hasTxTSF', bool),
-        ('hasLastHwTxTSF', bool),
-        ('hasChannelFlags', bool),
-        ('hasTxNess', bool),
-        ('hasTuningPolicy', bool),
-        ('hasPLLRate', bool),
-        ('hasPLLClkSel', bool),
-        ('hasPLLRefDiv', bool),
-        ('hasAGC', bool),
-        ('hasAntennaSelection', bool),
-        ('hasSamplingRate', bool),
-        ('hasCFO', bool),
-        ('hasSFO', bool),
-
-        ('length', np.uint16),
-        ('version', np.uint64),
-        ('macaddr_cur', np.uint8, (6, )),
-        ('macaddr_rom', np.uint8, (6, )),
-        ('chansel', np.uint32),
-        ('bmode', np.uint8),
-        ('evm', np.int8, (20, )),
-        ('tx_chainmask', np.uint8),
-        ('rx_chainmask', np.uint8),
-        ('txpower', np.uint8),
-        ('cf', np.uint64),
-        ('txtsf', np.uint32),
-        ('last_txtsf', np.uint32),
-        ('channel_flags', np.uint16),
-        ('tx_ness', np.uint8),
-        ('tuning_policy', np.uint8),
-        ('pll_rate', np.uint16),
-        ('pll_clock_select', np.uint8),
-        ('pll_refdiv', np.uint8),
-        ('agc', np.uint8),
-        ('ant_sel', np.uint8, (3, )),
-        ('sf', np.uint64),
-        ('cfo', np.int32),
-        ('sfo', np.int32)
-    ])
-
-    dt_npy_CSI_info = np.dtype([
-        ('DeviceType', np.uint16),
-        ('PacketFormat', np.int8),
-        ('CBW', np.uint16),
-        ('CarrierFreq', np.uint64),
-        ('SamplingRate', np.uint64),
-        ('SubcarrierBandwidth', np.uint32),
-        ('numTones', np.uint16),
-        ('numTx', np.uint8),
-        ('numRx', np.uint8),
-        ('numESS', np.uint8),
-        ('numCSI', np.uint16),
-        ('ant_sel', np.uint8)
-    ])
-
-    dt_npy_CSI = np.dtype([
-        ('info', dt_npy_CSI_info),
-        ('CSI', complex, (pl_size['CSI'], )),
-        ('SubcarrierIndex', np.int32, (pl_size['SubcarrierIndex'], )),
-    ])
-
-    dt_npy_IntelMVMExtrta = np.dtype([
-        ('FMTClock', np.uint32),
-        ('usClock', np.uint32),
-        ('RateNFlags', np.uint32),
-    ])
-
-    dt_npy_PicoScenesFrameHeader = np.dtype([
-        ('MagicValue', np.uint32),
-        ('Version', np.uint32),
-        ('DeviceType', np.uint16),
-        ('FrameType', np.uint8),
-        ('TaskId', np.uint16),
-        ('TxId', np.uint16),
-    ])
-
-    dt = np.dtype([
-        ('StandardHeader', dt_npy_ieee80211_mac_frame_header),
-        ('RxSBasic', dt_npy_RxSBasic),
-        ('RxExtraInfo', dt_npy_ExtraInfo),
-        ('CSI', dt_npy_CSI),
-        ('MVMExtra', dt_npy_IntelMVMExtrta),
-        ('PicoScenesHeader', dt_npy_PicoScenesFrameHeader),
-        ('TxExtraInfo', dt_npy_ExtraInfo),
-        ('PilotCSI', dt_npy_CSI),
-        ('LegacyCSI', dt_npy_CSI),
-        ('BasebandSignals', complex, (pl_size['BasebandSignals'], )),
-        ('PreEQSymbols', complex, (pl_size['PreEQSymbols'], )),
-        ('MPDU', np.uint8, (pl_size['MPDU'], )),
-    ])
-
-    return dt
+# Section 3: numpy type for `raw` (removed)
 
 
 cdef init_array(pk_num, dtype):
@@ -594,185 +451,6 @@ cdef AbstractPicoScenesFrameSegment parse_AbstractPicoScenesFrameSegment(unsigne
     apsfs.segmentName = buf + 5
     apsfs.versionId = cu16(buf + 5 + apsfs.segNameLength)
     return apsfs
-
-
-cdef parse_RxSBasicV1(unsigned char *buf, dt_cpy_RXBasic *m):
-    cdef RxSBasicV1 *rsbv1 = <RxSBasicV1*>buf
-    m.deviceType = rsbv1.deviceType
-    m.timestamp = rsbv1.tstamp
-    m.centerFreq = rsbv1.centerFreq
-    m.controlFreq = rsbv1.centerFreq
-    m.packetFormat = rsbv1.packetFormat
-    m.CBW = rsbv1.cbw
-    m.packetCBW = rsbv1.cbw
-    m.GI = rsbv1.guardInterval
-    m.MCS = rsbv1.mcs
-    m.numSTS = rsbv1.numSTS
-    m.numESS = rsbv1.numESS
-    m.numRx = rsbv1.numRx
-    m.noiseFloor = rsbv1.noiseFloor
-    m.rssi = rsbv1.noiseFloor + rsbv1.rssi
-    m.rssi1 = rsbv1.noiseFloor + rsbv1.rssi_ctl0
-    m.rssi2 = rsbv1.noiseFloor + rsbv1.rssi_ctl1
-    m.rssi3 = rsbv1.noiseFloor + rsbv1.rssi_ctl2
-
-
-cdef parse_RxSBasicV2(unsigned char *buf, dt_cpy_RXBasic *m):
-    cdef RxSBasicV2 *rsbv2 = <RxSBasicV2*>buf
-    m.deviceType = rsbv2.deviceType
-    m.timestamp = rsbv2.tstamp
-    m.centerFreq = rsbv2.centerFreq
-    m.controlFreq = rsbv2.centerFreq
-    m.packetFormat = rsbv2.packetFormat
-    m.CBW = rsbv2.cbw
-    m.packetCBW = rsbv2.cbw
-    m.GI = rsbv2.guardInterval
-    m.MCS = rsbv2.mcs
-    m.numSTS = rsbv2.numSTS
-    m.numESS = rsbv2.numESS
-    m.numRx = rsbv2.numRx
-    m.noiseFloor = rsbv2.noiseFloor
-    m.rssi = rsbv2.noiseFloor + rsbv2.rssi
-    m.rssi1 = rsbv2.noiseFloor + rsbv2.rssi_ctl0
-    m.rssi2 = rsbv2.noiseFloor + rsbv2.rssi_ctl1
-    m.rssi3 = rsbv2.noiseFloor + rsbv2.rssi_ctl2
-
-
-cdef parse_RxSBasicV3(unsigned char *buf, dt_cpy_RXBasic *m):
-    cdef RxSBasicV3 *rsbv3 = <RxSBasicV3*>buf
-    m.deviceType = rsbv3.deviceType
-    m.timestamp = rsbv3.tstamp
-    m.centerFreq = rsbv3.centerFreq
-    m.controlFreq = rsbv3.controlFreq
-    m.packetFormat = rsbv3.packetFormat
-    m.CBW = rsbv3.cbw
-    m.packetCBW = rsbv3.pkt_cbw
-    m.GI = rsbv3.guardInterval
-    m.MCS = rsbv3.mcs
-    m.numSTS = rsbv3.numSTS
-    m.numESS = rsbv3.numESS
-    m.numRx = rsbv3.numRx
-    m.noiseFloor = rsbv3.noiseFloor
-    m.rssi = rsbv3.rssi
-    m.rssi1 = rsbv3.rssi_ctl0
-    m.rssi2 = rsbv3.rssi_ctl1
-    m.rssi3 = rsbv3.rssi_ctl2
-
-
-cdef parse_ExtraInfoV1(unsigned char *buf, dt_cpy_ExtraInfo *m):
-    cdef FeatureCode *featurecode = <FeatureCode*>buf
-    cdef int offset = 4
-    cdef int i
-
-    m.hasLength = featurecode.hasLength
-    m.hasVersion = featurecode.hasVersion
-    m.hasMacAddr_cur = featurecode.hasMacAddr_cur
-    m.hasMacAddr_rom = featurecode.hasMacAddr_rom
-    m.hasChansel = featurecode.hasChansel
-    m.hasBMode = featurecode.hasBMode
-    m.hasEVM = featurecode.hasEVM
-    m.hasTxChainMask = featurecode.hasTxChainMask
-    m.hasRxChainMask = featurecode.hasRxChainMask
-    m.hasTxpower = featurecode.hasTxpower
-    m.hasCF = featurecode.hasCF
-    m.hasTxTSF = featurecode.hasTxTSF
-    m.hasLastHwTxTSF = featurecode.hasLastHWTxTSF
-    m.hasChannelFlags = featurecode.hasChannelFlags
-    m.hasTxNess = featurecode.hasTxNess
-    m.hasTuningPolicy = featurecode.hasTuningPolicy
-    m.hasPLLRate = featurecode.hasPLLRate
-    m.hasPLLClkSel = featurecode.hasPLLRefDiv
-    m.hasPLLRefDiv = featurecode.hasPLLClkSel
-    m.hasAGC = featurecode.hasAGC
-    m.hasAntennaSelection = featurecode.hasAntennaSelection
-    m.hasSamplingRate = featurecode.hasSamplingRate
-    m.hasCFO = featurecode.hasCFO
-    m.hasSFO = featurecode.hasSFO
-
-    if featurecode.hasLength:
-        m.length = cu16(buf + offset)
-        offset += 2
-    if featurecode.hasVersion:
-        m.version = cu64(buf + offset)
-        offset += 8
-    if featurecode.hasMacAddr_cur:
-        for i in range(6):
-            m.macaddr_cur[i] = cu8(buf + offset + i)
-        offset += 6
-    if featurecode.hasMacAddr_rom:
-        for i in range(6):
-            m.macaddr_rom[i] = cu8(buf + offset + i)
-        offset += 6
-    if featurecode.hasChansel:
-        m.chansel = cu32(buf + offset)
-        offset += 4
-    if featurecode.hasBMode:
-        m.bmode =cu8(buf + offset)
-        offset += 1
-    if featurecode.hasEVM:
-        for i in range(20):
-            m.evm[i] = cu8(buf + offset + i)
-        offset += 20
-    if featurecode.hasTxChainMask:
-        m.tx_chainmask = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasRxChainMask:
-        m.rx_chainmask = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasTxpower:
-        m.txpower = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasCF:
-        m.cf = cu64(buf + offset)
-        offset += 8
-    if featurecode.hasTxTSF:
-        m.txtsf = cu32(buf + offset)
-        offset += 4
-    if featurecode.hasLastHWTxTSF:
-        m.last_txtsf = cu32(buf + offset)
-        offset += 4
-    if featurecode.hasChannelFlags:
-        m.channel_flags = cu16(buf + offset)
-        offset += 2
-    if featurecode.hasTxNess:
-        m.tx_ness = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasTuningPolicy:
-        m.tuning_policy = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasPLLRate:
-        m.pll_rate = cu16(buf + offset)
-        offset += 2
-    if featurecode.hasPLLClkSel:
-        m.pll_clock_select = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasPLLRefDiv:
-        m.pll_refdiv = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasAGC:
-        m.agc = cu8(buf + offset)
-        offset += 1
-    if featurecode.hasAntennaSelection:
-        m.ant_sel[0] = (cu8(buf + offset)) & 0x1U
-        m.ant_sel[1] = (cu8(buf + offset) >> 0x2U) & 0x1U
-        m.ant_sel[2] = (cu8(buf + offset) >> 0x4U) & 0x1U
-        offset += 1
-    if featurecode.hasSamplingRate:
-        m.sf = cu64(buf + offset)
-        offset += 8
-    if featurecode.hasCFO:
-        m.cfo = cu32(buf + offset)
-        offset += 4
-    if featurecode.hasSFO:
-        m.sfo = cu32(buf + offset)
-        offset += 4
-
-
-cdef parse_MVMExtraV1(unsigned char *buf, dt_cpy_IntelMVMExtrta *m):
-    cdef IntelMVMExtrta *imvme = <IntelMVMExtrta*>buf
-    m.FMTClock = imvme.parsedHeader.ftmClock
-    m.usClock = imvme.parsedHeader.muClock
-    m.RateNFlags = imvme.parsedHeader.rate_n_flags
 
 
 cdef parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
@@ -891,10 +569,10 @@ cdef parseCSIUSRP(np.complex128_t[:] csi, unsigned char *payload,
     cdef uint32_t offset = 0
     cdef uint32_t numel = 1
     cdef uint8_t matrixVersion = cu8(payload+3) - 48
-    cdef uint8_t numDimensions = cu8(payload+4)
+    cdef uint8_t ndim = cu8(payload+4)
     offset += 5
 
-    for i in range(numDimensions):
+    for i in range(ndim):
         if matrixVersion == 1:
             numel *= cu32(payload+offset)
             offset += 4
@@ -904,20 +582,229 @@ cdef parseCSIUSRP(np.complex128_t[:] csi, unsigned char *payload,
     if numel > csi.shape[0]:
         return False
 
-    cdef uint64_t distanceIterator = csiBufferLength - offset
-    cdef bytes complexChar = <char>cu8(payload+offset+0)
-    cdef bytes typeChar = <char>cu8(payload+offset+1)
-    cdef uint8_t numTypeBits = cu8(payload+offset+2)
-    cdef bytes majorityChar = <char>cu8(payload+offset+3)
     offset += 4
-
     for i in range(numel):
         csi[i].real = cd64(payload + offset + i * 16 + 0)
         csi[i].imag = cd64(payload + offset + i * 16 + 8)
     return True
 
 
-cdef parse_CSIV1(unsigned char *buf, dt_cpy_CSI_info *m,
+cdef parse_SignalMatrix(unsigned char *buf, dtc_SignalMatrix_info *m,
+                       np.complex128_t[:] data):
+    """parseSignalMatrix = parseCSIUSRP"""
+    cdef uint32_t i
+    cdef uint32_t offset = 0
+    cdef uint32_t numel = 1
+    cdef uint8_t matrixVersion = cu8(buf+3) - 48
+    m.ndim = cu8(buf+4)
+    offset += 5
+
+    for i in range(3):
+        m.shape[i] = 1
+    for i in range(m.ndim):
+        if matrixVersion == 1:
+            m.shape[i] = cu32(buf+offset)
+            numel *= m.shape[i]
+            offset += 4
+        if matrixVersion == 2:
+            m.shape[i] = cu64(buf+offset)
+            numel *= m.shape[i]
+            offset += 8
+    if numel > data.shape[0]:
+        return False
+
+    cdef bytes complexChar = <char>cu8(buf+offset+0)
+    cdef bytes typeChar = <char>cu8(buf+offset+1)
+    m.itemsize = cu8(buf+offset+2)
+    m.majority = <char>cu8(buf+offset+3)
+    offset += 4
+
+    for i in range(numel):
+        data[i].real = cd64(buf + offset + i * 16 + 0)
+        data[i].imag = cd64(buf + offset + i * 16 + 8)
+    return True
+
+
+cdef parse_RxSBasicV1(unsigned char *buf, dtc_RXBasic *m):
+    cdef RxSBasicV1 *rsbv1 = <RxSBasicV1*>buf
+    m.deviceType = rsbv1.deviceType
+    m.timestamp = rsbv1.tstamp
+    m.centerFreq = rsbv1.centerFreq
+    m.controlFreq = rsbv1.centerFreq
+    m.packetFormat = rsbv1.packetFormat
+    m.CBW = rsbv1.cbw
+    m.packetCBW = rsbv1.cbw
+    m.GI = rsbv1.guardInterval
+    m.MCS = rsbv1.mcs
+    m.numSTS = rsbv1.numSTS
+    m.numESS = rsbv1.numESS
+    m.numRx = rsbv1.numRx
+    m.noiseFloor = rsbv1.noiseFloor
+    m.rssi = rsbv1.noiseFloor + rsbv1.rssi
+    m.rssi1 = rsbv1.noiseFloor + rsbv1.rssi_ctl0
+    m.rssi2 = rsbv1.noiseFloor + rsbv1.rssi_ctl1
+    m.rssi3 = rsbv1.noiseFloor + rsbv1.rssi_ctl2
+
+
+cdef parse_RxSBasicV2(unsigned char *buf, dtc_RXBasic *m):
+    cdef RxSBasicV2 *rsbv2 = <RxSBasicV2*>buf
+    m.deviceType = rsbv2.deviceType
+    m.timestamp = rsbv2.tstamp
+    m.centerFreq = rsbv2.centerFreq
+    m.controlFreq = rsbv2.centerFreq
+    m.packetFormat = rsbv2.packetFormat
+    m.CBW = rsbv2.cbw
+    m.packetCBW = rsbv2.cbw
+    m.GI = rsbv2.guardInterval
+    m.MCS = rsbv2.mcs
+    m.numSTS = rsbv2.numSTS
+    m.numESS = rsbv2.numESS
+    m.numRx = rsbv2.numRx
+    m.noiseFloor = rsbv2.noiseFloor
+    m.rssi = rsbv2.noiseFloor + rsbv2.rssi
+    m.rssi1 = rsbv2.noiseFloor + rsbv2.rssi_ctl0
+    m.rssi2 = rsbv2.noiseFloor + rsbv2.rssi_ctl1
+    m.rssi3 = rsbv2.noiseFloor + rsbv2.rssi_ctl2
+
+
+cdef parse_RxSBasicV3(unsigned char *buf, dtc_RXBasic *m):
+    cdef RxSBasicV3 *rsbv3 = <RxSBasicV3*>buf
+    m.deviceType = rsbv3.deviceType
+    m.timestamp = rsbv3.tstamp
+    m.centerFreq = rsbv3.centerFreq
+    m.controlFreq = rsbv3.controlFreq
+    m.packetFormat = rsbv3.packetFormat
+    m.CBW = rsbv3.cbw
+    m.packetCBW = rsbv3.pkt_cbw
+    m.GI = rsbv3.guardInterval
+    m.MCS = rsbv3.mcs
+    m.numSTS = rsbv3.numSTS
+    m.numESS = rsbv3.numESS
+    m.numRx = rsbv3.numRx
+    m.noiseFloor = rsbv3.noiseFloor
+    m.rssi = rsbv3.rssi
+    m.rssi1 = rsbv3.rssi_ctl0
+    m.rssi2 = rsbv3.rssi_ctl1
+    m.rssi3 = rsbv3.rssi_ctl2
+
+
+cdef parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
+    cdef FeatureCode *featurecode = <FeatureCode*>buf
+    cdef int offset = 4
+    cdef int i
+
+    m.hasLength = featurecode.hasLength
+    m.hasVersion = featurecode.hasVersion
+    m.hasMacAddr_cur = featurecode.hasMacAddr_cur
+    m.hasMacAddr_rom = featurecode.hasMacAddr_rom
+    m.hasChansel = featurecode.hasChansel
+    m.hasBMode = featurecode.hasBMode
+    m.hasEVM = featurecode.hasEVM
+    m.hasTxChainMask = featurecode.hasTxChainMask
+    m.hasRxChainMask = featurecode.hasRxChainMask
+    m.hasTxpower = featurecode.hasTxpower
+    m.hasCF = featurecode.hasCF
+    m.hasTxTSF = featurecode.hasTxTSF
+    m.hasLastHwTxTSF = featurecode.hasLastHWTxTSF
+    m.hasChannelFlags = featurecode.hasChannelFlags
+    m.hasTxNess = featurecode.hasTxNess
+    m.hasTuningPolicy = featurecode.hasTuningPolicy
+    m.hasPLLRate = featurecode.hasPLLRate
+    m.hasPLLClkSel = featurecode.hasPLLRefDiv
+    m.hasPLLRefDiv = featurecode.hasPLLClkSel
+    m.hasAGC = featurecode.hasAGC
+    m.hasAntennaSelection = featurecode.hasAntennaSelection
+    m.hasSamplingRate = featurecode.hasSamplingRate
+    m.hasCFO = featurecode.hasCFO
+    m.hasSFO = featurecode.hasSFO
+
+    if featurecode.hasLength:
+        m.length = cu16(buf + offset)
+        offset += 2
+    if featurecode.hasVersion:
+        m.version = cu64(buf + offset)
+        offset += 8
+    if featurecode.hasMacAddr_cur:
+        for i in range(6):
+            m.macaddr_cur[i] = cu8(buf + offset + i)
+        offset += 6
+    if featurecode.hasMacAddr_rom:
+        for i in range(6):
+            m.macaddr_rom[i] = cu8(buf + offset + i)
+        offset += 6
+    if featurecode.hasChansel:
+        m.chansel = cu32(buf + offset)
+        offset += 4
+    if featurecode.hasBMode:
+        m.bmode =cu8(buf + offset)
+        offset += 1
+    if featurecode.hasEVM:
+        for i in range(20):
+            m.evm[i] = cu8(buf + offset + i)
+        offset += 20
+    if featurecode.hasTxChainMask:
+        m.tx_chainmask = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasRxChainMask:
+        m.rx_chainmask = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasTxpower:
+        m.txpower = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasCF:
+        m.cf = cu64(buf + offset)
+        offset += 8
+    if featurecode.hasTxTSF:
+        m.txtsf = cu32(buf + offset)
+        offset += 4
+    if featurecode.hasLastHWTxTSF:
+        m.last_txtsf = cu32(buf + offset)
+        offset += 4
+    if featurecode.hasChannelFlags:
+        m.channel_flags = cu16(buf + offset)
+        offset += 2
+    if featurecode.hasTxNess:
+        m.tx_ness = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasTuningPolicy:
+        m.tuning_policy = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasPLLRate:
+        m.pll_rate = cu16(buf + offset)
+        offset += 2
+    if featurecode.hasPLLClkSel:
+        m.pll_clock_select = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasPLLRefDiv:
+        m.pll_refdiv = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasAGC:
+        m.agc = cu8(buf + offset)
+        offset += 1
+    if featurecode.hasAntennaSelection:
+        m.ant_sel[0] = (cu8(buf + offset)) & 0x1U
+        m.ant_sel[1] = (cu8(buf + offset) >> 0x2U) & 0x1U
+        m.ant_sel[2] = (cu8(buf + offset) >> 0x4U) & 0x1U
+        offset += 1
+    if featurecode.hasSamplingRate:
+        m.sf = cu64(buf + offset)
+        offset += 8
+    if featurecode.hasCFO:
+        m.cfo = cu32(buf + offset)
+        offset += 4
+    if featurecode.hasSFO:
+        m.sfo = cu32(buf + offset)
+        offset += 4
+
+
+cdef parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
+    cdef IntelMVMExtrta *imvme = <IntelMVMExtrta*>buf
+    m.FMTClock = imvme.parsedHeader.ftmClock
+    m.usClock = imvme.parsedHeader.muClock
+    m.RateNFlags = imvme.parsedHeader.rate_n_flags
+
+
+cdef parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):
     cdef CSIV1 *csiv1 = <CSIV1*>buf
@@ -954,7 +841,7 @@ cdef parse_CSIV1(unsigned char *buf, dt_cpy_CSI_info *m,
         parseCSIUSRP(csi, csiv1.payload + csiv1.numTones * 2, csiv1.csiBufferLength - csiv1.numTones * 2)
 
 
-cdef parse_CSIV2(unsigned char *buf, dt_cpy_CSI_info *m,
+cdef parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):    
     cdef CSIV2 *csiv2 = <CSIV2*>buf
@@ -991,7 +878,7 @@ cdef parse_CSIV2(unsigned char *buf, dt_cpy_CSI_info *m,
         parseCSIUSRP(csi, csiv2.payload + csiv2.numTones * 2, csiv2.csiBufferLength - csiv2.numTones * 2)
 
 
-cdef parse_CSIV3(unsigned char *buf, dt_cpy_CSI_info *m,
+cdef parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
                  np.ndarray[np.complex128_t] csi,
                  np.ndarray[np.int32_t] scidx):
     cdef CSIV3 *csiv3 = <CSIV3*>buf
@@ -1028,8 +915,9 @@ cdef parse_CSIV3(unsigned char *buf, dt_cpy_CSI_info *m,
         parseCSIUSRP(csi, csiv3.payload + csiv3.numTones * 2, csiv3.csiBufferLength - csiv3.numTones * 2)
 
 
-cdef parse_MPDU(unsigned char *buf, np.uint8_t[:] mpdu, uint32_t length):
+cdef parse_MPDU(unsigned char *buf, dtc_MPDU_info *m, np.uint8_t[:] mpdu, uint32_t length):
     cdef uint32_t i
+    m.length = length
     if mpdu.shape[0] < length:
         return False
 
@@ -1038,7 +926,7 @@ cdef parse_MPDU(unsigned char *buf, np.uint8_t[:] mpdu, uint32_t length):
     return True
 
 
-cdef parse_StandardHeader(unsigned char *buf, dt_cpy_ieee80211_mac_frame_header *m):
+cdef parse_StandardHeader(unsigned char *buf, dtc_ieee80211_mac_frame_header *m):
     cdef ieee80211_mac_frame_header *imfh = <ieee80211_mac_frame_header*>buf
     cdef int i
 
@@ -1061,7 +949,7 @@ cdef parse_StandardHeader(unsigned char *buf, dt_cpy_ieee80211_mac_frame_header 
     m.Sequence = imfh.seq
 
 
-cdef parse_PicoScenesHeader(unsigned char *buf, dt_cpy_PicoScenesFrameHeader *m):
+cdef parse_PicoScenesHeader(unsigned char *buf, dtc_PicoScenesFrameHeader *m):
     cdef PicoScenesFrameHeader *psfh = <PicoScenesFrameHeader*>buf
     m.MagicValue = psfh.magicValue
     m.Version = psfh.version
@@ -1082,14 +970,14 @@ cdef class Picoscenes:
 
     cdef bint if_report
 
-    def __cinit__(self, file, pl_size={}, if_report=True, bufsize=0,
+    def __cinit__(self, file, dtype, if_report=True, bufsize=0,
                   *argv, **kw):
         self.file = file
         self.if_report = if_report
 
-    def __init__(self, file, pl_size={}, if_report=True, bufsize=0):
+    def __init__(self, file, dtype, if_report=True, bufsize=0):
         pk_num = self.__get_pknum(bufsize)
-        self.raw = init_array(pk_num, init_dtype(pl_size))
+        self.raw = init_array(pk_num, dtype)
 
     cdef __get_pknum(self, bufsize):
         if bufsize == 0:
@@ -1134,24 +1022,29 @@ cdef class Picoscenes:
         if num == 0:
             num = lens
 
-        cdef np.ndarray[dt_cpy_ieee80211_mac_frame_header] buf_StandardHeader_mem = self.raw["StandardHeader"]
-        cdef np.ndarray[dt_cpy_RXBasic] buf_RxSBasic_mem = self.raw["RxSBasic"]
-        cdef np.ndarray[dt_cpy_ExtraInfo] buf_RxExtraInfo_mem = self.raw["RxExtraInfo"]
-        cdef np.ndarray[dt_cpy_CSI_info] buf_CSI_info_mem = self.raw["CSI"]["info"]
-        cdef np.ndarray[np.complex128_t, ndim=2] buf_CSI_CSI_mem = self.raw["CSI"]["CSI"]
-        cdef np.ndarray[np.int32_t, ndim=2] buf_CSI_SubcarrierIndex_mem = self.raw["CSI"]["SubcarrierIndex"]
-        cdef np.ndarray[dt_cpy_IntelMVMExtrta] buf_MVMExtra_mem = self.raw["MVMExtra"]
-        cdef np.ndarray[dt_cpy_PicoScenesFrameHeader] buf_PicoScenesHeader_mem = self.raw["PicoScenesHeader"]
-        cdef np.ndarray[dt_cpy_ExtraInfo] buf_TxExtraInfo_mem = self.raw["TxExtraInfo"]
-        cdef np.ndarray[dt_cpy_CSI_info] buf_PilotCSI_info_mem = self.raw["PilotCSI"]["info"]
-        cdef np.ndarray[np.complex128_t, ndim=2] buf_PilotCSI_CSI_mem = self.raw["PilotCSI"]["CSI"]
-        cdef np.ndarray[np.int32_t, ndim=2] buf_PilotCSI_SubcarrierIndex_mem = self.raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.ndarray[dt_cpy_CSI_info] buf_LegacyCSI_info_mem = self.raw["LegacyCSI"]["info"]
-        cdef np.ndarray[np.complex128_t, ndim=2] buf_LegacyCSI_CSI_mem = self.raw["LegacyCSI"]["CSI"]
-        cdef np.ndarray[np.int32_t, ndim=2] buf_LegacyCSI_SubcarrierIndex_mem = self.raw["LegacyCSI"]["SubcarrierIndex"]
-        cdef np.ndarray[np.complex128_t, ndim=2] buf_BasebandSignals_mem = self.raw["BasebandSignals"]
-        cdef np.ndarray[np.complex128_t, ndim=2] buf_PreEQSymbols_mem = self.raw["PreEQSymbols"]
-        cdef np.ndarray[np.uint8_t, ndim=2] buf_MPDU_mem = self.raw["MPDU"]
+        cdef np.ndarray[dtc_ieee80211_mac_frame_header] mem_StandardHeader = self.raw["StandardHeader"]
+        cdef np.ndarray[dtc_RXBasic] mem_RxSBasic = self.raw["RxSBasic"]
+        cdef np.ndarray[dtc_ExtraInfo] mem_RxExtraInfo = self.raw["RxExtraInfo"]
+        cdef np.ndarray[dtc_CSI_info] mem_CSI_info = self.raw["CSI"]["info"]
+        cdef np.ndarray[dtc_IntelMVMExtrta] mem_MVMExtra = self.raw["MVMExtra"]
+        cdef np.ndarray[dtc_PicoScenesFrameHeader] mem_PicoScenesHeader = self.raw["PicoScenesHeader"]
+        cdef np.ndarray[dtc_ExtraInfo] mem_TxExtraInfo = self.raw["TxExtraInfo"]
+        cdef np.ndarray[dtc_CSI_info] mem_PilotCSI_info = self.raw["PilotCSI"]["info"]
+        cdef np.ndarray[dtc_CSI_info] mem_LegacyCSI_info = self.raw["LegacyCSI"]["info"]
+        cdef np.ndarray[dtc_SignalMatrix_info] mem_BasebandSignals_info = self.raw["BasebandSignals"]["info"]
+        cdef np.ndarray[dtc_SignalMatrix_info] mem_PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]
+        cdef np.ndarray[dtc_MPDU_info] mem_MPDU_info = self.raw["MPDU"]["info"]
+
+        cdef np.ndarray[np.complex128_t, ndim=2] mem_CSI_CSI = self.raw["CSI"]["CSI"]
+        cdef np.ndarray[np.complex128_t, ndim=2] mem_PilotCSI_CSI = self.raw["PilotCSI"]["CSI"]
+        cdef np.ndarray[np.complex128_t, ndim=2] mem_LegacyCSI_CSI = self.raw["LegacyCSI"]["CSI"]
+        cdef np.ndarray[np.complex128_t, ndim=2] mem_BasebandSignals_data = self.raw["BasebandSignals"]["data"]
+        cdef np.ndarray[np.complex128_t, ndim=2] mem_PreEQSymbols_data = self.raw["PreEQSymbols"]["data"]
+        cdef np.ndarray[np.uint8_t, ndim=2] mem_MPDU_data = self.raw["MPDU"]["data"]
+
+        cdef np.ndarray[np.int32_t, ndim=2] mem_CSI_SubcarrierIndex = self.raw["CSI"]["SubcarrierIndex"]
+        cdef np.ndarray[np.int32_t, ndim=2] mem_PilotCSI_SubcarrierIndex = self.raw["PilotCSI"]["SubcarrierIndex"]
+        cdef np.ndarray[np.int32_t, ndim=2] mem_LegacyCSI_SubcarrierIndex = self.raw["LegacyCSI"]["SubcarrierIndex"]
 
         cdef int count = 0
         cdef int cur = 0
@@ -1179,87 +1072,87 @@ cdef class Picoscenes:
                 if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic",
                                apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_RxSBasicV1(buf + cur + offset, &buf_RxSBasic_mem[count])
+                        parse_RxSBasicV1(buf + cur + offset, &mem_RxSBasic[count])
                     elif apsfs.versionId == 0x2:
-                        parse_RxSBasicV2(buf + cur + offset, &buf_RxSBasic_mem[count])
+                        parse_RxSBasicV2(buf + cur + offset, &mem_RxSBasic[count])
                     elif apsfs.versionId == 0x3:
-                        parse_RxSBasicV3(buf + cur + offset, &buf_RxSBasic_mem[count])
+                        parse_RxSBasicV3(buf + cur + offset, &mem_RxSBasic[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_ExtraInfoV1(buf + cur + offset, &buf_RxExtraInfo_mem[count])
+                        parse_ExtraInfoV1(buf + cur + offset, &mem_RxExtraInfo[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_MVMExtraV1(buf + cur + offset, &buf_MVMExtra_mem[count])
+                        parse_MVMExtraV1(buf + cur + offset, &mem_MVMExtra[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"CSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_CSI_info_mem[count],
-                                    buf_CSI_CSI_mem[count],
-                                    buf_CSI_SubcarrierIndex_mem[count])
+                        parse_CSIV1(buf + cur + offset, &mem_CSI_info[count],
+                                    mem_CSI_CSI[count],
+                                    mem_CSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_CSI_info_mem[count],
-                                    buf_CSI_CSI_mem[count],
-                                    buf_CSI_SubcarrierIndex_mem[count])
+                        parse_CSIV2(buf + cur + offset, &mem_CSI_info[count],
+                                    mem_CSI_CSI[count],
+                                    mem_CSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_CSI_info_mem[count],
-                                    buf_CSI_CSI_mem[count],
-                                    buf_CSI_SubcarrierIndex_mem[count])
+                        parse_CSIV3(buf + cur + offset, &mem_CSI_info[count],
+                                    mem_CSI_CSI[count],
+                                    mem_CSI_SubcarrierIndex[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_PilotCSI_info_mem[count],
-                                    buf_PilotCSI_CSI_mem[count],
-                                    buf_PilotCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV1(buf + cur + offset, &mem_PilotCSI_info[count],
+                                    mem_PilotCSI_CSI[count],
+                                    mem_PilotCSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_PilotCSI_info_mem[count],
-                                    buf_PilotCSI_CSI_mem[count],
-                                    buf_PilotCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV2(buf + cur + offset, &mem_PilotCSI_info[count],
+                                    mem_PilotCSI_CSI[count],
+                                    mem_PilotCSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_PilotCSI_info_mem[count],
-                                    buf_PilotCSI_CSI_mem[count],
-                                    buf_PilotCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV3(buf + cur + offset, &mem_PilotCSI_info[count],
+                                    mem_PilotCSI_CSI[count],
+                                    mem_PilotCSI_SubcarrierIndex[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parse_CSIV1(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
-                                    buf_LegacyCSI_CSI_mem[count],
-                                    buf_LegacyCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV1(buf + cur + offset, &mem_LegacyCSI_info[count],
+                                    mem_LegacyCSI_CSI[count],
+                                    mem_LegacyCSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x2:
-                        parse_CSIV2(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
-                                    buf_LegacyCSI_CSI_mem[count],
-                                    buf_LegacyCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV2(buf + cur + offset, &mem_LegacyCSI_info[count],
+                                    mem_LegacyCSI_CSI[count],
+                                    mem_LegacyCSI_SubcarrierIndex[count])
                     elif apsfs.versionId == 0x3:
-                        parse_CSIV3(buf + cur + offset, &buf_LegacyCSI_info_mem[count],
-                                    buf_LegacyCSI_CSI_mem[count],
-                                    buf_LegacyCSI_SubcarrierIndex_mem[count])
+                        parse_CSIV3(buf + cur + offset, &mem_LegacyCSI_info[count],
+                                    mem_LegacyCSI_CSI[count],
+                                    mem_LegacyCSI_SubcarrierIndex[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parseCSIUSRP(buf_BasebandSignals_mem[count],
-                                     buf + cur + offset,
-                                     4 + apsfs.segmentLength - offset)
+                        parse_SignalMatrix(buf + cur + offset,
+                                           &mem_BasebandSignals_info[count],
+                                           mem_BasebandSignals_data[count])
                     else:
                         pass
                 elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols",
                                  apsfs.segNameLength):
                     if apsfs.versionId == 0x1:
-                        parseCSIUSRP(buf_BasebandSignals_mem[count],
-                                     buf + cur + offset,
-                                     4 + apsfs.segmentLength - offset)
+                        parse_SignalMatrix(buf + cur + offset,
+                                           &mem_PreEQSymbols_info[count],
+                                           mem_PreEQSymbols_data[count])
                     else:
                         pass
                 else:
@@ -1267,17 +1160,18 @@ cdef class Picoscenes:
                 cur += (4 + apsfs.segmentLength)
 
             # MPDU
-            parse_MPDU(buf + cur, buf_MPDU_mem[count],  mpsrfh.frameLength + 4 - cur)
+            parse_MPDU(buf + cur, &mem_MPDU_info[count],
+                       mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
 
             # StandardHeader
-            parse_StandardHeader(buf + cur, &buf_StandardHeader_mem[count])
+            parse_StandardHeader(buf + cur, &mem_StandardHeader[count])
             cur += sizeof(ieee80211_mac_frame_header)
 
             # Optional
             psfh = <PicoScenesFrameHeader*>(buf + cur)
             if psfh.magicValue == 0x20150315:
                 # PicoScenesFrameHeader
-                parse_PicoScenesHeader(buf + cur, &buf_PicoScenesHeader_mem[count])
+                parse_PicoScenesHeader(buf + cur, &mem_PicoScenesHeader[count])
                 cur += sizeof(PicoScenesFrameHeader)
                 for i in range(psfh.numSegments):
                     apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
@@ -1286,7 +1180,7 @@ cdef class Picoscenes:
                     if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo",
                                    apsfs.segNameLength):
                         if apsfs.versionId == 0x1:
-                            parse_ExtraInfoV1(buf + cur + offset, &buf_TxExtraInfo_mem[count])
+                            parse_ExtraInfoV1(buf + cur + offset, &mem_TxExtraInfo[count])
                         else:
                             pass
                     elif not strncmp(<const char *>apsfs.segmentName, b"Payload",

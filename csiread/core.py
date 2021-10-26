@@ -8,6 +8,9 @@ from numpy.lib import recfunctions as rfn
 
 from . import _csiread
 from . import _picoscenes
+from ._crtype import (init_dtype_intel, init_dtype_atheros,
+                      init_dtype_nexmon, init_dtype_nexmonpull46,
+                      init_dtype_picoscenes)
 
 
 def stringify(array, sep=':'):
@@ -1048,21 +1051,23 @@ class Picoscenes(_picoscenes.Picoscenes):
     """
     def __init__(self, file, pl_size=0, if_report=True, bufsize=0):
         self.pl_size = self.__init_pl_size(pl_size)
-        super(Picoscenes, self).__init__(file, self.pl_size, if_report, bufsize)
+        dtype = init_dtype_picoscenes(self.pl_size)
+        super(Picoscenes, self).__init__(file, dtype, if_report, bufsize)
 
     def __init_pl_size(self, pl_size):
-        cutoff = {'CSI':0, 'SubcarrierIndex': 0, 'BasebandSignals': 0,
-                  'PreEQSymbols': 0, 'MPDU': 0}
-        if isinstance(pl_size, int) and pl_size >= 0:
-            cutoff = {k: pl_size for k in cutoff.keys()}
+        ret = {'CSI': (0, 0), 'PilotCSI': (0, 0), 'LegacyCSI': (0, 0),
+               'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
+        if isinstance(pl_size, int):
+            ret = {k: pl_size for k in ret.keys()}
         elif isinstance(pl_size, dict):
-            cutoff.update(pl_size)
-        elif (isinstance(pl_size, list) or isinstance(pl_size, tuple)) \
-                and len(pl_size) == len(cutoff):
-            cutoff = {k: v for k, v in zip(cutoff.keys(), pl_size)}
+            ret.update(pl_size)
+        elif (isinstance(pl_size, list) \
+                or isinstance(pl_size, tuple)) \
+                and len(pl_size) == len(ret):
+            ret = {k: v for k, v in zip(ret.keys(), pl_size)}
         else:
             pass
-        return cutoff
+        return ret
 
     def __getitem__(self, index):
         return self.raw[index]
@@ -1118,22 +1123,57 @@ class Picoscenes(_picoscenes.Picoscenes):
 
     def check(self):
         """helper method"""
-        csiinfo = self.raw["CSI"]["info"]
-        CSI = (csiinfo["numTx"] + csiinfo["numESS"]) * csiinfo["numRx"] * csiinfo["numTones"]
-        SubcarrierIndex = csiinfo["numTones"]
+        CSI_info = self.raw["CSI"]["info"]
+        CSI_CSI = (CSI_info["numTx"] + CSI_info["numESS"]) \
+            * CSI_info["numRx"] * CSI_info["numTones"]
+        CSI_SubcarrierIndex = CSI_info["numTones"]
+
+        PilotCSI_info = self.raw["PilotCSI"]["info"]
+        PilotCSI_CSI = (PilotCSI_info["numTx"] + PilotCSI_info["numESS"]) \
+            * PilotCSI_info["numRx"] * PilotCSI_info["numTones"]
+        PilotCSI_SubcarrierIndex = PilotCSI_info["numTones"]
+
+        LegacyCSI_info = self.raw["LegacyCSI"]["info"]
+        LegacyCSI_CSI = (LegacyCSI_info["numTx"] + LegacyCSI_info["numESS"]) \
+            * LegacyCSI_info["numRx"] * LegacyCSI_info["numTones"]
+        LegacyCSI_SubcarrierIndex = LegacyCSI_info["numTones"]
+
+        BasebandSignals_shape = self.raw["BasebandSignals"]["info"]["shape"]
+        BasebandSignals_data = np.prod(BasebandSignals_shape, axis=1)
+
+        PreEQSymbols_shape = self.raw["PreEQSymbols"]["info"]["shape"]
+        PreEQSymbols_data = np.prod(PreEQSymbols_shape, axis=1)
+
+        MPDU_data = self.raw["MPDU"]["info"]['length']
 
         holder = " "
-        T = "%15s%10s%10s%15s\n"
-        Delimiter = T % ("-"*15, "-"*10, "-"*10, "-"*15)
+        T = "%15s%15s%15s%15s\n"
+        Delimiter = T % ("-"*15, "-"*15, "-"*15, "-"*15)
         s = ""
         s += Delimiter
         s += T % ("CHECK", "min", "max", "pl_size")
         s += Delimiter
-        s += T % ("CSI", CSI.min(), CSI.max(), self.pl_size['CSI'])
-        s += T % ("SubcarrierIndex", SubcarrierIndex.min(), SubcarrierIndex.max(), self.pl_size['SubcarrierIndex'])
-        s += T % ("BasebandSignals", holder, holder, self.pl_size['BasebandSignals'])
-        s += T % ("PreEQSymbols", holder, holder, self.pl_size['PreEQSymbols'])
-        s += T % ("MPDU", holder, holder, self.pl_size['MPDU'])
+        s += T % ("CSI",
+                  [CSI_CSI.min(), CSI_SubcarrierIndex.min()],
+                  [CSI_CSI.max(), CSI_SubcarrierIndex.max()],
+                  list(self.pl_size['CSI']))
+        s += T % ("PilotCSI",
+                  [PilotCSI_CSI.min(), PilotCSI_SubcarrierIndex.min()],
+                  [PilotCSI_CSI.max(), PilotCSI_SubcarrierIndex.max()],
+                  list(self.pl_size['PilotCSI']))
+        s += T % ("LegacyCSI",
+                  [LegacyCSI_CSI.min(), LegacyCSI_SubcarrierIndex.min()],
+                  [LegacyCSI_CSI.max(), LegacyCSI_SubcarrierIndex.max()],
+                  list(self.pl_size['LegacyCSI']))
+        s += T % ("BasebandSignals",
+                  BasebandSignals_data.min(), BasebandSignals_data.max(),
+                  self.pl_size['BasebandSignals'])
+        s += T % ("PreEQSymbols",
+                  PreEQSymbols_data.min(), PreEQSymbols_data.max(),
+                  self.pl_size['PreEQSymbols'])
+        s += T % ("MPDU",
+                  MPDU_data.min(), MPDU_data.max(),
+                  self.pl_size['MPDU'])
         s += Delimiter
         print(s, end='')
 
