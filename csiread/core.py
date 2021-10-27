@@ -1055,8 +1055,9 @@ class Picoscenes(_picoscenes.Picoscenes):
         super(Picoscenes, self).__init__(file, dtype, if_report, bufsize)
 
     def __init_pl_size(self, pl_size):
-        ret = {'CSI': (0, 0), 'PilotCSI': (0, 0), 'LegacyCSI': (0, 0),
-               'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
+        ret = {'CSI': [0, 0, 0], 'PilotCSI': [0, 0, 0],
+               'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0],
+               'PreEQSymbols': [0, 0, 0], 'MPDU': 0}
         if isinstance(pl_size, int):
             ret = {k: pl_size for k in ret.keys()}
         elif isinstance(pl_size, dict):
@@ -1117,34 +1118,33 @@ class Picoscenes(_picoscenes.Picoscenes):
         This method hasn't been READY.
         """
         return super().pmsg(data)
-    
+
     def interpolate_csi(type='CSI'):
         pass
 
     def check(self):
         """helper method"""
-        CSI_info = self.raw["CSI"]["info"]
-        CSI_CSI = (CSI_info["numTx"] + CSI_info["numESS"]) \
-            * CSI_info["numRx"] * CSI_info["numTones"]
-        CSI_SubcarrierIndex = CSI_info["numTones"]
+        CSI_nsc = self.raw["CSI"]["info"]["numTones"]
+        CSI_nrx = self.raw["CSI"]["info"]["numRx"]
+        CSI_ntx = self.raw["CSI"]["info"]["numTx"] \
+            + self.raw["CSI"]["info"]["numESS"]
+        CSI_info = np.c_[CSI_nsc, CSI_nrx, CSI_ntx]
 
-        PilotCSI_info = self.raw["PilotCSI"]["info"]
-        PilotCSI_CSI = (PilotCSI_info["numTx"] + PilotCSI_info["numESS"]) \
-            * PilotCSI_info["numRx"] * PilotCSI_info["numTones"]
-        PilotCSI_SubcarrierIndex = PilotCSI_info["numTones"]
+        PilotCSI_nsc = self.raw["PilotCSI"]["info"]["numTones"]
+        PilotCSI_nrx = self.raw["PilotCSI"]["info"]["numRx"]
+        PilotCSI_ntx = self.raw["PilotCSI"]["info"]["numTx"] \
+            + self.raw["PilotCSI"]["info"]["numESS"]
+        PilotCSI_info = np.c_[PilotCSI_nsc, PilotCSI_nrx, PilotCSI_ntx]
 
-        LegacyCSI_info = self.raw["LegacyCSI"]["info"]
-        LegacyCSI_CSI = (LegacyCSI_info["numTx"] + LegacyCSI_info["numESS"]) \
-            * LegacyCSI_info["numRx"] * LegacyCSI_info["numTones"]
-        LegacyCSI_SubcarrierIndex = LegacyCSI_info["numTones"]
+        LegacyCSI_nsc = self.raw["LegacyCSI"]["info"]["numTones"]
+        LegacyCSI_nrx = self.raw["LegacyCSI"]["info"]["numRx"]
+        LegacyCSI_ntx = self.raw["LegacyCSI"]["info"]["numTx"] \
+            + self.raw["LegacyCSI"]["info"]["numESS"]
+        LegacyCSI_info = np.c_[LegacyCSI_nsc, LegacyCSI_nrx, LegacyCSI_ntx]
 
-        BasebandSignals_shape = self.raw["BasebandSignals"]["info"]["shape"]
-        BasebandSignals_data = np.prod(BasebandSignals_shape, axis=1)
-
-        PreEQSymbols_shape = self.raw["PreEQSymbols"]["info"]["shape"]
-        PreEQSymbols_data = np.prod(PreEQSymbols_shape, axis=1)
-
-        MPDU_data = self.raw["MPDU"]["info"]['length']
+        BasebandSignals_info = self.raw["BasebandSignals"]["info"]["shape"]
+        PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]["shape"]
+        MPDU_info = self.raw["MPDU"]["info"]['length']
 
         holder = " "
         T = "%15s%15s%15s%15s\n"
@@ -1154,25 +1154,22 @@ class Picoscenes(_picoscenes.Picoscenes):
         s += T % ("CHECK", "min", "max", "pl_size")
         s += Delimiter
         s += T % ("CSI",
-                  [CSI_CSI.min(), CSI_SubcarrierIndex.min()],
-                  [CSI_CSI.max(), CSI_SubcarrierIndex.max()],
+                  CSI_info.min(0), CSI_info.max(0),
                   list(self.pl_size['CSI']))
         s += T % ("PilotCSI",
-                  [PilotCSI_CSI.min(), PilotCSI_SubcarrierIndex.min()],
-                  [PilotCSI_CSI.max(), PilotCSI_SubcarrierIndex.max()],
+                  PilotCSI_info.min(0), PilotCSI_info.max(0),
                   list(self.pl_size['PilotCSI']))
         s += T % ("LegacyCSI",
-                  [LegacyCSI_CSI.min(), LegacyCSI_SubcarrierIndex.min()],
-                  [LegacyCSI_CSI.max(), LegacyCSI_SubcarrierIndex.max()],
+                  LegacyCSI_info.min(0), LegacyCSI_info.max(0),
                   list(self.pl_size['LegacyCSI']))
         s += T % ("BasebandSignals",
-                  BasebandSignals_data.min(), BasebandSignals_data.max(),
+                  BasebandSignals_info.min(0), BasebandSignals_info.max(0),
                   self.pl_size['BasebandSignals'])
         s += T % ("PreEQSymbols",
-                  PreEQSymbols_data.min(), PreEQSymbols_data.max(),
+                  PreEQSymbols_info.min(0), PreEQSymbols_info.max(0),
                   self.pl_size['PreEQSymbols'])
         s += T % ("MPDU",
-                  MPDU_data.min(), MPDU_data.max(),
+                  MPDU_info.min(), MPDU_info.max(),
                   self.pl_size['MPDU'])
         s += Delimiter
         print(s, end='')
@@ -1202,6 +1199,12 @@ class Picoscenes(_picoscenes.Picoscenes):
                 return True
             if name == 'LegacyCSI' and raw['LegacyCSI']['info']['DeviceType']  == 0:
                 return True
+            if name == 'BasebandSignals' and raw['BasebandSignals']['info']['ndim'] == 0:
+                return True
+            if name == 'PreEQSymbols' and raw['PreEQSymbols']['info']['ndim'] == 0:
+                return True
+            if name == 'MPDU' and raw['MPDU']['info']['length'] == 0:
+                return True
             return False
 
         def report(s, raw, parent=None, indent=0):
@@ -1212,18 +1215,20 @@ class Picoscenes(_picoscenes.Picoscenes):
                 if isinstance(name, tuple):
                     if skip(raw, name[0]):
                         continue
-                    s += T % (tab, name[0], '')
+                    # s += T % (tab, name[0], '')
+                    if name[0] != 'info':
+                        s += T % (tab, name[0], '')
+                    else:
+                        indent -= 2
                     s = report(s, raw[name[0]], name[0], indent)
                 else:
                     if parent and parent.endswith("ExtraInfo"):
                         if name.startswith("has") or not raw[names[i - hfo]]:
                             continue
-                    if name == 'BasebandSignals' and raw[name].size == 0:
-                        continue
-                    elif name == 'PreEQSymbols' and raw[name].size == 0:
-                        continue
-                    elif name == 'MPDU' and raw[name].size == 0:
-                        continue
+                    if name == 'shape':
+                        s += T % (tab, name, tuple(raw[name]))
+                    elif name == 'majority':
+                        s += T % (tab, name, raw[name].tobytes())
                     elif name.lower() == "devicetype":
                         s += T % (tab, name, hex(raw[name]))
                     elif name.lower() == "tuning_policy":

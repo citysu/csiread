@@ -141,9 +141,9 @@ if __name__ == "__main__":
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)
     esp32("../material/esp32/dataset/example_csi.csv", 2)
-    pl_size_rx_by_iwl5300 = {'CSI': 180, 'SubcarrierIndex': 30, 'BasebandSignals': 0, 'PreEQSymbols': 0, 'MPDU': 0}
-    pl_size_rx_by_qca9300 = {'CSI': 168, 'SubcarrierIndex': 56, 'MPDU': 0}
-    pl_size_rx_by_usrpN210 = (56, 56, 0, 0, 0)
+    pl_size_rx_by_iwl5300 = {'CSI': [30, 3, 2],'PilotCSI': [0, 0, 0], 'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0], 'PreEQSymbols': [0, 0, 0], 'MPDU': 1522}
+    pl_size_rx_by_qca9300 = {'CSI': [56, 3, 1], 'PilotCSI': [0, 0, 0], 'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0], 'PreEQSymbols': [0, 0, 0], 'MPDU': 122}
+    pl_size_rx_by_usrpN210 = {'CSI': [56, 1, 1], 'PilotCSI': [0, 0, 0], 'LegacyCSI': [52, 1, 1], 'BasebandSignals': [560, 1, 1], 'PreEQSymbols': [56, 10, 1], 'MPDU': 1102}
     picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2, pl_size_rx_by_iwl5300)
     picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2, pl_size_rx_by_qca9300)
     picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50, pl_size_rx_by_usrpN210)

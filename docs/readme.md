@@ -68,20 +68,18 @@ The support for Picoscenes is an **experimental** feature. PicoScenes is still u
 
 ```python
 # PicoScenes
+pl_size = {
+	# [tones, nrxnum, ntxnum]
+	"CSI": [30, 3, 2],
+	"PilotCSI": [0, 0, 0],
+	"LegacyCSI": [0, 0, 0],
+	"BasebandSignals": [0, 0, 0],
+	"PreEQSymbols": [0, 0, 0],
+	"MPDU": 1522
+}
 csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-csidata = csiread.Picoscenes(file=csifile, pl_size=([180, 30], [0, 0], 0, 0, 0)), if_report=True, bufsize=0)
+csidata = csiread.Picoscenes(file=csifile, pl_size=pl_size, if_report=True, bufsize=0)
 csidata.read()
 csidata.check()
 csidata.display(2)
-```
-
-```json
-{
-	"CSI": [168, 56],
-	"PilotCSI": [0, 0],
-	"LegacyCSI": [168, 56],
-	"BasebandSignals": 640,
-	"PreEQSymbols": 52,
-	"MPDU": 32,
-}
 ```

@@ -205,20 +205,20 @@ def init_dtype_picoscenes(pl_size):
 
     dt_CSI = np.dtype([
         ('info', dt_CSI_info),
-        ('CSI', complex, (pl_size['CSI'][0], )),
-        ('SubcarrierIndex', np.int32, (pl_size['CSI'][1], )),
+        ('CSI', complex, pl_size['CSI']),
+        ('SubcarrierIndex', np.int32, (pl_size['CSI'][0], )),
     ])
 
     dt_PilotCSI = np.dtype([
         ('info', dt_CSI_info),
-        ('CSI', complex, (pl_size['PilotCSI'][0], )),
-        ('SubcarrierIndex', np.int32, (pl_size['PilotCSI'][1], )),
+        ('CSI', complex, pl_size['PilotCSI']),
+        ('SubcarrierIndex', np.int32, (pl_size['PilotCSI'][0], )),
     ])
 
     dt_LegacyCSI = np.dtype([
         ('info', dt_CSI_info),
-        ('CSI', complex, (pl_size['LegacyCSI'][0], )),
-        ('SubcarrierIndex', np.int32, (pl_size['LegacyCSI'][1], )),
+        ('CSI', complex, pl_size['LegacyCSI']),
+        ('SubcarrierIndex', np.int32, (pl_size['LegacyCSI'][0], )),
     ])
 
     dt_IntelMVMExtrta = np.dtype([
@@ -245,12 +245,12 @@ def init_dtype_picoscenes(pl_size):
 
     dt_BasebandSignals = np.dtype([
         ('info', dt_SignalMatrix_info),
-        ('data', np.complex128, (pl_size['BasebandSignals'], ))
+        ('data', np.complex128, pl_size['BasebandSignals'])
     ])
 
     dt_PreEQSymbols = np.dtype([
         ('info', dt_SignalMatrix_info),
-        ('data', np.complex128, (pl_size['PreEQSymbols'], ))
+        ('data', np.complex128, pl_size['PreEQSymbols'])
     ])
 
     dt_MPDU_info = np.dtype([
