@@ -409,11 +409,15 @@ cdef unsigned char *crfread(unsigned char *buf, uint32_t *buf_size,
     if buf_size[0] < field_len:
         buf = <unsigned char *>realloc(buf, field_len)
         buf_size[0] = field_len
+        if buf is NULL:
+            printf("realloc failed\n")
+            fclose(f)
+            exit(-1)
     l = fread(buf, sizeof(unsigned char), field_len, f)
     return buf
 
 
-cdef long getfilesize(FILE *f, pos):
+cdef long getfilesize(FILE *f, long pos):
     fseek(f, 0, SEEK_END)
     cdef long lens = ftell(f)
     fseek(f, pos, SEEK_SET)
@@ -456,11 +460,12 @@ cdef AbstractPicoScenesFrameSegment parse_AbstractPicoScenesFrameSegment(unsigne
 cdef parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
                        uint16_t cbw, int offset):
     cdef int i
-    cdef np.ndarray[np.int32_t] indices = SC_INDICES_9300[format][cbw]
-    if scidx.shape[0] < len(indices):
+    cdef np.int32_t[:] indices = SC_INDICES_9300[format][cbw]
+    cdef int length = len(indices)
+    if scidx.shape[0] < length:
         return False
 
-    for i in range(len(indices)):
+    for i in range(length):
         scidx[i] = indices[i] + offset
     return True
 
@@ -468,11 +473,12 @@ cdef parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
 cdef parseCSI5300scidx(np.int32_t[:] scidx, int8_t format,
                        uint16_t cbw, int offset):
     cdef int i
-    cdef np.ndarray[np.int32_t] indices = SC_INDICES_5300[cbw]
-    if scidx.shape[0] < len(indices):
+    cdef np.int32_t[:] indices = SC_INDICES_5300[cbw]
+    cdef int length = len(indices)
+    if scidx.shape[0] < length:
         return False
 
-    for i in range(len(indices)):
+    for i in range(length):
         scidx[i] = indices[i] + offset
     return True
 
@@ -515,15 +521,15 @@ cdef parseCSI9300(np.complex128_t[:, :, :] csi, unsigned char *payload,
 
         valuePos = i * 2
         rxIndex = valuePos % numRx
-        txIndex = (valuePos // numRx) % numTx
-        toneIndex = valuePos // (numRx * numTx);
+        txIndex = <int>(valuePos / numRx) % numTx
+        toneIndex = <int>(valuePos / (numRx * numTx))
         csi[toneIndex, rxIndex, txIndex].real = tempArray[1]
         csi[toneIndex, rxIndex, txIndex].imag = tempArray[0]
 
         valuePos += 1
         rxIndex = valuePos % numRx
-        txIndex = (valuePos // numRx) % numTx
-        toneIndex = valuePos // (numRx * numTx);
+        txIndex = <int>(valuePos / numRx) % numTx
+        toneIndex = <int>(valuePos / (numRx * numTx))
         csi[toneIndex, rxIndex, txIndex].real = tempArray[3]
         csi[toneIndex, rxIndex, txIndex].imag = tempArray[2]
     return True
@@ -565,7 +571,7 @@ cdef parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
 cdef parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
                   uint32_t csiBufferLength):
     """parseSignalMatrix = parseCSIUSRP"""
-    cdef uint32_t i, j, k, g
+    cdef uint32_t i, j, k
     cdef uint32_t offset = 0
     cdef uint8_t matrixVersion = cu8(payload+3) - 48
     cdef uint8_t ndim = cu8(payload+4)
@@ -589,16 +595,16 @@ cdef parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
     for i in range(shape[0]):
         for j in range(shape[1]):
             for k in range(shape[2]):
-                g = (i * (shape[1] * shape[2]) + j * shape[2] + k) * 16
-                csi[i, j, k].real = cd64(payload + offset + g + 0)
-                csi[i, j, k].imag = cd64(payload + offset + g + 8)
+                csi[i, j, k].real = cd64(payload + offset + 0)
+                csi[i, j, k].imag = cd64(payload + offset + 8)
+                offset += 16
     return True
 
 
 cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
                           np.complex128_t[:, :, :] data):
     """parseSignalMatrix = parseCSIUSRP"""
-    cdef uint32_t i, j, k, g
+    cdef uint32_t i, j, k
     cdef uint32_t offset = 0
     cdef uint8_t matrixVersion = cu8(buf+3) - 48
     m.ndim = cu8(buf+4)
@@ -614,8 +620,8 @@ cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
             m.shape[i] = cu64(buf+offset)
             offset += 8
 
-    cdef bytes complexChar = <char>cu8(buf+offset+0)
-    cdef bytes typeChar = <char>cu8(buf+offset+1)
+    cdef char complexChar = <char>cu8(buf+offset+0)
+    cdef char typeChar = <char>cu8(buf+offset+1)
     m.itemsize = cu8(buf+offset+2)
     m.majority = <char>cu8(buf+offset+3)
     offset += 4
@@ -626,9 +632,9 @@ cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
             for k in range(m.shape[2]):
-                g = (i * (m.shape[1] * m.shape[2]) + j * m.shape[2] + k) * 16
-                data[i, j, k].real = cd64(buf + offset + g + 0)
-                data[i, j, k].imag = cd64(buf + offset + g + 8)
+                data[i, j, k].real = cd64(buf + offset + 0)
+                data[i, j, k].imag = cd64(buf + offset + 8)
+                offset += 16
     return True
 
 
@@ -815,8 +821,8 @@ cdef parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
 
 
 cdef parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
-                 np.ndarray[np.complex128_t, ndim=3] csi,
-                 np.ndarray[np.int32_t] scidx):
+                 np.complex128_t[:, :, :] csi,
+                 np.int32_t[:] scidx):
     cdef CSIV1 *csiv1 = <CSIV1*>buf
     cdef int actualNumSTSPerChain
 
@@ -852,8 +858,8 @@ cdef parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
 
 
 cdef parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
-                 np.ndarray[np.complex128_t, ndim=3] csi,
-                 np.ndarray[np.int32_t] scidx):    
+                 np.complex128_t[:, :, :] csi,
+                 np.int32_t[:] scidx):    
     cdef CSIV2 *csiv2 = <CSIV2*>buf
     cdef int actualNumSTSPerChain
 
@@ -889,8 +895,8 @@ cdef parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
 
 
 cdef parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
-                 np.ndarray[np.complex128_t, ndim=3] csi,
-                 np.ndarray[np.int32_t] scidx):
+                 np.complex128_t[:, :, :] csi,
+                 np.int32_t[:] scidx):
     cdef CSIV3 *csiv3 = <CSIV3*>buf
     cdef int actualNumSTSPerChain
 
@@ -995,8 +1001,8 @@ cdef parse_MVMExtra(uint16_t versionId, unsigned char *buf, dtc_IntelMVMExtrta *
 
 
 cdef parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
-               np.ndarray[np.complex128_t, ndim=3] csi,
-               np.ndarray[np.int32_t] scidx):
+               np.complex128_t[:, :, :] csi,
+               np.int32_t[:] scidx):
     if versionId == 0x1:
         parse_CSIV1(buf, m, csi, scidx)
     elif versionId == 0x2:
@@ -1052,7 +1058,7 @@ cdef class Picoscenes:
         cdef uint32_t field_len
         cdef size_t l
         cdef FILE *f = crfopen(self.file)
-        cdef lens = getfilesize(f, 0)
+        cdef long lens = getfilesize(f, 0)
         cdef unsigned char buf[4]
 
         while pos < (lens - 4):
@@ -1070,39 +1076,36 @@ cdef class Picoscenes:
 
     cpdef seek(self, file, long pos, long num):
         cdef FILE *f = crfopen(self.file)
-        cdef lens = getfilesize(f, 0)
+        cdef long lens = getfilesize(f, 0)
         cdef uint32_t buf_size = 4              # Require: buf_size >= 4
         cdef unsigned char *buf = <unsigned char *>malloc(
             buf_size * sizeof(unsigned char))
         if num == 0:
             num = lens
 
-        # Todo:
-        # 1. dtypedef np.ndarray[...]
-        # 2. rename mem_xxxxxx
-        cdef np.ndarray[dtc_ieee80211_mac_frame_header] mem_StandardHeader = self.raw["StandardHeader"]
-        cdef np.ndarray[dtc_RXBasic] mem_RxSBasic = self.raw["RxSBasic"]
-        cdef np.ndarray[dtc_ExtraInfo] mem_RxExtraInfo = self.raw["RxExtraInfo"]
-        cdef np.ndarray[dtc_CSI_info] mem_CSI_info = self.raw["CSI"]["info"]
-        cdef np.ndarray[dtc_IntelMVMExtrta] mem_MVMExtra = self.raw["MVMExtra"]
-        cdef np.ndarray[dtc_PicoScenesFrameHeader] mem_PicoScenesHeader = self.raw["PicoScenesHeader"]
-        cdef np.ndarray[dtc_ExtraInfo] mem_TxExtraInfo = self.raw["TxExtraInfo"]
-        cdef np.ndarray[dtc_CSI_info] mem_PilotCSI_info = self.raw["PilotCSI"]["info"]
-        cdef np.ndarray[dtc_CSI_info] mem_LegacyCSI_info = self.raw["LegacyCSI"]["info"]
-        cdef np.ndarray[dtc_SignalMatrix_info] mem_BasebandSignals_info = self.raw["BasebandSignals"]["info"]
-        cdef np.ndarray[dtc_SignalMatrix_info] mem_PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]
-        cdef np.ndarray[dtc_MPDU_info] mem_MPDU_info = self.raw["MPDU"]["info"]
+        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.raw["StandardHeader"]
+        cdef dtc_RXBasic[:] mem_RxSBasic = self.raw["RxSBasic"]
+        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.raw["RxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_CSI_info = self.raw["CSI"]["info"]
+        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.raw["MVMExtra"]
+        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.raw["PicoScenesHeader"]
+        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.raw["TxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.raw["PilotCSI"]["info"]
+        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.raw["LegacyCSI"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.raw["BasebandSignals"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]
+        cdef dtc_MPDU_info[:] mem_MPDU_info = self.raw["MPDU"]["info"]
 
-        cdef np.ndarray[np.complex128_t, ndim=4] mem_CSI_CSI = self.raw["CSI"]["CSI"]
-        cdef np.ndarray[np.complex128_t, ndim=4] mem_PilotCSI_CSI = self.raw["PilotCSI"]["CSI"]
-        cdef np.ndarray[np.complex128_t, ndim=4] mem_LegacyCSI_CSI = self.raw["LegacyCSI"]["CSI"]
-        cdef np.ndarray[np.complex128_t, ndim=4] mem_BasebandSignals_data = self.raw["BasebandSignals"]["data"]
-        cdef np.ndarray[np.complex128_t, ndim=4] mem_PreEQSymbols_data = self.raw["PreEQSymbols"]["data"]
-        cdef np.ndarray[np.uint8_t, ndim=2] mem_MPDU_data = self.raw["MPDU"]["data"]
+        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.raw["CSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.raw["PilotCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.raw["LegacyCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.raw["BasebandSignals"]["data"]
+        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.raw["PreEQSymbols"]["data"]
+        cdef np.uint8_t[:, :] mem_MPDU_data = self.raw["MPDU"]["data"]
 
-        cdef np.ndarray[np.int32_t, ndim=2] mem_CSI_SubcarrierIndex = self.raw["CSI"]["SubcarrierIndex"]
-        cdef np.ndarray[np.int32_t, ndim=2] mem_PilotCSI_SubcarrierIndex = self.raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.ndarray[np.int32_t, ndim=2] mem_LegacyCSI_SubcarrierIndex = self.raw["LegacyCSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.raw["CSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.raw["PilotCSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.raw["LegacyCSI"]["SubcarrierIndex"]
 
         cdef int count = 0
         cdef int cur = 0
