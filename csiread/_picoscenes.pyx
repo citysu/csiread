@@ -1072,6 +1072,30 @@ cdef class Picoscenes:
     cdef public np.ndarray raw
     cdef np.ndarray buf_raw
 
+    cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader
+    cdef dtc_RXBasic[:] mem_RxSBasic
+    cdef dtc_ExtraInfo[:] mem_RxExtraInfo
+    cdef dtc_CSI_info[:] mem_CSI_info
+    cdef dtc_IntelMVMExtrta[:] mem_MVMExtra
+    cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader
+    cdef dtc_ExtraInfo[:] mem_TxExtraInfo
+    cdef dtc_CSI_info[:] mem_PilotCSI_info
+    cdef dtc_CSI_info[:] mem_LegacyCSI_info
+    cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info
+    cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info
+    cdef dtc_MPDU_info[:] mem_MPDU_info
+
+    cdef np.complex128_t[:, :, :, :] mem_CSI_CSI
+    cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI
+    cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI
+    cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data
+    cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data
+    cdef np.uint8_t[:, :] mem_MPDU_data
+
+    cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex
+    cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex
+    cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex
+
     cdef bint if_report
 
     def __cinit__(self, file, dtype, if_report=True, bufsize=0,
@@ -1082,6 +1106,29 @@ cdef class Picoscenes:
     def __init__(self, file, dtype, if_report=True, bufsize=0):
         pk_num = self.__get_pknum(bufsize)
         self.buf_raw = init_array(pk_num, dtype)
+        self.mem_StandardHeader = self.buf_raw["StandardHeader"]
+        self.mem_RxSBasic = self.buf_raw["RxSBasic"]
+        self.mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
+        self.mem_CSI_info = self.buf_raw["CSI"]["info"]
+        self.mem_MVMExtra = self.buf_raw["MVMExtra"]
+        self.mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
+        self.mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
+        self.mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
+        self.mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
+        self.mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
+        self.mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
+        self.mem_MPDU_info = self.buf_raw["MPDU"]["info"]
+
+        self.mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
+        self.mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
+        self.mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
+        self.mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
+        self.mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
+        self.mem_MPDU_data = self.buf_raw["MPDU"]["data"]
+
+        self.mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
+        self.mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
+        self.mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
 
     cdef __get_pknum(self, bufsize):
         if bufsize == 0:
@@ -1125,30 +1172,6 @@ cdef class Picoscenes:
         if num == 0:
             num = lens
 
-        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.buf_raw["StandardHeader"]
-        cdef dtc_RXBasic[:] mem_RxSBasic = self.buf_raw["RxSBasic"]
-        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_CSI_info = self.buf_raw["CSI"]["info"]
-        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.buf_raw["MVMExtra"]
-        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
-        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
-        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
-        cdef dtc_MPDU_info[:] mem_MPDU_info = self.buf_raw["MPDU"]["info"]
-
-        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
-        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
-        cdef np.uint8_t[:, :] mem_MPDU_data = self.buf_raw["MPDU"]["data"]
-
-        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
-
         cdef int count = 0
         cdef int cur = 0
         cdef int i, offset
@@ -1173,36 +1196,36 @@ cdef class Picoscenes:
                 offset = apsfs.segNameLength + 7
 
                 if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic", apsfs.segNameLength):
-                    parse_RxSBasic(apsfs.versionId, buf + cur + offset, &mem_RxSBasic[count])
+                    parse_RxSBasic(apsfs.versionId, buf + cur + offset, &self.mem_RxSBasic[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_RxExtraInfo[count])
+                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_RxExtraInfo[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra", apsfs.segNameLength):
-                    parse_MVMExtra(apsfs.versionId, buf + cur + offset, &mem_MVMExtra[count])
+                    parse_MVMExtra(apsfs.versionId, buf + cur + offset, &self.mem_MVMExtra[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"CSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &mem_CSI_info[count], mem_CSI_CSI[count], mem_CSI_SubcarrierIndex[count])
+                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_CSI_info[count], self.mem_CSI_CSI[count], self.mem_CSI_SubcarrierIndex[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &mem_PilotCSI_info[count], mem_PilotCSI_CSI[count], mem_PilotCSI_SubcarrierIndex[count])
+                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_PilotCSI_info[count], self.mem_PilotCSI_CSI[count], self.mem_PilotCSI_SubcarrierIndex[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &mem_LegacyCSI_info[count], mem_LegacyCSI_CSI[count], mem_LegacyCSI_SubcarrierIndex[count])
+                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_LegacyCSI_info[count], self.mem_LegacyCSI_CSI[count], self.mem_LegacyCSI_SubcarrierIndex[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal", apsfs.segNameLength):
-                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_BasebandSignals_info[count], mem_BasebandSignals_data[count])
+                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_BasebandSignals_info[count], self.mem_BasebandSignals_data[count])
                 elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols", apsfs.segNameLength):
-                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_PreEQSymbols_info[count], mem_PreEQSymbols_data[count])
+                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_PreEQSymbols_info[count], self.mem_PreEQSymbols_data[count])
                 else:
                     pass
                 cur += (4 + apsfs.segmentLength)
 
             # MPDU
-            parse_MPDU(buf + cur, &mem_MPDU_info[count], mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
+            parse_MPDU(buf + cur, &self.mem_MPDU_info[count], self.mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
 
             # StandardHeader
-            parse_StandardHeader(buf + cur, &mem_StandardHeader[count])
+            parse_StandardHeader(buf + cur, &self.mem_StandardHeader[count])
             cur += sizeof(ieee80211_mac_frame_header)
 
             # PicoScenesFrameHeader
             psfh = <PicoScenesFrameHeader*>(buf + cur)
             if psfh.magicValue == 0x20150315:
-                parse_PicoScenesHeader(buf + cur, &mem_PicoScenesHeader[count])
+                parse_PicoScenesHeader(buf + cur, &self.mem_PicoScenesHeader[count])
                 cur += sizeof(PicoScenesFrameHeader)
 
                 # Optional
@@ -1211,7 +1234,7 @@ cdef class Picoscenes:
                     offset = apsfs.segNameLength + 7
 
                     if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                        parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_TxExtraInfo[count])
+                        parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_TxExtraInfo[count])
                     cur += (4 + apsfs.segmentLength)
 
             pos += (mpsrfh.frameLength + 4)
@@ -1227,30 +1250,6 @@ cdef class Picoscenes:
 
     cpdef pmsg(self, data):
         # This method hasn't been ready
-        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.buf_raw["StandardHeader"]
-        cdef dtc_RXBasic[:] mem_RxSBasic = self.buf_raw["RxSBasic"]
-        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_CSI_info = self.buf_raw["CSI"]["info"]
-        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.buf_raw["MVMExtra"]
-        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
-        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
-        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
-        cdef dtc_MPDU_info[:] mem_MPDU_info = self.buf_raw["MPDU"]["info"]
-
-        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
-        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
-        cdef np.uint8_t[:, :] mem_MPDU_data = self.buf_raw["MPDU"]["data"]
-
-        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
-
         cdef int count = 0
         cdef int cur = 0
         cdef int i, offset
@@ -1273,36 +1272,36 @@ cdef class Picoscenes:
             offset = apsfs.segNameLength + 7
 
             if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic", apsfs.segNameLength):
-                parse_RxSBasic(apsfs.versionId, buf + cur + offset, &mem_RxSBasic[count])
+                parse_RxSBasic(apsfs.versionId, buf + cur + offset, &self.mem_RxSBasic[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_RxExtraInfo[count])
+                parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_RxExtraInfo[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra", apsfs.segNameLength):
-                parse_MVMExtra(apsfs.versionId, buf + cur + offset, &mem_MVMExtra[count])
+                parse_MVMExtra(apsfs.versionId, buf + cur + offset, &self.mem_MVMExtra[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"CSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_CSI_info[count], mem_CSI_CSI[count], mem_CSI_SubcarrierIndex[count])
+                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_CSI_info[count], self.mem_CSI_CSI[count], self.mem_CSI_SubcarrierIndex[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_PilotCSI_info[count], mem_PilotCSI_CSI[count], mem_PilotCSI_SubcarrierIndex[count])
+                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_PilotCSI_info[count], self.mem_PilotCSI_CSI[count], self.mem_PilotCSI_SubcarrierIndex[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_LegacyCSI_info[count], mem_LegacyCSI_CSI[count], mem_LegacyCSI_SubcarrierIndex[count])
+                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_LegacyCSI_info[count], self.mem_LegacyCSI_CSI[count], self.mem_LegacyCSI_SubcarrierIndex[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal", apsfs.segNameLength):
-                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_BasebandSignals_info[count], mem_BasebandSignals_data[count])
+                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_BasebandSignals_info[count], self.mem_BasebandSignals_data[count])
             elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols", apsfs.segNameLength):
-                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_PreEQSymbols_info[count], mem_PreEQSymbols_data[count])
+                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_PreEQSymbols_info[count], self.mem_PreEQSymbols_data[count])
             else:
                 pass
             cur += (4 + apsfs.segmentLength)
 
         # MPDU
-        parse_MPDU(buf + cur, &mem_MPDU_info[count], mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
+        parse_MPDU(buf + cur, &self.mem_MPDU_info[count], self.mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
 
         # StandardHeader
-        parse_StandardHeader(buf + cur, &mem_StandardHeader[count])
+        parse_StandardHeader(buf + cur, &self.mem_StandardHeader[count])
         cur += sizeof(ieee80211_mac_frame_header)
 
         # PicoScenesFrameHeader
         psfh = <PicoScenesFrameHeader*>(buf + cur)
         if psfh.magicValue == 0x20150315:
-            parse_PicoScenesHeader(buf + cur, &mem_PicoScenesHeader[count])
+            parse_PicoScenesHeader(buf + cur, &self.mem_PicoScenesHeader[count])
             cur += sizeof(PicoScenesFrameHeader)
 
             # Optional
@@ -1311,7 +1310,7 @@ cdef class Picoscenes:
                 offset = apsfs.segNameLength + 7
 
                 if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_TxExtraInfo[count])
+                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_TxExtraInfo[count])
                 cur += (4 + apsfs.segmentLength)
 
         self.raw = self.buf_raw
