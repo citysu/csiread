@@ -5,8 +5,10 @@ from libc.stdint cimport (uint8_t, uint16_t, uint32_t, uint64_t,
 from libc.stdlib cimport malloc, realloc, free
 from libc.stddef cimport size_t
 from libc.string cimport strncmp
+from libc.math cimport abs, atan2, pi, cos, sin
 import numpy as np
 cimport numpy as np
+cimport cython
 
 
 # Section 1: C struct
@@ -467,6 +469,8 @@ cdef parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
 
     for i in range(length):
         scidx[i] = indices[i] + offset
+    for i in range(length, scidx.shape[0]):
+        scidx[i] = indices[-1] + offset
     return True
 
 
@@ -480,6 +484,8 @@ cdef parseCSI5300scidx(np.int32_t[:] scidx, int8_t format,
 
     for i in range(length):
         scidx[i] = indices[i] + offset
+    for i in range(length, scidx.shape[0]):
+        scidx[i] = indices[-1] + offset
     return True
 
 
@@ -491,6 +497,8 @@ cdef parseCSIUSRPscidx(np.int32_t[:] scidx, unsigned char *payload,
 
     for i in range(numTones):
         scidx[i] = c16(payload + i * 2)
+    for i in range(numTones, scidx.shape[0]):
+        scidx[i] = c16(payload + (numTones - 1) * 2)
     return True
 
 
@@ -1014,11 +1022,45 @@ cdef parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
 
 
 cdef parse_SignalMatrix(uint16_t versionId, unsigned char *buf, dtc_SignalMatrix_info *m,
-                       np.complex128_t[:, :, :] data):
+                        np.complex128_t[:, :, :] data):
     if versionId == 0x1:
         parse_SignalMatrixV1(buf, m, data)
     else:
         pass
+
+
+cdef interp_iq(np.complex128_t *csi_1, np.complex128_t *csi_2,
+               np.float64_t ratio, np.complex128_t *iplcsi):
+    """interpolate csi along real and imag (linear)"""
+    cdef np.complex128_t csi
+    csi = csi_2[0] - csi_1[0]
+    csi *= ratio
+    csi += csi_1[0]
+    iplcsi[0] = csi
+
+
+cdef interp_ap(np.complex128_t *csi_1, np.complex128_t *csi_2,
+               np.float64_t ratio, np.complex128_t *iplcsi):
+    """interpolate csi along amplitude and phase (linear)"""
+    cdef np.float64_t csi_a
+    cdef np.float64_t csi_p
+    cdef np.float64_t csi_1_p
+
+    csi_a = abs(csi_2[0])- abs(csi_1[0])
+    csi_a *= ratio
+    csi_a += abs(csi_1[0])
+
+    csi_1_p = atan2(csi_1[0].real, csi_1[0].imag)
+    csi_p = atan2(csi_2[0].real, csi_2[0].imag) - csi_1_p
+    if csi_p > pi:
+        csi_p -= (2 * pi)
+    if csi_p < -pi:
+        csi_p += (2 * pi)
+    csi_p *= ratio
+    csi_p += csi_1_p
+    iplcsi[0].real = csi_a * cos(csi_p)
+    iplcsi[0].imag = csi_a * sin(csi_p)
+
 
 # Section 5: Picoscenes
 
@@ -1028,6 +1070,7 @@ cdef class Picoscenes:
     cdef readonly int count
 
     cdef public np.ndarray raw
+    cdef np.ndarray buf_raw
 
     cdef bint if_report
 
@@ -1038,14 +1081,13 @@ cdef class Picoscenes:
 
     def __init__(self, file, dtype, if_report=True, bufsize=0):
         pk_num = self.__get_pknum(bufsize)
-        self.raw = init_array(pk_num, dtype)
+        self.buf_raw = init_array(pk_num, dtype)
 
     cdef __get_pknum(self, bufsize):
         if bufsize == 0:
             if self.file is None:
                 self.count = 1
                 pk_num = 1
-                self.count = 1
             else:
                 pk_num = self.__get_count()
         else:
@@ -1075,7 +1117,7 @@ cdef class Picoscenes:
         self.seek(self.file, 0, 0) 
 
     cpdef seek(self, file, long pos, long num):
-        cdef FILE *f = crfopen(self.file)
+        cdef FILE *f = crfopen(file)
         cdef long lens = getfilesize(f, 0)
         cdef uint32_t buf_size = 4              # Require: buf_size >= 4
         cdef unsigned char *buf = <unsigned char *>malloc(
@@ -1083,29 +1125,29 @@ cdef class Picoscenes:
         if num == 0:
             num = lens
 
-        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.raw["StandardHeader"]
-        cdef dtc_RXBasic[:] mem_RxSBasic = self.raw["RxSBasic"]
-        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.raw["RxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_CSI_info = self.raw["CSI"]["info"]
-        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.raw["MVMExtra"]
-        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.raw["PicoScenesHeader"]
-        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.raw["TxExtraInfo"]
-        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.raw["PilotCSI"]["info"]
-        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.raw["LegacyCSI"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.raw["BasebandSignals"]["info"]
-        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]
-        cdef dtc_MPDU_info[:] mem_MPDU_info = self.raw["MPDU"]["info"]
+        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.buf_raw["StandardHeader"]
+        cdef dtc_RXBasic[:] mem_RxSBasic = self.buf_raw["RxSBasic"]
+        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_CSI_info = self.buf_raw["CSI"]["info"]
+        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.buf_raw["MVMExtra"]
+        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
+        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
+        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
+        cdef dtc_MPDU_info[:] mem_MPDU_info = self.buf_raw["MPDU"]["info"]
 
-        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.raw["CSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.raw["PilotCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.raw["LegacyCSI"]["CSI"]
-        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.raw["BasebandSignals"]["data"]
-        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.raw["PreEQSymbols"]["data"]
-        cdef np.uint8_t[:, :] mem_MPDU_data = self.raw["MPDU"]["data"]
+        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
+        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
+        cdef np.uint8_t[:, :] mem_MPDU_data = self.buf_raw["MPDU"]["data"]
 
-        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.raw["CSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.raw["PilotCSI"]["SubcarrierIndex"]
-        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.raw["LegacyCSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
 
         cdef int count = 0
         cdef int cur = 0
@@ -1181,7 +1223,155 @@ cdef class Picoscenes:
         self.count = count
         if self.if_report:
             printf("%d packets parsed\n", count)
+        self.raw = self.buf_raw[:count]
 
-    cpdef pmsg(self, unsigned char *data):
+    cpdef pmsg(self, data):
         # This method hasn't been ready
+        cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader = self.buf_raw["StandardHeader"]
+        cdef dtc_RXBasic[:] mem_RxSBasic = self.buf_raw["RxSBasic"]
+        cdef dtc_ExtraInfo[:] mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_CSI_info = self.buf_raw["CSI"]["info"]
+        cdef dtc_IntelMVMExtrta[:] mem_MVMExtra = self.buf_raw["MVMExtra"]
+        cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
+        cdef dtc_ExtraInfo[:] mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
+        cdef dtc_CSI_info[:] mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
+        cdef dtc_CSI_info[:] mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
+        cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
+        cdef dtc_MPDU_info[:] mem_MPDU_info = self.buf_raw["MPDU"]["info"]
+
+        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
+        cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
+        cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
+        cdef np.uint8_t[:, :] mem_MPDU_data = self.buf_raw["MPDU"]["data"]
+
+        cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
+        cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
+
+        cdef int count = 0
+        cdef int cur = 0
+        cdef int i, offset
+        cdef ModularPicoScenesRxFrameHeader *mpsrfh
+        cdef AbstractPicoScenesFrameSegment apsfs
+        cdef PicoScenesFrameHeader *psfh
+        cdef unsigned char *buf = data
+
+        # ModularPicoScenesRxFrameHeader
+        mpsrfh = <ModularPicoScenesRxFrameHeader*>buf
+        if mpsrfh.frameLength + 4 != len(data):
+            return
+        if mpsrfh.magicWord != 0x20150315  or mpsrfh.frameVersion != 0x1:
+            return
+        cur += sizeof(ModularPicoScenesRxFrameHeader)
+
+        # MUST
+        for i in range(mpsrfh.numRxSegments):
+            apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
+            offset = apsfs.segNameLength + 7
+
+            if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic", apsfs.segNameLength):
+                parse_RxSBasic(apsfs.versionId, buf + cur + offset, &mem_RxSBasic[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
+                parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_RxExtraInfo[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra", apsfs.segNameLength):
+                parse_MVMExtra(apsfs.versionId, buf + cur + offset, &mem_MVMExtra[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"CSI", apsfs.segNameLength):
+                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_CSI_info[count], mem_CSI_CSI[count], mem_CSI_SubcarrierIndex[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI", apsfs.segNameLength):
+                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_PilotCSI_info[count], mem_PilotCSI_CSI[count], mem_PilotCSI_SubcarrierIndex[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI", apsfs.segNameLength):
+                parse_CSI(apsfs.versionId, buf + cur + offset, &mem_LegacyCSI_info[count], mem_LegacyCSI_CSI[count], mem_LegacyCSI_SubcarrierIndex[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal", apsfs.segNameLength):
+                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_BasebandSignals_info[count], mem_BasebandSignals_data[count])
+            elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols", apsfs.segNameLength):
+                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &mem_PreEQSymbols_info[count], mem_PreEQSymbols_data[count])
+            else:
+                pass
+            cur += (4 + apsfs.segmentLength)
+
+        # MPDU
+        parse_MPDU(buf + cur, &mem_MPDU_info[count], mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
+
+        # StandardHeader
+        parse_StandardHeader(buf + cur, &mem_StandardHeader[count])
+        cur += sizeof(ieee80211_mac_frame_header)
+
+        # PicoScenesFrameHeader
+        psfh = <PicoScenesFrameHeader*>(buf + cur)
+        if psfh.magicValue == 0x20150315:
+            parse_PicoScenesHeader(buf + cur, &mem_PicoScenesHeader[count])
+            cur += sizeof(PicoScenesFrameHeader)
+
+            # Optional
+            for i in range(psfh.numSegments):
+                apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
+                offset = apsfs.segNameLength + 7
+
+                if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
+                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &mem_TxExtraInfo[count])
+                cur += (4 + apsfs.segmentLength)
+
+        self.raw = self.buf_raw
         return 0xf300       # status code
+
+    cpdef interpolate_csi(self, name, bint IQ=False):
+        """interpolate csi"""
+        buf_raw = self.buf_raw[name]
+        cdef int i, j, k, g, d, nsc, nrx, ntx
+        cdef np.float64_t ratio
+        cdef np.int32_t[:] sci
+        cdef dtc_CSI_info[:] mem_CSI_info = buf_raw["info"]
+        cdef np.int32_t[:, :] mem_CSI_scidx = buf_raw["SubcarrierIndex"]
+        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = buf_raw["CSI"]
+
+        _, nsc, nrx, ntx = buf_raw["CSI"].shape
+        if nsc == 0 or nrx == 0 or ntx == 0:
+            return None
+        i = np.argmax(buf_raw["info"]["numTones"])
+        sc = buf_raw["SubcarrierIndex"][i]
+        nsc = sc.max() - sc.min() + 1
+        interpolated_csi = np.zeros([self.count, nsc, nrx, ntx],
+                                    dtype=np.complex128)
+        interpolated_scindex = np.zeros([self.count, nsc], dtype=np.int32)
+        cdef np.complex128_t[:, :, :, :] mem_iplcsi = interpolated_csi
+        cdef np.int32_t[:, :] mem_iplsci = interpolated_scindex
+
+        with cython.boundscheck(False):
+            for i in range(self.count):
+                nsc = mem_CSI_info[i].numTones
+                nrx = mem_CSI_info[i].numRx
+                ntx = mem_CSI_info[i].numTx + mem_CSI_info[i].numESS
+                sci = mem_CSI_scidx[i, :nsc]
+                nsc = sci[-1] - sci[0] + 1
+
+                # interpolate subcarrier index
+                for g in range(nsc):
+                    mem_iplsci[i, g] = sci[0] + g
+                for g in range(nsc, mem_iplsci.shape[1]):
+                    mem_iplsci[i, g] = sci[-1]
+
+                # interpolate csi (linear)
+                for j in range(nrx):
+                    for k in range(ntx):
+                        d = 0
+                        for g in range(nsc):
+                            if g == (sci[d] - sci[0]):
+                                mem_iplcsi[i, g, j, k] = mem_CSI_CSI[i, d, j,k]
+                                d += 1
+                            else:
+                                ratio = g - (sci[d - 1] - sci[0])
+                                ratio /= (sci[d] - sci[d - 1])
+                                if IQ:
+                                    interp_iq(&mem_CSI_CSI[i, d - 1, j, k],
+                                              &mem_CSI_CSI[i, d, j, k],
+                                              ratio,
+                                              &mem_iplcsi[i, g, j, k])
+                                else:
+                                    interp_ap(&mem_CSI_CSI[i, d - 1, j, k],
+                                              &mem_CSI_CSI[i, d, j, k],
+                                              ratio,
+                                              &mem_iplcsi[i, g, j, k])
+        return interpolated_csi, interpolated_scindex

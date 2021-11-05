@@ -997,11 +997,6 @@ def _nex_group(seq, core, spatial, c_num=4, s_num=4):
     return offset
 
 
-class Pico:
-    """A container for Picoscenes's dynamic attributes"""
-    pass
-
-
 class Picoscenes(_picoscenes.Picoscenes):
     """Parse CSI obtained using 'PicoScenes'.
 
@@ -1009,15 +1004,12 @@ class Picoscenes(_picoscenes.Picoscenes):
         file (str or None): CSI data file ``.csi``. If ``str``, ``read``
             methods is allowed. If ``None``, ``seek`` and ``pmsg`` methods are
             allowed.
-        pl_size (int, tuple, list, dict, optional): It can be `int, list,
-            tuple and dict`, but it will be converted into `dict` finally.
-            The Attributes `CSI, SubcarrierIndex, BasebandSignals,
-            PreEQSymbols and MPDU` can be variable length arrays. To store
-            them in 2D arrays, `pl_size` will set the length of second
-            dimensions. It controls how to parse these attributes. e.g.
-            If `len(CSI_ARRAY) > pl_size['CSI']`, parsing of `CSI` attribute
-            in this frame will be skipped. By default, `pl_size=0`, it will
-            skip parsing them.
+        pl_size (dict, optional): `pl_size` will set the shape of some fields
+            in structured array ``raw``. These fields store the attributes
+            which are variable length arrays. These attributes of one frame
+            will only be parsed, when structured array is large enough to store
+            them. Otherwise they will be skipped. The ``check`` method can help
+            you set ``pl_size``. Default: ``None``.
         if_report (bool, optional): Report the parsed result. Default: `True`
         bufsize (int, optional): The maximum amount of frames to be parsed. If
             ``0`` and file is ``str``, all frames will be parsed. If ``0`` and
@@ -1027,15 +1019,35 @@ class Picoscenes(_picoscenes.Picoscenes):
     Attributes:
         file (str, readonly): CSI data file
         count (int, readonly): Count of csi frames parsed
-        raw (ndarray): structured array, See ``PicoScenes documentation:
-            PicoScenes MATLAB Toolbox`` for more details.
+        pl_size (dict): A dictionary which initializes the dtype of ``raw``
+        raw (ndarray): structured array which stores the parsed result, See
+            ``PicoScenes documentation: PicoScenes MATLAB Toolbox`` for more
+            details.
+        dynamic attributes (recarray): Attribute names are ``raw.dtype.names``. 
+            They are just the aliases of ``raw``. Only exist after calling
+            ``read`` method.
+
+    Note:
+        1. Edge padding (Pads with the edge values of array) are applied to
+        raw["xxx"]["SubcarrierIndex"]
 
     Examples:
-        >>> pl_size_rx_by_qca9300 = {'CSI': 168, 'SubcarrierIndex': 56}
-        >>> csifile = "../material/picoscenes/dataset/rx_by_qca9300.csi"
-        >>> csidata = csiread.Picoscenes(csifile)
+
+        >>> pl_size_rx_by_iwl5300 = {
+        >>>     'CSI': [30, 3, 2],
+        >>>     'PilotCSI': [0, 0, 0],
+        >>>     'LegacyCSI': [0, 0, 0],
+        >>>     'BasebandSignals': [0, 0, 0],
+        >>>     'PreEQSymbols': [0, 0, 0],
+        >>>     'MPDU': 1522
+        >>> }
+        >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+        >>> csidata = csiread.Picoscenes(csifile, pl_size_rx_by_iwl5300)
         >>> csidata.read()
-        >>> print(csidata.raw[10]["CSI"])
+        >>> csidata.check()
+        >>> csidata.display(2)
+        >>> print(csidata.raw['CSI']['CSI'][2].shape)
+        >>> print(csidata.CSI.CSI.shape)
 
     References:
         1. Zhiping Jiang, Tom H. Luan, Xincheng Ren, Dongtao Lv, Han Hao,
@@ -1046,29 +1058,45 @@ class Picoscenes(_picoscenes.Picoscenes):
         on arxiv.
         2. `PicoScenes documentation <https://ps.zpj.io>`_
     """
-    def __init__(self, file, pl_size=0, if_report=True, bufsize=0):
+    def __init__(self, file, pl_size=None, if_report=True, bufsize=0):
         self.pl_size = self.__init_pl_size(pl_size)
         dtype = init_dtype_picoscenes(self.pl_size)
         super(Picoscenes, self).__init__(file, dtype, if_report, bufsize)
 
+    def __getitem__(self, index):
+        return self.raw[index]
+
     def __init_pl_size(self, pl_size):
-        ret = {'CSI': [0, 0, 0], 'PilotCSI': [0, 0, 0],
-               'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0],
-               'PreEQSymbols': [0, 0, 0], 'MPDU': 0}
-        if isinstance(pl_size, int):
-            ret = {k: pl_size for k in ret.keys()}
-        elif isinstance(pl_size, dict):
+        ret = {
+            'CSI': [0, 0, 0],
+            'PilotCSI': [0, 0, 0],
+            'LegacyCSI': [0, 0, 0],
+            'BasebandSignals': [0, 0, 0],
+            'PreEQSymbols': [0, 0, 0],
+            'MPDU': 0
+        }
+        if isinstance(pl_size, dict):
             ret.update(pl_size)
-        elif (isinstance(pl_size, list) \
-                or isinstance(pl_size, tuple)) \
-                and len(pl_size) == len(ret):
+        elif isinstance(pl_size, list):
+            assert len(pl_size) == len(ret)
+            ret = {k: v for k, v in zip(ret.keys(), pl_size)}
+        elif isinstance(pl_size, tuple()):
+            assert len(pl_size) == len(ret)
             ret = {k: v for k, v in zip(ret.keys(), pl_size)}
         else:
             pass
         return ret
 
-    def __getitem__(self, index):
-        return self.raw[index]
+    def _merge(self):
+        """Set dynamic attributes
+
+        Note: 
+            1. Don't run this method in a loop, it will slow down the program.
+            2. ndim, shape and itemsize of `info` conflict with ndarray's
+                attributes. e.g. PreEQSymbols.info.ndim will be 0, not 3.
+        """
+        for name in self.raw.dtype.names:
+            self.__setattr__(name, self.raw[name].view(np.recarray))
 
     def read(self):
         """Parse data
@@ -1076,15 +1104,16 @@ class Picoscenes(_picoscenes.Picoscenes):
         Examples:
 
             >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-            >>> csidata = csiread.Picoscenes(csifile)
+            >>> csidata = csiread.Picoscenes(csifile, {"CSI": (30, 3, 2)})
             >>> csidata.read()
-            >>> print(csidata.raw[10]["CSI"].keys())
+            >>> print(csidata.raw[10]["CSI"].dtype.names)
 
         """
         super().read()
+        self._merge()
 
     def seek(self, file, pos, num):
-        """Read packets from a specific position
+        """Read frames from a specific position
 
         This method allows us to read different parts of different files
         randomly. It could be useful in Machine Learning. However, it could be
@@ -1093,86 +1122,126 @@ class Picoscenes(_picoscenes.Picoscenes):
 
         Args:
             file (str): CSI data file.
-            pos (int): Position of file descriptor corresponding to the packet.
+            pos (int): Position of file descriptor corresponding to the frame.
                 Currently, it must be returned by the function in
                 ``example/csiseek.py``.
-            num (int): Number of packets to be read. If ``0``, all packets
+            num (int): Number of frames to be read. If ``0``, all frames
                 after ``pos`` will be read.
 
         Examples:
 
             >>> csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-            >>> csidata = csiread.Picoscenes(csifile)
+            >>> csidata = csiread.Picoscenes(csifile, {"CSI": (30, 3, 2)})
             >>> for i in range(10):
             >>>     csidata.seek(csifile, 0, i+1)
-            >>>     print(len(csidata.raw))
+            >>>     print(csidata.raw["CSI"]["CSI"].shape)
         """
         super().seek(file, pos, num)
 
     def pmsg(self, data):
-        """Parse message in real time
+        """Parse message in real time (This method hasn't been READY)
 
-        This method hasn't been READY.
+        Args:
+            data (bytes): A bytes object representing the data received by udp
+                socket
+        Returns:
+            int: The status code. If ``0xf300``, parse message successfully.
+                Otherwise, the ``data`` is not a PicoScenes frame.
+
+        Examples:
+
+            >>> import socket
+            >>> import csiread
+            >>>
+            >>> csidata = csiread.Picoscenes(None, {'CSI': [30, 3, 3]})
+            >>> with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            >>>     s.bind(('127.0.0.1', 10011))
+            >>>     while True:
+            >>>         data, address_src = s.recvfrom(4096)
+            >>>         code = csidata.pmsg(data)
+            >>>         if code == 0xf300:
+            >>>             print(csidata.raw[0]["CSI"]["CSI"].shape)
         """
         return super().pmsg(data)
 
-    def interpolate_csi(type='CSI'):
-        pass
+    def interpolate_csi(self, name='CSI', mode='AP'):
+        """Interpolate csi by linear method
+
+        Args:
+            name (str, optional): CSI type, It can be "CSI" and "LegacyCSI",
+                Default: "CSI"
+            mode (str, optional): How to interpolate csi. It can be "AP" and
+                "IQ", "AP" means interpolating along amplitude and phase; "IQ"
+                means interpolating along IQ signal. Default: "AP"
+
+        Returns:
+            (tuple)
+            interp_csi (ndarray): csi after interpolateing
+            interp_scindex (ndarray): subcarrier index after interpolateing
+        """
+        assert name in ["CSI", "LegacyCSI"]
+        assert mode in ["AP", "IQ"]
+        flag_IQ = True if mode == 'IQ' else False
+        interp_csi, interp_scindex = super().interpolate_csi(name, flag_IQ)
+        return interp_csi, interp_scindex
+
+    def get_info_shape(self, name):
+        """return `name`'s shape
+
+        Args:
+            name (str): it can be "CSI", "PilotCSI", "LegacyCSI",
+                "BasebandSignals", "PreEQSymbols" and "MPDU"
+        Returns:
+            info (ndarray): 2D array which records the shape of `name`
+        """
+        if name in ["CSI", "PilotCSI", "LegacyCSI"]:
+            nsc = self.raw[name]["info"]["numTones"]
+            nrx = self.raw[name]["info"]["numRx"]
+            ntx = self.raw[name]["info"]["numTx"] \
+                + self.raw[name]["info"]["numESS"]
+            info = np.c_[nsc, nrx, ntx]
+        elif name in ["BasebandSignals", "PreEQSymbols"]:
+            info = self.raw[name]["info"]["shape"]
+        elif name in ["MPDU"]:
+            info = self.raw[name]["info"]["length"][:, None]
+        else:
+            info = None
+        return info
 
     def check(self):
-        """helper method"""
-        CSI_nsc = self.raw["CSI"]["info"]["numTones"]
-        CSI_nrx = self.raw["CSI"]["info"]["numRx"]
-        CSI_ntx = self.raw["CSI"]["info"]["numTx"] \
-            + self.raw["CSI"]["info"]["numESS"]
-        CSI_info = np.c_[CSI_nsc, CSI_nrx, CSI_ntx]
+        """helper method for setting parameter `pl_size`"""
+        T = "%15s%15s%15s%15s%10s\n"
+        Delimiter = T % ("-"*15, "-"*15, "-"*15, "-"*15, "-"*10)
 
-        PilotCSI_nsc = self.raw["PilotCSI"]["info"]["numTones"]
-        PilotCSI_nrx = self.raw["PilotCSI"]["info"]["numRx"]
-        PilotCSI_ntx = self.raw["PilotCSI"]["info"]["numTx"] \
-            + self.raw["PilotCSI"]["info"]["numESS"]
-        PilotCSI_info = np.c_[PilotCSI_nsc, PilotCSI_nrx, PilotCSI_ntx]
+        CSI_info = self.get_info_shape("CSI")
+        PilotCSI_info = self.get_info_shape("PilotCSI")
+        LegacyCSI_info = self.get_info_shape("LegacyCSI")
+        BasebandSignals_info = self.get_info_shape("BasebandSignals")
+        PreEQSymbols_info = self.get_info_shape("PreEQSymbols")
+        MPDU_info = self.get_info_shape("MPDU")
 
-        LegacyCSI_nsc = self.raw["LegacyCSI"]["info"]["numTones"]
-        LegacyCSI_nrx = self.raw["LegacyCSI"]["info"]["numRx"]
-        LegacyCSI_ntx = self.raw["LegacyCSI"]["info"]["numTx"] \
-            + self.raw["LegacyCSI"]["info"]["numESS"]
-        LegacyCSI_info = np.c_[LegacyCSI_nsc, LegacyCSI_nrx, LegacyCSI_ntx]
+        def rowstring(name, info):
+            pl_size = np.asarray(self.pl_size[name])
+            skip = np.nan if info.max() == 0 else (info > pl_size).any(1).sum()
+            with np.printoptions(formatter={'all':lambda x: str(x)}):
+                s = T % (name, info.min(0), info.max(0), pl_size, skip)
+            return s
 
-        BasebandSignals_info = self.raw["BasebandSignals"]["info"]["shape"]
-        PreEQSymbols_info = self.raw["PreEQSymbols"]["info"]["shape"]
-        MPDU_info = self.raw["MPDU"]["info"]['length']
-
-        holder = " "
-        T = "%15s%15s%15s%15s\n"
-        Delimiter = T % ("-"*15, "-"*15, "-"*15, "-"*15)
         s = ""
         s += Delimiter
-        s += T % ("CHECK", "min", "max", "pl_size")
+        s += T % ("CHECK", "min", "max", "pl_size", "skip")
         s += Delimiter
-        s += T % ("CSI",
-                  CSI_info.min(0), CSI_info.max(0),
-                  list(self.pl_size['CSI']))
-        s += T % ("PilotCSI",
-                  PilotCSI_info.min(0), PilotCSI_info.max(0),
-                  list(self.pl_size['PilotCSI']))
-        s += T % ("LegacyCSI",
-                  LegacyCSI_info.min(0), LegacyCSI_info.max(0),
-                  list(self.pl_size['LegacyCSI']))
-        s += T % ("BasebandSignals",
-                  BasebandSignals_info.min(0), BasebandSignals_info.max(0),
-                  self.pl_size['BasebandSignals'])
-        s += T % ("PreEQSymbols",
-                  PreEQSymbols_info.min(0), PreEQSymbols_info.max(0),
-                  self.pl_size['PreEQSymbols'])
-        s += T % ("MPDU",
-                  MPDU_info.min(), MPDU_info.max(),
-                  self.pl_size['MPDU'])
+        s += rowstring("CSI", CSI_info)
+        s += rowstring("PilotCSI", PilotCSI_info)
+        s += rowstring("LegacyCSI", LegacyCSI_info)
+        s += rowstring("BasebandSignals", BasebandSignals_info)
+        s += rowstring("PreEQSymbols", PreEQSymbols_info)
+        s += rowstring("MPDU", MPDU_info)
         s += Delimiter
         print(s, end='')
 
     def display(self, index):
-        """Print the formatted representation of ``index`` packet"""
+        """Print the formatted representation of ``index`` frame"""
         T = "%s%-20s: %s\n"
 
         AtherosCFTuningPolicy = {
@@ -1186,21 +1255,21 @@ class Picoscenes(_picoscenes.Picoscenes):
         hfo = len(self.raw['RxExtraInfo'].dtype.names) // 2
 
         def skip(raw, name):
-            if name == 'MVMExtra' and raw['MVMExtra']['FMTClock'] == 0:
+            if name == 'MVMExtra' and raw[name]['FMTClock'] == 0:
                 return True
-            if name == 'PicoScenesHeader' and raw['PicoScenesHeader']['MagicValue'] == 0:
+            if name == 'PicoScenesHeader' and raw[name]['MagicValue'] == 0:
                 return True
-            if name == 'TxExtraInfo' and raw['TxExtraInfo']['version'] == 0:
+            if name == 'TxExtraInfo' and raw[name]['version'] == 0:
                 return True
-            if name == 'PilotCSI' and raw['PilotCSI']['info']['DeviceType'] == 0:
+            if name == 'PilotCSI' and raw[name]['info']['DeviceType'] == 0:
                 return True
-            if name == 'LegacyCSI' and raw['LegacyCSI']['info']['DeviceType']  == 0:
+            if name == 'LegacyCSI' and raw[name]['info']['DeviceType']  == 0:
                 return True
-            if name == 'BasebandSignals' and raw['BasebandSignals']['info']['ndim'] == 0:
+            if name == 'BasebandSignals' and raw[name]['info']['ndim'] == 0:
                 return True
-            if name == 'PreEQSymbols' and raw['PreEQSymbols']['info']['ndim'] == 0:
+            if name == 'PreEQSymbols' and raw[name]['info']['ndim'] == 0:
                 return True
-            if name == 'MPDU' and raw['MPDU']['info']['length'] == 0:
+            if name == 'MPDU' and raw[name]['info']['length'] == 0:
                 return True
             return False
 
@@ -1212,11 +1281,7 @@ class Picoscenes(_picoscenes.Picoscenes):
                 if isinstance(name, tuple):
                     if skip(raw, name[0]):
                         continue
-                    # s += T % (tab, name[0], '')
-                    if name[0] != 'info':
-                        s += T % (tab, name[0], '')
-                    else:
-                        indent -= 2
+                    s += T % (tab, name[0], '')
                     s = report(s, raw[name[0]], name[0], indent)
                 else:
                     if parent and parent.endswith("ExtraInfo"):
@@ -1238,7 +1303,7 @@ class Picoscenes(_picoscenes.Picoscenes):
                         s += T % (tab, name, raw[name])
             return s
 
-        s = "%dth packet:\n" % index
+        s = "%dth frame:\n" % index
         s += T % ("  ", "file", self.file)
         s += T % ("  ", "count", self.count)
         s = report(s, self.raw[index], None, 0)
