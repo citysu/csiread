@@ -1321,18 +1321,23 @@ cdef class Picoscenes:
         """interpolate csi"""
         buf_raw = self.buf_raw[name]
         cdef int i, j, k, g, d, nsc, nrx, ntx
+        cdef int max_idx = 0
+        cdef int max_value = 0
         cdef np.float64_t ratio
         cdef np.int32_t[:] sci
         cdef dtc_CSI_info[:] mem_CSI_info = buf_raw["info"]
         cdef np.int32_t[:, :] mem_CSI_scidx = buf_raw["SubcarrierIndex"]
         cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = buf_raw["CSI"]
 
+        # initialize interpolated_csi and interpolated_scindex
         _, nsc, nrx, ntx = buf_raw["CSI"].shape
         if nsc == 0 or nrx == 0 or ntx == 0:
             return None
-        i = np.argmax(buf_raw["info"]["numTones"])
-        sc = buf_raw["SubcarrierIndex"][i]
-        nsc = sc.max() - sc.min() + 1
+        for i in range(self.count):
+            if mem_CSI_info[i].numTones > max_value:
+                max_value = mem_CSI_info[i].numTones
+                max_idx = i
+        nsc = mem_CSI_scidx[max_idx, -1] - mem_CSI_scidx[max_idx, 0] + 1
         interpolated_csi = np.zeros([self.count, nsc, nrx, ntx],
                                     dtype=np.complex128)
         interpolated_scindex = np.zeros([self.count, nsc], dtype=np.int32)
