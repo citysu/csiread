@@ -150,20 +150,20 @@ def seekNexmon(csifile, num=36):
     print("%-18s: %18fs" % ("seek(num=%d)" % (num), cost_time))
 
 
-def seekPicoscenes(csifile, num=36):
+def seekPicoscenes(csifile, pl, num=36):
     positions_all = getPos(csifile)
     positions = positions_all[::num][:-1]
     random.shuffle(positions)
     print("-"*40, "[Picoscenes]")
 
     last = default_timer()
-    csidata = csiread.Picoscenes(csifile, False)
+    csidata = csiread.Picoscenes(csifile, pl, False)
     csidata.read()
     cost_time = default_timer() - last
     print("%-18s: %18fs" % ("read()", cost_time))
 
     last = default_timer()
-    csidata = csiread.Picoscenes(None, False)
+    csidata = csiread.Picoscenes(None, pl, False, bufsize=num)
     for pos in positions:
         csidata.seek(csifile, pos, num)
     cost_time = (default_timer() - last) * len(positions_all) / (len(positions) * num)
@@ -178,4 +178,4 @@ if __name__ == "__main__":
     seekIntel(csifile_intel, 64)
     seekAtheros(csifile_atheros, 64)
     seekNexmon(csifile_nexmon, 2)
-    seekPicoscenes(csifile_picoscenes, 1)
+    seekPicoscenes(csifile_picoscenes, {'CSI': [56, 3, 1]}, 64)

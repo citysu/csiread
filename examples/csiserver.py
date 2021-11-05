@@ -8,6 +8,7 @@ Usage:
     Atheros: python3 csiserver.py ../material/atheros/dataset/ath_csi_1.dat 100 100000
     Nexmon: python3 csiserver.py ../material/nexmon/dataset/example.pcap 12 10000
     ESP32-CSI-Tool: python3 csiserver.py ../material/esp32/dataset/example_csi.csv 3000 100000
+    Picoscenes: python3 csiserver.py ../material/picoscenes/dataset/rx_by_qca9300.csi 1000 10000
 """
 
 import argparse
@@ -231,6 +232,63 @@ def esp32_server(csifile, number, delay):
                 break
 
 
+def picoscenes_server(csifile, number, delay):
+    """picoscenes server
+
+    Args:
+        csifile: csi smaple file
+        number: packets number, unlimited if number=0
+        delay: packets rate(us), the sending rate is inaccurate due to `sleep`
+
+    Note:
+        set address for remoting connection
+    """
+    # config
+    address_src = ('127.0.0.1', 10086)
+    address_des = ('127.0.0.1', 10010)
+
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(address_src)
+
+    f = open(csifile, 'rb')
+    lens = f.seek(0, os.SEEK_END)
+    f.seek(0, os.SEEK_SET)
+
+    cur = 0
+    count = 0
+
+    print("sending")
+    while True:
+        if cur >= (lens - 4):
+            f.seek(0, os.SEEK_SET)
+            cur = 0
+
+        # data
+        time.sleep(delay/1000000)
+        field_len = int.from_bytes(f.read(4), byteorder='little') + 4
+        f.seek(-4, os.SEEK_CUR)
+        data = bytearray(f.read(field_len))
+        if len(data) >= 65507:
+            cur += field_len
+            count += 1
+            continue
+
+        s.sendto(data, address_des)
+
+        cur += field_len
+        count += 1
+        if count % 1000 == 0:
+            print(".", end="", flush=True)
+        if count % 50000 == 0:
+            print(count//1000, 'K', flush=True)
+        if number != 0 and count >= number:
+            break
+
+    s.close()
+    f.close()
+    print()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('csifile', type=str, help='csi smaple file')
@@ -246,5 +304,7 @@ if __name__ == "__main__":
         atheros_server(p.csifile, p.number, p.delay, 'little')
     elif device == "Nexmon":
         nexmon_server(p.csifile, p.number, p.delay)
+    elif device == "Picoscenes":
+        picoscenes_server(p.csifile, p.number, p.delay)
     else:
         esp32_server(p.csifile, p.number, p.delay)

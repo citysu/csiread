@@ -33,6 +33,7 @@ from numpy.random import randn, uniform
 from scipy.io import loadmat
 from scipy.linalg import hankel
 from scipy.stats import gmean
+from scipy.interpolate import interp1d
 from skimage.feature.peak import peak_local_max
 
 from utils import db
@@ -217,7 +218,7 @@ def extend_scidx(bw, ng):
     return np.r_[-a:a+1]
 
 
-def extend_csi(csi, bw, ng):
+def extend_csi(csi, bw, ng, IQ=True):
     """ extend csi
 
     Args:
@@ -228,18 +229,17 @@ def extend_csi(csi, bw, ng):
     """
     s_index_new = extend_scidx(bw, ng)
     s_index_old = scidx(bw, ng)
-    newcsi = np.empty([csi.shape[0], s_index_new.size, csi.shape[2]], csi.dtype)
 
-    steps = np.cumsum(np.diff(s_index_old))
-    steps = np.r_[0, steps]
-    j = 0
-    for i, sd_new in enumerate(s_index_new):
-        if i == steps[j]:
-            newcsi[:, i] = csi[:, j]
-            j += 1
-        else:
-            jj = j - 1
-            newcsi[:, i] = csi[:, jj] + (csi[:, jj+1] - csi[:, jj]) / (steps[jj + 1] - steps[jj]) * (i - steps[jj])
+    if IQ:
+        # Along IQ signals
+        newcsi = interp1d(s_index_old, csi, axis=1)(s_index_new)
+    else:
+        # Along amplitude and phase
+        A = np.abs(csi)
+        P = np.unwrap(np.angle(csi), axis=1)
+        newA = interp1d(s_index_old, A, axis=1)(s_index_new)
+        newP = interp1d(s_index_old, P, axis=1)(s_index_new)
+        newcsi = newA * np.exp(1.j * newP)
     return newcsi
 
 

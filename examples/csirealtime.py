@@ -23,6 +23,10 @@ cache_data3 = [np.nan] * cache_len
 
 subcarrier_num = 256
 cache_data4 = [np.nan] * subcarrier_num
+
+nsc_pico = 56
+cache_data5 = [np.nan] * nsc_pico
+
 mutex = threading.Lock()
 
 
@@ -35,19 +39,22 @@ class GetDataThread(threading.Thread):
             self.csidata = csiread.Intel(None, 3, 1)
         if device == 'nexmon':
             self.csidata = csiread.Nexmon(None, chip='4358', bw=80)
+        if device == 'picoscenes':
+            self.csidata = csiread.Picoscenes(None, {'CSI': [nsc_pico, 3, 1]})
 
     def run(self):
         self.update_background()
 
     def update_background(self):
         # config
-        global cache_data1, cache_data2, cache_data3, cache_data4, mutex
+        global cache_data1, cache_data2, cache_data3, \
+            cache_data4, cache_data5, mutex
         count = 0
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(self.address_des)
             while True:
-                data, address_src = s.recvfrom(4096)
+                data, address_src = s.recvfrom(4096)    # 65507
                 msg_len = len(data)
 
                 code = self.csidata.pmsg(data)
@@ -65,6 +72,11 @@ class GetDataThread(threading.Thread):
                 if code == 0xf100:  # nexmon
                     mutex.acquire()
                     cache_data4 = np.fft.fftshift(self.csidata.csi[0])
+                    mutex.release()
+                    count += 1
+                if code == 0xf300:  # picoscenes
+                    mutex.acquire()
+                    cache_data5 = self.csidata.raw[0]["CSI"]["CSI"][:, 0, 0]
                     mutex.release()
                     count += 1
 
@@ -127,6 +139,34 @@ def realtime_plot_nexmon():
         line4.set_ydata(np.abs(cache_data4))
         mutex.release()
         return line4,
+
+    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25, blit=True)
+    plt.show()
+
+
+def realtime_plot_picoscenes():
+    print("Warning: Picoscenes.pmsg method hasn't been READY!")
+    fig, ax = plt.subplots()
+    plt.title('csi-amplitude')
+    plt.xlabel('subcarrier')
+    plt.ylabel('amplitude')
+    ax.set_ylim(0, 500)
+    ax.set_xlim(0, nsc_pico)
+    x = np.arange(0, nsc_pico)
+
+    line5,  = ax.plot(x, np.abs(cache_data5), linewidth=1.0, label='subcarrier_56')
+    plt.legend()
+
+    def init():
+        line5.set_ydata([np.nan] * nsc_pico)
+        return line5,
+
+    def animate(i):
+        global cache_data5, mutex
+        mutex.acquire()
+        line5.set_ydata(np.abs(cache_data5))
+        mutex.release()
+        return line5,
 
     ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25, blit=True)
     plt.show()

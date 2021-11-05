@@ -15,7 +15,9 @@ import csiread
 def intel(csifile, index, ntxnum=2):
     """csitool"""
     print("="*40+"[intel]")
-    members = [s for s in dir(csiread.Intel) if not s.startswith("__") and callable(getattr(csiread.Intel, s))]
+    members = [s for s in dir(csiread.Intel)
+               if not s.startswith("_")
+               and callable(getattr(csiread.Intel, s))]
     print("Methods: \n ", members)
 
     print('Time:')
@@ -60,7 +62,9 @@ def atheros(csifile, index, ntxnum=2):
     """atheros"""
     print("="*40+"[atheros]")
 
-    members = [s for s in dir(csiread.Atheros) if not s.startswith("__") and callable(getattr(csiread.Atheros, s))]
+    members = [s for s in dir(csiread.Atheros)
+               if not s.startswith("_")
+               and callable(getattr(csiread.Atheros, s))]
     print("Methods: \n ", members)
 
     print('Time:')
@@ -81,7 +85,9 @@ def nexmon(csifile, index, chip, bw):
     if csiread.__version__ < '1.3.5':
         print("csiread.Nexmon: version >= 1.3.5 is required");return
 
-    members = [s for s in dir(csiread.Nexmon) if not s.startswith("__") and callable(getattr(csiread.Nexmon, s))]
+    members = [s for s in dir(csiread.Nexmon)
+               if not s.startswith("_")
+               and callable(getattr(csiread.Nexmon, s))]
     print("Methods: \n ", members)
 
     print('Time:')
@@ -100,7 +106,9 @@ def esp32(csifile, index):
     if csiread.__version__ < '1.3.7':
         print("csiread.ESP32: version >= 1.3.7 is required");return
 
-    members = [s for s in dir(csiread.ESP32) if not s.startswith("__") and callable(getattr(csiread.ESP32, s))]
+    members = [s for s in dir(csiread.ESP32)
+               if not s.startswith("_")
+               and callable(getattr(csiread.ESP32, s))]
     print("Methods: \n ", members)
 
     print('Time:')
@@ -120,14 +128,20 @@ def picoscenes(csifile, index, pl_size):
     if csiread.__version__ < '1.3.9':
         print("csiread.Picoscenes: version >= 1.3.9 is required");return
 
-    members = [s for s in dir(csiread.Picoscenes) if not s.startswith("__") and callable(getattr(csiread.Picoscenes, s))]
+    members = [s for s in dir(csiread.Picoscenes)
+               if not s.startswith("_")
+               and callable(getattr(csiread.Picoscenes, s))]
     print("Methods: \n ", members)
 
     print('Time:')
     last = default_timer()
-    csidata = csiread.Picoscenes(csifile, pl_size, True)
+    csidata = csiread.Picoscenes(csifile, pl_size, False)
     csidata.read()
     print("  read                ", default_timer() - last, "s")
+
+    last = default_timer()
+    interp_csi, interp_scindex = csidata.interpolate_csi("CSI", "AP")
+    print("  interpolate_csi     ", default_timer() - last, "s")
 
     print('-'*40)
     csidata.display(index)
@@ -141,9 +155,16 @@ if __name__ == "__main__":
     atheros("../material/atheros/dataset/ath_csi_1.dat", 10, ntxnum=2)
     nexmon("../material/nexmon/dataset/example.pcap", 0, '4358', 80)
     esp32("../material/esp32/dataset/example_csi.csv", 2)
-    pl_size_rx_by_iwl5300 = {'CSI': [30, 3, 2],'PilotCSI': [0, 0, 0], 'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0], 'PreEQSymbols': [0, 0, 0], 'MPDU': 1522}
-    pl_size_rx_by_qca9300 = {'CSI': [56, 3, 1], 'PilotCSI': [0, 0, 0], 'LegacyCSI': [0, 0, 0], 'BasebandSignals': [0, 0, 0], 'PreEQSymbols': [0, 0, 0], 'MPDU': 122}
-    pl_size_rx_by_usrpN210 = {'CSI': [56, 1, 1], 'PilotCSI': [0, 0, 0], 'LegacyCSI': [52, 1, 1], 'BasebandSignals': [560, 1, 1], 'PreEQSymbols': [56, 10, 1], 'MPDU': 1102}
-    picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2, pl_size_rx_by_iwl5300)
-    picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2, pl_size_rx_by_qca9300)
-    picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50, pl_size_rx_by_usrpN210)
+    pl5300 = {
+        'CSI': [30, 3, 2],
+        'PilotCSI': [0, 0, 0],
+        'LegacyCSI': [0, 0, 0],
+        'BasebandSignals': [0, 0, 0],
+        'PreEQSymbols': [0, 0, 0],
+        'MPDU': 1522
+    }
+    pl9300 = {'CSI': [56, 3, 1], 'MPDU': 122}
+    plN210 = [[56, 1, 1], [0, 0, 0], [52, 1, 1], [1040, 1, 1], [56, 6, 1], 1102]
+    picoscenes("../material/picoscenes/dataset/rx_by_iwl5300.csi", 2, pl5300)
+    picoscenes("../material/picoscenes/dataset/rx_by_qca9300.csi", 2, pl9300)
+    picoscenes("../material/picoscenes/dataset/rx_by_usrpN210.csi", 50, plN210)
