@@ -7,16 +7,16 @@
 #pragma pack(push, 1)
 typedef struct ieee80211_mac_frame_header_frame_control_field {
     uint16_t version: 2,
-            type: 2,
-            subtype: 4,
-            toDS: 1,
-            fromDS: 1,
-            moreFrags: 1,
-            retry: 1,
-            power_mgmt: 1,
-            more: 1,
-            protect: 1,
-            order: 1;
+        type: 2,
+        subtype: 4,
+        toDS: 1,
+        fromDS: 1,
+        moreFrags: 1,
+        retry: 1,
+        power_mgmt: 1,
+        more: 1,
+        protect: 1,
+        order: 1;
 } ieee80211_mac_frame_header_frame_control_field;
 #pragma pack(pop)
 
@@ -61,10 +61,10 @@ typedef struct ModularPicoScenesRxFrameHeader {
 * AbstractPicoScenesFrameSegment.hxx
 */
 typedef struct AbstractPicoScenesFrameSegment {
-	uint32_t segmentLength;
-	uint8_t segNameLength;
+    uint32_t segmentLength;
+    uint8_t segNameLength;
     uint8_t* segmentName;
-	uint16_t versionId;
+    uint16_t versionId;
 } AbstractPicoScenesFrameSegment;
 
 
@@ -73,60 +73,60 @@ typedef struct AbstractPicoScenesFrameSegment {
 */
 #pragma pack(push, 1)
 typedef struct CSIV1 {
-	uint16_t deviceType;		/* PicoScenesDeviceType */
+    uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
     uint16_t cbw;				/* ChannelBandwidthEnum */
     uint64_t carrierFreq;
     uint64_t samplingRate;
     uint32_t subcarrierBandwidth;
     uint16_t numTones;
-	uint8_t numTx;
-	uint8_t numRx;
-	uint8_t numESS;
+    uint8_t numTx;
+    uint8_t numRx;
+    uint8_t numESS;
     uint8_t antSel;
     uint32_t csiBufferLength;
-	uint8_t payload[0];
+    uint8_t payload[0];
 } CSIV1;
 #pragma pack(pop)
 
 
 #pragma pack(push, 1)
 typedef struct CSIV2 {
-	uint16_t deviceType;		/* PicoScenesDeviceType */
+    uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
     uint16_t cbw;				/* ChannelBandwidthEnum */
     uint64_t carrierFreq;
     uint64_t samplingRate;
     uint32_t subcarrierBandwidth;
     uint16_t numTones;
-	uint8_t numTx;
-	uint8_t numRx;
-	uint8_t numESS;
+    uint8_t numTx;
+    uint8_t numRx;
+    uint8_t numESS;
     uint8_t antSel;
     int16_t subcarrierOffset;
     uint32_t csiBufferLength;
-	uint8_t payload[0];
+    uint8_t payload[0];
 } CSIV2;
 #pragma pack(pop)
 
 
 #pragma pack(push, 1)
 typedef struct CSIV3 {
-	uint16_t deviceType;		/* PicoScenesDeviceType */
+    uint16_t deviceType;		/* PicoScenesDeviceType */
     int8_t packetFormat;		/* PacketFormatEnum */
     uint16_t cbw;				/* ChannelBandwidthEnum */
     uint64_t carrierFreq;
     uint64_t samplingRate;
     uint32_t subcarrierBandwidth;
     uint16_t numTones;
-	uint8_t numTx;
-	uint8_t numRx;
-	uint8_t numESS;
+    uint8_t numTx;
+    uint8_t numRx;
+    uint8_t numESS;
     uint16_t numCSI;
     uint8_t antSel;
     int16_t subcarrierOffset;
     uint32_t csiBufferLength;
-	uint8_t payload[0];
+    uint8_t payload[0];
 } CSIV3;
 #pragma pack(pop)
 
@@ -136,7 +136,7 @@ typedef struct CSIV3 {
 */
 #pragma pack(push, 1)
 typedef struct IntelMVMParsedCSIHeader {
-	uint32_t iqDataSize;
+    uint32_t iqDataSize;
     uint8_t reserved4[4];
     uint32_t ftmClock;
     uint32_t samplingTick2;
@@ -157,8 +157,8 @@ typedef struct IntelMVMParsedCSIHeader {
 
 #pragma pack(push, 1)
 typedef struct IntelMVMExtrta {
-	uint16_t CSIHeaderLength;
-	IntelMVMParsedCSIHeader parsedHeader;
+    uint16_t CSIHeaderLength;
+    IntelMVMParsedCSIHeader parsedHeader;
 } IntelMVMExtrta;
 #pragma pack(pop)
 
@@ -167,7 +167,7 @@ typedef struct IntelMVMExtrta {
 * PicoScenesCommons.hxx
 */
 typedef enum PicoScenesDeviceType {
-	QCA9300 = 0x9300,
+    QCA9300 = 0x9300,
     IWL5300 = 0x5300,
     IWLMVM = 0x2000,
     MAC80211Compatible = 0x802,
@@ -231,38 +231,38 @@ typedef enum AtherosCFTuningPolicy {
 
 #pragma pack(push, 1)
 typedef struct FeatureCode {
-	uint32_t hasVersion: 1, 
-			hasLength: 1,
-			hasMacAddr_cur: 1,
-			hasMacAddr_rom: 1,
-            hasChansel: 1,
-			hasBMode: 1,
-			hasEVM: 1,
-			hasTxChainMask: 1,
-			hasRxChainMask: 1,
-			hasTxpower: 1,
-			hasCF: 1,
-			hasTxTSF: 1,
-			hasLastHWTxTSF: 1,
-			hasChannelFlags: 1,
-			hasTxNess: 1,
-			hasTuningPolicy: 1,
-			hasPLLRate: 1,
-			hasPLLRefDiv: 1,
-			hasPLLClkSel: 1,
-			hasAGC: 1,
-			hasAntennaSelection: 1,
-			hasSamplingRate: 1,
-			hasCFO: 1,
-			hasSFO: 1,
-			hasPreciseTxTiming: 1;
+    uint32_t hasVersion: 1, 
+        hasLength: 1,
+        hasMacAddr_cur: 1,
+        hasMacAddr_rom: 1,
+        hasChansel: 1,
+        hasBMode: 1,
+        hasEVM: 1,
+        hasTxChainMask: 1,
+        hasRxChainMask: 1,
+        hasTxpower: 1,
+        hasCF: 1,
+        hasTxTSF: 1,
+        hasLastHWTxTSF: 1,
+        hasChannelFlags: 1,
+        hasTxNess: 1,
+        hasTuningPolicy: 1,
+        hasPLLRate: 1,
+        hasPLLRefDiv: 1,
+        hasPLLClkSel: 1,
+        hasAGC: 1,
+        hasAntennaSelection: 1,
+        hasSamplingRate: 1,
+        hasCFO: 1,
+        hasSFO: 1,
+        hasPreciseTxTiming: 1;
 } FeatureCode;
 #pragma pack(pop)
 
 
 typedef struct ExtraInfo {
-	FeatureCode featureCode;
-	uint16_t length;
+    FeatureCode featureCode;
+    uint16_t length;
     uint64_t version;
     uint8_t macaddr_rom[6];
     uint8_t macaddr_cur[6];

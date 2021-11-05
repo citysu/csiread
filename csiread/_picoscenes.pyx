@@ -12,7 +12,7 @@ cimport numpy as np
 # Section 1: C struct
 
 
-cdef extern from "_picoscenes.hxx":
+cdef extern from "_picoscenes.h":
     cdef packed struct ModularPicoScenesRxFrameHeader:
         uint32_t frameLength
         uint32_t magicWord

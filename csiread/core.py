@@ -5,12 +5,9 @@ import os
 
 import numpy as np
 from numpy.lib import recfunctions as rfn
-
 from . import _csiread
 from . import _picoscenes
-from ._crtype import (init_dtype_intel, init_dtype_atheros,
-                      init_dtype_nexmon, init_dtype_nexmonpull46,
-                      init_dtype_picoscenes)
+from ._deftype import init_dtype_picoscenes
 
 
 def stringify(array, sep=':'):
