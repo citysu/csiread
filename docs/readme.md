@@ -39,7 +39,7 @@ csiread is written in Cython, Cython requires a C compiler to be present on the 
 
 ## Usage
 
-`examples` are the best usage instructions, and the API documentation can be found in `docstring`, so we won't repeat them here.
+`examples` are the best usage instructions, and the API documentation can be found in `docstring` of file `core.py`, so we won't repeat them here.
 
 ## Design
 
@@ -55,31 +55,17 @@ The `Nexmon.group` is experimental, it may be incorrect due to `core` and `spati
 
 `pandas.read_csv` and `csiread.ESP32` have the similar performance, but `pandas.read_csv` is much more flexible.
 
-### PicoScenes(unfinished)
+### PicoScenes
 
 The support for Picoscenes is an **experimental** feature. PicoScenes is still under active development, and csiread cannot be updated synchronously.
 
-- `csidata.raw` is a structured array in numpy and stores the parsed result.
+- `csidata.raw` is a [structured array](https://numpy.org/doc/stable/user/basics.rec.html#structured-arrays) in numpy and stores the parsed result. 
 - `Mag` and `Phase` fileds have been removed, use `np.abs` and `np.angle` instead.
-- call `check()` method after `read()`, Then set `pl_size` according to the report.
-- The Attributes `CSI, SubcarrierIndex, BasebandSignals, PreEQSymbols and MPDU` can be variable length arrays. To store them in 2D arrays, `pl_size` will set the length of second dimensions. It controls how to parse these attributes. e.g. If `len(CSI_ARRAY) > pl_size['CSI']`, parsing of `CSI` attribute in this frame will be skipped. By default, `pl_size=0`, it will skip parsing them.
+- Call `check()` method after `read()`, Then set `pl_size` according to the report.
+- Edge padding (Pads with the edge values of array) are applied to `raw["xxx"]["SubcarrierIndex"]` for plotting.
+- The method `pmsg` has been implemented, but not yet ready.
+- Access CSI like `csidata.CSI.CSI` is only available after calling `read` method.
+- 5-10 times faster than before
+- `seek(..., num=1)` method can still be improved.
 
 `csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-10-06).
-
-```python
-# PicoScenes
-pl_size = {
-	# [tones, nrxnum, ntxnum]
-	"CSI": [30, 3, 2],
-	"PilotCSI": [0, 0, 0],
-	"LegacyCSI": [0, 0, 0],
-	"BasebandSignals": [0, 0, 0],
-	"PreEQSymbols": [0, 0, 0],
-	"MPDU": 1522
-}
-csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
-csidata = csiread.Picoscenes(file=csifile, pl_size=pl_size, if_report=True, bufsize=0)
-csidata.read()
-csidata.check()
-csidata.display(2)
-```

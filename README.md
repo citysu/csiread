@@ -47,4 +47,11 @@ csifile = "../material/esp32/dataset/example_csi.csv"
 csidata = csiread.ESP32(csifile, csi_only=True)
 csidata.read()
 print(csidata.csi.shape)
+
+# PicoScenes
+csifile = "../material/picoscenes/dataset/rx_by_iwl5300.csi"
+csidata = csiread.Picoscenes(csifile, {'CSI': [30, 3, 2], 'MPDU': 1522})
+csidata.read()
+csidata.check()
+print(csidata.raw['CSI']['CSI'].shape)
 ```
