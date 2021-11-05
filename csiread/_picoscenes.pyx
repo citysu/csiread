@@ -1324,9 +1324,19 @@ cdef class Picoscenes:
         cdef int max_value = 0
         cdef np.float64_t ratio
         cdef np.int32_t[:] sci
-        cdef dtc_CSI_info[:] mem_CSI_info = buf_raw["info"]
-        cdef np.int32_t[:, :] mem_CSI_scidx = buf_raw["SubcarrierIndex"]
-        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI = buf_raw["CSI"]
+        cdef dtc_CSI_info[:] mem_CSI_info
+        cdef np.int32_t[:, :] mem_CSI_scidx
+        cdef np.complex128_t[:, :, :, :] mem_CSI_CSI
+        if name == 'CSI':
+            mem_CSI_info = self.mem_CSI_info
+            mem_CSI_scidx = self.mem_CSI_SubcarrierIndex
+            mem_CSI_CSI = self.mem_CSI_CSI
+        elif name == 'LegacyCSI':
+            mem_CSI_info = self.mem_LegacyCSI_info
+            mem_CSI_scidx = self.mem_LegacyCSI_SubcarrierIndex
+            mem_CSI_CSI = self.mem_LegacyCSI_CSI
+        else:
+            pass
 
         # initialize interpolated_csi and interpolated_scindex
         _, nsc, nrx, ntx = buf_raw["CSI"].shape
