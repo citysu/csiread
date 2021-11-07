@@ -59,6 +59,27 @@ cdef class Intel:
     cdef np.ndarray buf_seq
     cdef np.ndarray buf_payload
 
+    cdef np.uint32_t[:] buf_timestamp_low_mem
+    cdef np.int_t[:] buf_bfee_count_mem
+    cdef np.int_t[:] buf_Nrx_mem
+    cdef np.int_t[:] buf_Ntx_mem
+    cdef np.int_t[:] buf_rssi_a_mem
+    cdef np.int_t[:] buf_rssi_b_mem
+    cdef np.int_t[:] buf_rssi_c_mem
+    cdef np.int_t[:] buf_noise_mem
+    cdef np.int_t[:] buf_agc_mem
+    cdef np.int_t[:, :] buf_perm_mem
+    cdef np.int_t[:] buf_rate_mem
+    cdef np.complex128_t[:, :, :, :] buf_csi_mem
+
+    cdef np.int_t[:] buf_fc_mem
+    cdef np.int_t[:] buf_dur_mem
+    cdef np.int_t[:, :] buf_addr_des_mem
+    cdef np.int_t[:, :] buf_addr_src_mem
+    cdef np.int_t[:, :] buf_addr_bssid_mem
+    cdef np.int_t[:] buf_seq_mem
+    cdef np.uint8_t[:, :] buf_payload_mem
+
     cdef int nrxnum
     cdef int ntxnum
     cdef int pl_size
@@ -106,6 +127,27 @@ cdef class Intel:
         self.buf_seq = np.zeros([pk_num], dtype=btype)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
+        self.buf_timestamp_low_mem = self.buf_timestamp_low
+        self.buf_bfee_count_mem = self.buf_bfee_count
+        self.buf_Nrx_mem = self.buf_Nrx
+        self.buf_Ntx_mem = self.buf_Ntx
+        self.buf_rssi_a_mem = self.buf_rssi_a
+        self.buf_rssi_b_mem = self.buf_rssi_b
+        self.buf_rssi_c_mem = self.buf_rssi_c
+        self.buf_noise_mem = self.buf_noise
+        self.buf_agc_mem = self.buf_agc
+        self.buf_perm_mem = self.buf_perm
+        self.buf_rate_mem = self.buf_rate
+        self.buf_csi_mem = self.buf_csi
+
+        self.buf_fc_mem = self.buf_fc
+        self.buf_dur_mem = self.buf_dur
+        self.buf_addr_des_mem = self.buf_addr_des
+        self.buf_addr_src_mem = self.buf_addr_src
+        self.buf_addr_bssid_mem = self.buf_addr_bssid
+        self.buf_seq_mem = self.buf_seq
+        self.buf_payload_mem = self.buf_payload
+
     def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
                  bufsize=0):
         pass
@@ -114,12 +156,9 @@ cdef class Intel:
         self.seek(self.file, 0, 0)
 
     cpdef seek(self, file, long pos, long num):
-        cdef FILE *f
-
         tempfile = file.encode(encoding="utf-8")
         cdef char *datafile = tempfile
-
-        f = fopen(datafile, "rb")
+        cdef FILE *f = fopen(datafile, "rb")
         if f is NULL:
             printf("Open failed!\n")
             exit(-1)
@@ -127,27 +166,6 @@ cdef class Intel:
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
-
-        cdef np.uint32_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
-        cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
-        cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
-        cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
-        cdef np.int_t[:] buf_rssi_a_mem = self.buf_rssi_a
-        cdef np.int_t[:] buf_rssi_b_mem = self.buf_rssi_b
-        cdef np.int_t[:] buf_rssi_c_mem = self.buf_rssi_c
-        cdef np.int_t[:] buf_noise_mem = self.buf_noise
-        cdef np.int_t[:] buf_agc_mem = self.buf_agc
-        cdef np.int_t[:, :] buf_perm_mem = self.buf_perm
-        cdef np.int_t[:] buf_rate_mem = self.buf_rate
-        cdef np.complex128_t[:, :, :, :] buf_csi_mem = self.buf_csi
-
-        cdef np.int_t[:] buf_fc_mem = self.buf_fc
-        cdef np.int_t[:] buf_dur_mem = self.buf_dur
-        cdef np.int_t[:, :] buf_addr_des_mem = self.buf_addr_des
-        cdef np.int_t[:, :] buf_addr_src_mem = self.buf_addr_src
-        cdef np.int_t[:, :] buf_addr_bssid_mem = self.buf_addr_bssid
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
 
         cdef int count_0xbb = 0
         cdef int count_0xc1 = 0
@@ -175,21 +193,21 @@ cdef class Intel:
                 if l != (field_len - 1):
                     break  # finished
 
-                buf_timestamp_low_mem[count_0xbb] = cu32l(buf[0], buf[1],
-                                                          buf[2], buf[3])
-                buf_bfee_count_mem[count_0xbb] = cu16l(buf[4], buf[5])
-                buf_Nrx_mem[count_0xbb] = buf[8]
-                buf_Ntx_mem[count_0xbb] = buf[9]
-                buf_rssi_a_mem[count_0xbb] = buf[10]
-                buf_rssi_b_mem[count_0xbb] = buf[11]
-                buf_rssi_c_mem[count_0xbb] = buf[12]
-                buf_noise_mem[count_0xbb] = <int8_t>buf[13]
-                buf_agc_mem[count_0xbb] = buf[14]
-                buf_rate_mem[count_0xbb] = cu16l(buf[18], buf[19])
+                self.buf_timestamp_low_mem[count_0xbb] = cu32l(buf[0], buf[1],
+                                                               buf[2], buf[3])
+                self.buf_bfee_count_mem[count_0xbb] = cu16l(buf[4], buf[5])
+                self.buf_Nrx_mem[count_0xbb] = buf[8]
+                self.buf_Ntx_mem[count_0xbb] = buf[9]
+                self.buf_rssi_a_mem[count_0xbb] = buf[10]
+                self.buf_rssi_b_mem[count_0xbb] = buf[11]
+                self.buf_rssi_c_mem[count_0xbb] = buf[12]
+                self.buf_noise_mem[count_0xbb] = <int8_t>buf[13]
+                self.buf_agc_mem[count_0xbb] = buf[14]
+                self.buf_rate_mem[count_0xbb] = cu16l(buf[18], buf[19])
 
-                buf_perm_mem[count_0xbb, 0] = (buf[15] & 0x3)
-                buf_perm_mem[count_0xbb, 1] = ((buf[15] >> 2) & 0x3)
-                buf_perm_mem[count_0xbb, 2] = ((buf[15] >> 4) & 0x3)
+                self.buf_perm_mem[count_0xbb, 0] = (buf[15] & 0x3)
+                self.buf_perm_mem[count_0xbb, 1] = ((buf[15] >> 2) & 0x3)
+                self.buf_perm_mem[count_0xbb, 2] = ((buf[15] >> 4) & 0x3)
 
                 if buf[8] > self.nrxnum:
                     fclose(f)
@@ -209,7 +227,7 @@ cdef class Intel:
                     remainder = index & 0x7
                     for j in range(buf[8]):
                         with cython.boundscheck(False):
-                            perm_j = buf_perm_mem[count_0xbb, j]
+                            perm_j = self.buf_perm_mem[count_0xbb, j]
                         for k in range(buf[9]):
                             index_step = index >> 3
                             a = ccsi(payload[index_step + 0],
@@ -217,8 +235,8 @@ cdef class Intel:
                             b = ccsi(payload[index_step + 1],
                                      payload[index_step + 2], remainder)
 
-                            set_csi_mem(buf_csi_mem, count_0xbb, i, perm_j, k,
-                                        a, b)
+                            set_csi_mem(self.buf_csi_mem, count_0xbb,
+                                        i, perm_j, k, a, b)
                             index += 16
                 count_0xbb += 1
 
@@ -227,18 +245,18 @@ cdef class Intel:
                 if l != (field_len - 1):
                     break  # finished
 
-                buf_fc_mem[count_0xc1] = cu16l(buf[0], buf[1])
-                buf_dur_mem[count_0xc1] = cu16l(buf[2], buf[3])
+                self.buf_fc_mem[count_0xc1] = cu16l(buf[0], buf[1])
+                self.buf_dur_mem[count_0xc1] = cu16l(buf[2], buf[3])
 
                 for g in range(6):
-                    buf_addr_des_mem[count_0xc1, g] = buf[4+g]
-                    buf_addr_src_mem[count_0xc1, g] = buf[10+g]
-                    buf_addr_bssid_mem[count_0xc1, g] = buf[16+g]
+                    self.buf_addr_des_mem[count_0xc1, g] = buf[4+g]
+                    self.buf_addr_src_mem[count_0xc1, g] = buf[10+g]
+                    self.buf_addr_bssid_mem[count_0xc1, g] = buf[16+g]
 
-                buf_seq_mem[count_0xc1] = cu16l(buf[22], buf[23])
+                self.buf_seq_mem[count_0xc1] = cu16l(buf[22], buf[23])
 
                 for g in range(min(self.pl_size, field_len - 1)):
-                    buf_payload_mem[count_0xc1, g] = buf[g]
+                    self.buf_payload_mem[count_0xc1, g] = buf[g]
 
                 count_0xc1 += 1
 
@@ -252,27 +270,6 @@ cdef class Intel:
 
         if self.if_report:
             self.__report(count_0xbb, count_0xc1)
-
-        del buf_timestamp_low_mem
-        del buf_bfee_count_mem
-        del buf_Nrx_mem
-        del buf_Ntx_mem
-        del buf_rssi_a_mem
-        del buf_rssi_b_mem
-        del buf_rssi_c_mem
-        del buf_noise_mem
-        del buf_agc_mem
-        del buf_perm_mem
-        del buf_rate_mem
-        del buf_csi_mem
-
-        del buf_fc_mem
-        del buf_dur_mem
-        del buf_addr_des_mem
-        del buf_addr_src_mem
-        del buf_addr_bssid_mem
-        del buf_seq_mem
-        del buf_payload_mem
 
         self.timestamp_low = self.buf_timestamp_low[:count_0xbb]
         self.bfee_count = self.buf_bfee_count[:count_0xbb]
@@ -297,27 +294,6 @@ cdef class Intel:
         self.payload = self.buf_payload[:count_0xc1]
 
     cpdef pmsg(self, unsigned char *data):
-        cdef np.uint32_t[:] buf_timestamp_low_mem = self.buf_timestamp_low
-        cdef np.int_t[:] buf_bfee_count_mem = self.buf_bfee_count
-        cdef np.int_t[:] buf_Nrx_mem = self.buf_Nrx
-        cdef np.int_t[:] buf_Ntx_mem = self.buf_Ntx
-        cdef np.int_t[:] buf_rssi_a_mem = self.buf_rssi_a
-        cdef np.int_t[:] buf_rssi_b_mem = self.buf_rssi_b
-        cdef np.int_t[:] buf_rssi_c_mem = self.buf_rssi_c
-        cdef np.int_t[:] buf_noise_mem = self.buf_noise
-        cdef np.int_t[:] buf_agc_mem = self.buf_agc
-        cdef np.int_t[:, :] buf_perm_mem = self.buf_perm
-        cdef np.int_t[:] buf_rate_mem = self.buf_rate
-        cdef np.complex128_t[:, :, :, :] buf_csi_mem = self.buf_csi
-
-        cdef np.int_t[:] buf_fc_mem = self.buf_fc
-        cdef np.int_t[:] buf_dur_mem = self.buf_dur
-        cdef np.int_t[:, :] buf_addr_des_mem = self.buf_addr_des
-        cdef np.int_t[:, :] buf_addr_src_mem = self.buf_addr_src
-        cdef np.int_t[:, :] buf_addr_bssid_mem = self.buf_addr_bssid
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
-
         cdef unsigned char code
         cdef unsigned char *buf
         cdef unsigned char *payload
@@ -332,20 +308,20 @@ cdef class Intel:
         buf += 1
 
         if code == 0xbb:
-            buf_timestamp_low_mem[0] = cu32l(buf[0], buf[1], buf[2], buf[3])
-            buf_bfee_count_mem[0] = cu16l(buf[4], buf[5])
-            buf_Nrx_mem[0] = buf[8]
-            buf_Ntx_mem[0] = buf[9]
-            buf_rssi_a_mem[0] = buf[10]
-            buf_rssi_b_mem[0] = buf[11]
-            buf_rssi_c_mem[0] = buf[12]
-            buf_noise_mem[0] = <int8_t>buf[13]
-            buf_agc_mem[0] = buf[14]
-            buf_rate_mem[0] = cu16l(buf[18], buf[19])
+            self.buf_timestamp_low_mem[0] = cu32l(buf[0], buf[1], buf[2], buf[3])
+            self.buf_bfee_count_mem[0] = cu16l(buf[4], buf[5])
+            self.buf_Nrx_mem[0] = buf[8]
+            self.buf_Ntx_mem[0] = buf[9]
+            self.buf_rssi_a_mem[0] = buf[10]
+            self.buf_rssi_b_mem[0] = buf[11]
+            self.buf_rssi_c_mem[0] = buf[12]
+            self.buf_noise_mem[0] = <int8_t>buf[13]
+            self.buf_agc_mem[0] = buf[14]
+            self.buf_rate_mem[0] = cu16l(buf[18], buf[19])
 
-            buf_perm_mem[0, 0] = (buf[15] & 0x3)
-            buf_perm_mem[0, 1] = ((buf[15] >> 2) & 0x3)
-            buf_perm_mem[0, 2] = ((buf[15] >> 4) & 0x3)
+            self.buf_perm_mem[0, 0] = (buf[15] & 0x3)
+            self.buf_perm_mem[0, 1] = ((buf[15] >> 2) & 0x3)
+            self.buf_perm_mem[0, 2] = ((buf[15] >> 4) & 0x3)
 
             if buf[8] > self.nrxnum:
                 raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
@@ -362,7 +338,7 @@ cdef class Intel:
                 remainder = index & 0x7
                 for j in range(buf[8]):
                     with cython.boundscheck(False):
-                        perm_j = buf_perm_mem[0, j]
+                        perm_j = self.buf_perm_mem[0, j]
                     for k in range(buf[9]):
                         index_step = index >> 3
                         a = ccsi(payload[index_step + 0],
@@ -370,42 +346,21 @@ cdef class Intel:
                         b = ccsi(payload[index_step + 1],
                                  payload[index_step + 2], remainder)
 
-                        set_csi_mem(buf_csi_mem, 0, i, perm_j, k, a, b)
+                        set_csi_mem(self.buf_csi_mem, 0, i, perm_j, k, a, b)
                         index += 16
         if code == 0xc1:
-            buf_fc_mem[0] = cu16l(buf[0], buf[1])
-            buf_dur_mem[0] = cu16l(buf[2], buf[3])
+            self.buf_fc_mem[0] = cu16l(buf[0], buf[1])
+            self.buf_dur_mem[0] = cu16l(buf[2], buf[3])
 
             for g in range(6):
-                buf_addr_des_mem[0, g] = buf[4+g]
-                buf_addr_src_mem[0, g] = buf[10+g]
-                buf_addr_bssid_mem[0, g] = buf[16+g]
+                self.buf_addr_des_mem[0, g] = buf[4+g]
+                self.buf_addr_src_mem[0, g] = buf[10+g]
+                self.buf_addr_bssid_mem[0, g] = buf[16+g]
 
-            buf_seq_mem[0] = cu16l(buf[22], buf[23])
+            self.buf_seq_mem[0] = cu16l(buf[22], buf[23])
 
             for g in range(min(self.pl_size, len(data) - 1)):
-                buf_payload_mem[0, g] = buf[g]
-
-        del buf_timestamp_low_mem
-        del buf_bfee_count_mem
-        del buf_Nrx_mem
-        del buf_Ntx_mem
-        del buf_rssi_a_mem
-        del buf_rssi_b_mem
-        del buf_rssi_c_mem
-        del buf_noise_mem
-        del buf_agc_mem
-        del buf_perm_mem
-        del buf_rate_mem
-        del buf_csi_mem
-
-        del buf_fc_mem
-        del buf_dur_mem
-        del buf_addr_des_mem
-        del buf_addr_src_mem
-        del buf_addr_bssid_mem
-        del buf_seq_mem
-        del buf_payload_mem
+                self.buf_payload_mem[0, g] = buf[g]
 
         self.timestamp_low = self.buf_timestamp_low
         self.bfee_count = self.buf_bfee_count
@@ -633,6 +588,24 @@ cdef class Atheros:
     cdef np.ndarray buf_csi
     cdef np.ndarray buf_payload
 
+    cdef np.uint64_t[:] buf_timestamp_mem
+    cdef np.int_t[:] buf_csi_len_mem
+    cdef np.int_t[:] buf_tx_channel_mem
+    cdef np.int_t[:] buf_err_info_mem
+    cdef np.int_t[:] buf_noise_floor_mem
+    cdef np.int_t[:] buf_Rate_mem
+    cdef np.int_t[:] buf_bandWidth_mem
+    cdef np.int_t[:] buf_num_tones_mem
+    cdef np.int_t[:] buf_nr_mem
+    cdef np.int_t[:] buf_nc_mem
+    cdef np.int_t[:] buf_rssi_mem
+    cdef np.int_t[:] buf_rssi_1_mem
+    cdef np.int_t[:] buf_rssi_2_mem
+    cdef np.int_t[:] buf_rssi_3_mem
+    cdef np.int_t[:] buf_payload_len_mem
+    cdef np.complex128_t[:, :, :, :] buf_csi_mem
+    cdef np.uint8_t[:, :] buf_payload_mem
+
     cdef int nrxnum
     cdef int ntxnum
     cdef int tones
@@ -681,6 +654,24 @@ cdef class Atheros:
                                 dtype=np.complex_)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
+        self.buf_timestamp_mem = self.buf_timestamp
+        self.buf_csi_len_mem = self.buf_csi_len
+        self.buf_tx_channel_mem = self.buf_tx_channel
+        self.buf_err_info_mem = self.buf_err_info
+        self.buf_noise_floor_mem = self.buf_noise_floor
+        self.buf_Rate_mem = self.buf_Rate
+        self.buf_bandWidth_mem = self.buf_bandWidth
+        self.buf_num_tones_mem = self.buf_num_tones
+        self.buf_nr_mem = self.buf_nr
+        self.buf_nc_mem = self.buf_nc
+        self.buf_rssi_mem = self.buf_rssi
+        self.buf_rssi_1_mem = self.buf_rssi_1
+        self.buf_rssi_2_mem = self.buf_rssi_2
+        self.buf_rssi_3_mem = self.buf_rssi_3
+        self.buf_payload_len_mem = self.buf_payload_len
+        self.buf_csi_mem = self.buf_csi
+        self.buf_payload_mem = self.buf_payload
+
     def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
                  if_report=True, bufsize=0):
         pass
@@ -702,24 +693,6 @@ cdef class Atheros:
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
-
-        cdef np.uint64_t[:] buf_timestamp_mem = self.buf_timestamp
-        cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
-        cdef np.int_t[:] buf_tx_channel_mem = self.buf_tx_channel
-        cdef np.int_t[:] buf_err_info_mem = self.buf_err_info
-        cdef np.int_t[:] buf_noise_floor_mem = self.buf_noise_floor
-        cdef np.int_t[:] buf_Rate_mem = self.buf_Rate
-        cdef np.int_t[:] buf_bandWidth_mem = self.buf_bandWidth
-        cdef np.int_t[:] buf_num_tones_mem = self.buf_num_tones
-        cdef np.int_t[:] buf_nr_mem = self.buf_nr
-        cdef np.int_t[:] buf_nc_mem = self.buf_nc
-        cdef np.int_t[:] buf_rssi_mem = self.buf_rssi
-        cdef np.int_t[:] buf_rssi_1_mem = self.buf_rssi_1
-        cdef np.int_t[:] buf_rssi_2_mem = self.buf_rssi_2
-        cdef np.int_t[:] buf_rssi_3_mem = self.buf_rssi_3
-        cdef np.int_t[:] buf_payload_len_mem = self.buf_payload_len
-        cdef np.complex128_t[:, :, :, :] buf_csi_mem = self.buf_csi
-        cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
 
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
@@ -753,22 +726,22 @@ cdef class Atheros:
                 break
 
             l = <int>fread(&buf, sizeof(unsigned char), 25, f)
-            buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
+            self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
                                                 buf[4], buf[5], buf[6], buf[7])
-            buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
-            buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
-            buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
-            buf_err_info_mem[count] = buf[12]
-            buf_noise_floor_mem[count] = buf[13]
-            buf_Rate_mem[count] = buf[14]
-            buf_bandWidth_mem[count] = buf[15]
-            buf_num_tones_mem[count] = buf[16]
-            buf_nr_mem[count] = buf[17]
-            buf_nc_mem[count] = buf[18]
-            buf_rssi_mem[count] = buf[19]
-            buf_rssi_1_mem[count] = buf[20]
-            buf_rssi_2_mem[count] = buf[21]
-            buf_rssi_3_mem[count] = buf[22]
+            self.buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
+            self.buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
+            self.buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
+            self.buf_err_info_mem[count] = buf[12]
+            self.buf_noise_floor_mem[count] = buf[13]
+            self.buf_Rate_mem[count] = buf[14]
+            self.buf_bandWidth_mem[count] = buf[15]
+            self.buf_num_tones_mem[count] = buf[16]
+            self.buf_nr_mem[count] = buf[17]
+            self.buf_nc_mem[count] = buf[18]
+            self.buf_rssi_mem[count] = buf[19]
+            self.buf_rssi_1_mem[count] = buf[20]
+            self.buf_rssi_2_mem[count] = buf[21]
+            self.buf_rssi_3_mem[count] = buf[22]
             pos += 25
 
             if buf[17] > self.nrxnum:
@@ -778,7 +751,7 @@ cdef class Atheros:
                 fclose(f)
                 raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
 
-            c_len = buf_csi_len_mem[count]
+            c_len = self.buf_csi_len_mem[count]
             if c_len > 0:
                 l = <int>fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
@@ -823,16 +796,16 @@ cdef class Atheros:
                             bits_left -= 10
                             current_data = current_data >> 10
                             # csi
-                            set_csi_mem(buf_csi_mem, count, k, nr_idx, nc_idx,
+                            set_csi_mem(self.buf_csi_mem, count, k, nr_idx, nc_idx,
                                         real, imag)
                 pos += c_len
 
-            pl_len = buf_payload_len_mem[count]
+            pl_len = self.buf_payload_len_mem[count]
             pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
                 l = <int>fread(&buf, sizeof(unsigned char), pl_len, f)
                 for i in range(pl_stop):
-                    buf_payload_mem[count, i] = buf[i]
+                    self.buf_payload_mem[count, i] = buf[i]
                 pos += pl_len
 
             # In matlab, read_log_file drops the last two packets, but here we 
@@ -845,24 +818,6 @@ cdef class Atheros:
 
         if self.if_report:
             self.__report(count)
-
-        del buf_timestamp_mem
-        del buf_csi_len_mem
-        del buf_tx_channel_mem
-        del buf_err_info_mem
-        del buf_noise_floor_mem
-        del buf_Rate_mem
-        del buf_bandWidth_mem
-        del buf_num_tones_mem
-        del buf_nr_mem
-        del buf_nc_mem
-        del buf_rssi_mem
-        del buf_rssi_1_mem
-        del buf_rssi_2_mem
-        del buf_rssi_3_mem
-        del buf_payload_len_mem
-        del buf_csi_mem
-        del buf_payload_mem
 
         self.timestamp = self.buf_timestamp[:count]
         self.csi_len = self.buf_csi_len[:count]
@@ -884,24 +839,6 @@ cdef class Atheros:
         self.count = count
 
     cpdef pmsg(self, unsigned char *data, endian='little'):
-        cdef np.uint64_t[:] buf_timestamp_mem = self.buf_timestamp
-        cdef np.int_t[:] buf_csi_len_mem = self.buf_csi_len
-        cdef np.int_t[:] buf_tx_channel_mem = self.buf_tx_channel
-        cdef np.int_t[:] buf_err_info_mem = self.buf_err_info
-        cdef np.int_t[:] buf_noise_floor_mem = self.buf_noise_floor
-        cdef np.int_t[:] buf_Rate_mem = self.buf_Rate
-        cdef np.int_t[:] buf_bandWidth_mem = self.buf_bandWidth
-        cdef np.int_t[:] buf_num_tones_mem = self.buf_num_tones
-        cdef np.int_t[:] buf_nr_mem = self.buf_nr
-        cdef np.int_t[:] buf_nc_mem = self.buf_nc
-        cdef np.int_t[:] buf_rssi_mem = self.buf_rssi
-        cdef np.int_t[:] buf_rssi_1_mem = self.buf_rssi_1
-        cdef np.int_t[:] buf_rssi_2_mem = self.buf_rssi_2
-        cdef np.int_t[:] buf_rssi_3_mem = self.buf_rssi_3
-        cdef np.int_t[:] buf_payload_len_mem = self.buf_payload_len
-        cdef np.complex128_t[:, :, :, :] buf_csi_mem = self.buf_csi
-        cdef np.uint8_t[:, :] buf_payload_mem = self.buf_payload
-
         cdef int count = 0
         cdef int c_len, pl_len, pl_stop
 
@@ -922,29 +859,29 @@ cdef class Atheros:
             ath_cu64 = cu64b
         else:
             raise ValueError("endian must be either 'little' or 'big'")
-        buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
+        self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
                                             buf[4], buf[5], buf[6], buf[7])
-        buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
-        buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
-        buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
-        buf_err_info_mem[count] = buf[12]
-        buf_noise_floor_mem[count] = buf[13]
-        buf_Rate_mem[count] = buf[14]
-        buf_bandWidth_mem[count] = buf[15]
-        buf_num_tones_mem[count] = buf[16]
-        buf_nr_mem[count] = buf[17]
-        buf_nc_mem[count] = buf[18]
-        buf_rssi_mem[count] = buf[19]
-        buf_rssi_1_mem[count] = buf[20]
-        buf_rssi_2_mem[count] = buf[21]
-        buf_rssi_3_mem[count] = buf[22]
+        self.buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
+        self.buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
+        self.buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
+        self.buf_err_info_mem[count] = buf[12]
+        self.buf_noise_floor_mem[count] = buf[13]
+        self.buf_Rate_mem[count] = buf[14]
+        self.buf_bandWidth_mem[count] = buf[15]
+        self.buf_num_tones_mem[count] = buf[16]
+        self.buf_nr_mem[count] = buf[17]
+        self.buf_nc_mem[count] = buf[18]
+        self.buf_rssi_mem[count] = buf[19]
+        self.buf_rssi_1_mem[count] = buf[20]
+        self.buf_rssi_2_mem[count] = buf[21]
+        self.buf_rssi_3_mem[count] = buf[22]
 
         if buf[17] > self.nrxnum:
             raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
         if buf[18] > self.ntxnum:
             raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
 
-        c_len = buf_csi_len_mem[count]
+        c_len = self.buf_csi_len_mem[count]
         if c_len > 0:
             csi_buf = &buf[25]
             bits_left = 16
@@ -989,32 +926,14 @@ cdef class Atheros:
                         bits_left -= 10
                         current_data = current_data >> 10
                         # csi
-                        set_csi_mem(buf_csi_mem, count, k, nr_idx, nc_idx,
+                        set_csi_mem(self.buf_csi_mem, count, k, nr_idx, nc_idx,
                                     real, imag)
 
-        pl_len = buf_payload_len_mem[count]
+        pl_len = self.buf_payload_len_mem[count]
         pl_stop = min(pl_len, self.pl_size)
         if pl_len > 0:
             for i in range(pl_stop):
-                buf_payload_mem[count, i] = buf[25+c_len+i]
-
-        del buf_timestamp_mem
-        del buf_csi_len_mem
-        del buf_tx_channel_mem
-        del buf_err_info_mem
-        del buf_noise_floor_mem
-        del buf_Rate_mem
-        del buf_bandWidth_mem
-        del buf_num_tones_mem
-        del buf_nr_mem
-        del buf_nc_mem
-        del buf_rssi_mem
-        del buf_rssi_1_mem
-        del buf_rssi_2_mem
-        del buf_rssi_3_mem
-        del buf_payload_len_mem
-        del buf_csi_mem
-        del buf_payload_mem
+                self.buf_payload_mem[count, i] = buf[25+c_len+i]
 
         self.timestamp = self.buf_timestamp
         self.csi_len = self.buf_csi_len
@@ -1078,6 +997,19 @@ cdef class Nexmon:
     cdef np.ndarray buf_chip_version
     cdef np.ndarray buf_csi
 
+    cdef np.uint32_t[:] buf_sec_mem
+    cdef np.uint32_t[:] buf_usec_mem
+    cdef np.int_t[:] buf_caplen_mem
+    cdef np.int_t[:] buf_wirelen_mem
+    cdef np.int_t[:] buf_magic_mem
+    cdef np.int_t[:, :] buf_src_addr_mem
+    cdef np.int_t[:] buf_seq_mem
+    cdef np.int_t[:] buf_core_mem
+    cdef np.int_t[:] buf_spatial_mem
+    cdef np.int_t[:] buf_chan_spec_mem
+    cdef np.int_t[:] buf_chip_version_mem
+    cdef np.complex128_t[:, :] buf_csi_mem
+
     cdef bint if_report
     cdef public int _autoscale
 
@@ -1111,6 +1043,18 @@ cdef class Nexmon:
         self.buf_chip_version = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, int(self.bw * 3.2)],
                                 dtype=np.complex_)
+        self.buf_sec_mem = self.buf_sec
+        self.buf_usec_mem = self.buf_usec
+        self.buf_caplen_mem = self.buf_caplen
+        self.buf_wirelen_mem = self.buf_wirelen
+        self.buf_magic_mem = self.buf_magic
+        self.buf_src_addr_mem = self.buf_src_addr
+        self.buf_seq_mem = self.buf_seq
+        self.buf_core_mem = self.buf_core
+        self.buf_spatial_mem = self.buf_spatial
+        self.buf_chan_spec_mem = self.buf_chan_spec
+        self.buf_chip_version_mem = self.buf_chip_version
+        self.buf_csi_mem = self.buf_csi
         self._autoscale = 1
 
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
@@ -1134,19 +1078,6 @@ cdef class Nexmon:
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
-
-        cdef np.uint32_t[:] buf_sec_mem = self.buf_sec
-        cdef np.uint32_t[:] buf_usec_mem = self.buf_usec
-        cdef np.int_t[:] buf_caplen_mem = self.buf_caplen
-        cdef np.int_t[:] buf_wirelen_mem = self.buf_wirelen
-        cdef np.int_t[:] buf_magic_mem = self.buf_magic
-        cdef np.int_t[:, :] buf_src_addr_mem = self.buf_src_addr
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.int_t[:] buf_core_mem = self.buf_core
-        cdef np.int_t[:] buf_spatial_mem = self.buf_spatial
-        cdef np.int_t[:] buf_chan_spec_mem = self.buf_chan_spec
-        cdef np.int_t[:] buf_chip_version_mem = self.buf_chip_version
-        cdef np.complex128_t[:, :] buf_csi_mem = self.buf_csi
 
         cdef int count = 0
         cdef unsigned char buf[4096]
@@ -1172,10 +1103,10 @@ cdef class Nexmon:
             if l < 16:
                 break
             caplen = pcap_cu32(buf[8], buf[9], buf[10], buf[11])
-            buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
-            buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
-            buf_caplen_mem[count] = caplen
-            buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
+            self.buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
+            self.buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
+            self.buf_caplen_mem[count] = caplen
+            self.buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
                                                buf[15])
             pos += (16 + caplen)
 
@@ -1190,24 +1121,24 @@ cdef class Nexmon:
 
             # nexmon header
             l = <int>fread(&buf, sizeof(unsigned char), 18, f)
-            buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
+            self.buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
             for i in range(6):
-                buf_src_addr_mem[count, i] = buf[4+i]
-            buf_seq_mem[count] = cu16l(buf[10], buf[11])
-            buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
-            buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
-            buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
-            buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
+                self.buf_src_addr_mem[count, i] = buf[4+i]
+            self.buf_seq_mem[count] = cu16l(buf[10], buf[11])
+            self.buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+            self.buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
+            self.buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+            self.buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
             # CSI
             l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
-                unpack_int16(buf, buf_csi_mem[count], nfft, True)
+                unpack_int16(buf, self.buf_csi_mem[count], nfft, True)
             elif self.chip == '4358':
-                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5,
+                unpack_float(buf, self.buf_csi_mem[count], nfft, 9, 5,
                              self._autoscale, True)
             elif self.chip == '4366c0':
-                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6,
+                unpack_float(buf, self.buf_csi_mem[count], nfft, 12, 6,
                              self._autoscale, True)
             else:
                 pass
@@ -1219,18 +1150,6 @@ cdef class Nexmon:
         self.count = count
         if self.if_report:
             printf("%d packets parsed\n", count)
-        del buf_sec_mem
-        del buf_usec_mem
-        del buf_caplen_mem
-        del buf_wirelen_mem
-        del buf_magic_mem
-        del buf_src_addr_mem
-        del buf_seq_mem
-        del buf_core_mem
-        del buf_spatial_mem
-        del buf_chan_spec_mem
-        del buf_chip_version_mem
-        del buf_csi_mem
 
         self.sec = self.buf_sec[:count]
         self.usec = self.buf_usec[:count]
@@ -1246,15 +1165,6 @@ cdef class Nexmon:
         self.csi = self.buf_csi[:count]
 
     cpdef pmsg(self, unsigned char *data, endian='little'):
-        cdef np.int_t[:] buf_magic_mem = self.buf_magic
-        cdef np.int_t[:, :] buf_src_addr_mem = self.buf_src_addr
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.int_t[:] buf_core_mem = self.buf_core
-        cdef np.int_t[:] buf_spatial_mem = self.buf_spatial
-        cdef np.int_t[:] buf_chan_spec_mem = self.buf_chan_spec
-        cdef np.int_t[:] buf_chip_version_mem = self.buf_chip_version
-        cdef np.complex128_t[:, :] buf_csi_mem = self.buf_csi
-
         cdef int count = 0
         cdef unsigned char *buf
         cdef int i
@@ -1267,35 +1177,26 @@ cdef class Nexmon:
             return
 
         # nexmon header
-        buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
+        self.buf_magic_mem[count] = cu32l(buf[0], buf[1], buf[2], buf[3])
         for i in range(6):
-            buf_src_addr_mem[count, i] = buf[4+i]
-        buf_seq_mem[count] = cu16l(buf[10], buf[11])
-        buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
-        buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
-        buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
+            self.buf_src_addr_mem[count, i] = buf[4+i]
+        self.buf_seq_mem[count] = cu16l(buf[10], buf[11])
+        self.buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+        self.buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
+        self.buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+        self.buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[18], buf_csi_mem[count], nfft, True)
+            unpack_int16(&buf[18], self.buf_csi_mem[count], nfft, True)
         elif self.chip == '4358':
-            unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
+            unpack_float(&buf[18], self.buf_csi_mem[count], nfft, 9, 5,
                          self._autoscale, True)
         elif self.chip == '4366c0':
-            unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
+            unpack_float(&buf[18], self.buf_csi_mem[count], nfft, 12, 6,
                          self._autoscale, True)
         else:
             pass
-
-        del buf_magic_mem
-        del buf_src_addr_mem
-        del buf_seq_mem
-        del buf_core_mem
-        del buf_spatial_mem
-        del buf_chan_spec_mem
-        del buf_chip_version_mem
-        del buf_csi_mem
 
         self.magic = self.buf_magic
         self.src_addr = self.buf_src_addr
@@ -1375,6 +1276,9 @@ cdef class NexmonPull46(Nexmon):
     cdef np.ndarray buf_rssi
     cdef np.ndarray buf_fc
 
+    cdef np.int_t[:] buf_rssi_mem 
+    cdef np.int_t[:] buf_fc_mem
+
     def __cinit__(self, file, chip, bw, if_report=True, bufsize=0,
                   *argv, **kw):
         self.file = file
@@ -1392,21 +1296,11 @@ cdef class NexmonPull46(Nexmon):
             pk_num = bufsize
 
         btype = np.int_
-        self.buf_sec = np.zeros([pk_num], dtype=np.uint32)
-        self.buf_usec = np.zeros([pk_num], dtype=np.uint32)
-        self.buf_caplen = np.zeros([pk_num], dtype=btype)
-        self.buf_wirelen = np.zeros([pk_num], dtype=btype)
-        self.buf_magic = np.zeros([pk_num], dtype=btype)
         self.buf_rssi = np.zeros([pk_num], dtype=btype)
         self.buf_fc = np.zeros([pk_num], dtype=btype)
-        self.buf_src_addr = np.zeros([pk_num, 6], dtype=btype)
-        self.buf_seq = np.zeros([pk_num], dtype=btype)
-        self.buf_core = np.zeros([pk_num], dtype=btype)
-        self.buf_spatial = np.zeros([pk_num], dtype=btype)
-        self.buf_chan_spec = np.zeros([pk_num], dtype=btype)
-        self.buf_chip_version = np.zeros([pk_num], dtype=btype)
-        self.buf_csi = np.zeros([pk_num, int(self.bw * 3.2)],
-                                dtype=np.complex_)
+
+        self.buf_rssi_mem = self.buf_rssi
+        self.buf_fc_mem = self.buf_fc
         self._autoscale = 0
 
     cpdef seek(self, file, long pos, long num):
@@ -1424,21 +1318,6 @@ cdef class NexmonPull46(Nexmon):
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
-
-        cdef np.uint32_t[:] buf_sec_mem = self.buf_sec
-        cdef np.uint32_t[:] buf_usec_mem = self.buf_usec
-        cdef np.int_t[:] buf_caplen_mem = self.buf_caplen
-        cdef np.int_t[:] buf_wirelen_mem = self.buf_wirelen
-        cdef np.int_t[:] buf_magic_mem = self.buf_magic
-        cdef np.int_t[:] buf_rssi_mem = self.buf_rssi
-        cdef np.int_t[:] buf_fc_mem = self.buf_fc
-        cdef np.int_t[:, :] buf_src_addr_mem = self.buf_src_addr
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.int_t[:] buf_core_mem = self.buf_core
-        cdef np.int_t[:] buf_spatial_mem = self.buf_spatial
-        cdef np.int_t[:] buf_chan_spec_mem = self.buf_chan_spec
-        cdef np.int_t[:] buf_chip_version_mem = self.buf_chip_version
-        cdef np.complex128_t[:, :] buf_csi_mem = self.buf_csi
 
         cdef int count = 0
         cdef unsigned char buf[4096]
@@ -1464,10 +1343,10 @@ cdef class NexmonPull46(Nexmon):
             if l < 16:
                 break
             caplen = pcap_cu32(buf[8], buf[9], buf[10], buf[11])
-            buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
-            buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
-            buf_caplen_mem[count] = caplen
-            buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
+            self.buf_sec_mem[count] = pcap_cu32(buf[0], buf[1], buf[2], buf[3])
+            self.buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
+            self.buf_caplen_mem[count] = caplen
+            self.buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
                                                buf[15])
             pos += (16 + caplen)
 
@@ -1482,26 +1361,26 @@ cdef class NexmonPull46(Nexmon):
 
             # nexmon header
             l = <int>fread(&buf, sizeof(unsigned char), 18, f)
-            buf_magic_mem[count] = cu16l(buf[0], buf[1])
-            buf_rssi_mem[count] = buf[2]
-            buf_fc_mem[count] = buf[3]
+            self.buf_magic_mem[count] = cu16l(buf[0], buf[1])
+            self.buf_rssi_mem[count] = buf[2]
+            self.buf_fc_mem[count] = buf[3]
             for i in range(6):
-                buf_src_addr_mem[count, i] = buf[4+i]
-            buf_seq_mem[count] = cu16l(buf[10], buf[11])
-            buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
-            buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
-            buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
-            buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
+                self.buf_src_addr_mem[count, i] = buf[4+i]
+            self.buf_seq_mem[count] = cu16l(buf[10], buf[11])
+            self.buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+            self.buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
+            self.buf_chan_spec_mem[count] = cu16l(buf[14], buf[15])
+            self.buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
             # CSI
             l = <int>fread(&buf, sizeof(unsigned char), caplen - 42 - 18, f)
             if self.chip == '4339' or self.chip == '43455c0':
-                unpack_int16(buf, buf_csi_mem[count], nfft, True)
+                unpack_int16(buf, self.buf_csi_mem[count], nfft, True)
             elif self.chip == '4358':
-                unpack_float(buf, buf_csi_mem[count], nfft, 9, 5,
+                unpack_float(buf, self.buf_csi_mem[count], nfft, 9, 5,
                              self._autoscale, True)
             elif self.chip == '4366c0':
-                unpack_float(buf, buf_csi_mem[count], nfft, 12, 6,
+                unpack_float(buf, self.buf_csi_mem[count], nfft, 12, 6,
                              self._autoscale, True)
             else:
                 pass
@@ -1513,20 +1392,6 @@ cdef class NexmonPull46(Nexmon):
         self.count = count
         if self.if_report:
             printf("%d packets parsed\n", count)
-        del buf_sec_mem
-        del buf_usec_mem
-        del buf_caplen_mem
-        del buf_wirelen_mem
-        del buf_magic_mem
-        del buf_rssi_mem
-        del buf_fc_mem
-        del buf_src_addr_mem
-        del buf_seq_mem
-        del buf_core_mem
-        del buf_spatial_mem
-        del buf_chan_spec_mem
-        del buf_chip_version_mem
-        del buf_csi_mem
 
         self.sec = self.buf_sec[:count]
         self.usec = self.buf_usec[:count]
@@ -1544,17 +1409,6 @@ cdef class NexmonPull46(Nexmon):
         self.csi = self.buf_csi[:count]
 
     cpdef pmsg(self, unsigned char *data, endian='little'):
-        cdef np.int_t[:] buf_magic_mem = self.buf_magic
-        cdef np.int_t[:] buf_rssi_mem = self.buf_rssi
-        cdef np.int_t[:] buf_fc_mem = self.buf_fc
-        cdef np.int_t[:, :] buf_src_addr_mem = self.buf_src_addr
-        cdef np.int_t[:] buf_seq_mem = self.buf_seq
-        cdef np.int_t[:] buf_core_mem = self.buf_core
-        cdef np.int_t[:] buf_spatial_mem = self.buf_spatial
-        cdef np.int_t[:] buf_chan_spec_mem = self.buf_chan_spec
-        cdef np.int_t[:] buf_chip_version_mem = self.buf_chip_version
-        cdef np.complex128_t[:, :] buf_csi_mem = self.buf_csi
-
         cdef int count = 0
         cdef unsigned char *buf
         cdef int i
@@ -1567,39 +1421,28 @@ cdef class NexmonPull46(Nexmon):
             return
 
         # nexmon header
-        buf_magic_mem[count] = cu16l(buf[0], buf[1])
-        buf_rssi_mem[count] = buf[2]
-        buf_fc_mem[count] = buf[3]
+        self.buf_magic_mem[count] = cu16l(buf[0], buf[1])
+        self.buf_rssi_mem[count] = buf[2]
+        self.buf_fc_mem[count] = buf[3]
         for i in range(6):
-            buf_src_addr_mem[count, i] = buf[4+i]
-        buf_seq_mem[count] = cu16l(buf[10], buf[11])
-        buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
-        buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
-        buf_chan_spec_mem[count] = cu16l(buf[114], buf[15])
-        buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
+            self.buf_src_addr_mem[count, i] = buf[4+i]
+        self.buf_seq_mem[count] = cu16l(buf[10], buf[11])
+        self.buf_core_mem[count] = (buf[12] | buf[13]) & 0x7
+        self.buf_spatial_mem[count] = ((buf[12] | buf[13]) >> 3) & 0x7
+        self.buf_chan_spec_mem[count] = cu16l(buf[114], buf[15])
+        self.buf_chip_version_mem[count] = cu16l(buf[16], buf[17])
 
         # CSI
         if self.chip == '4339' or self.chip == '43455c0':
-            unpack_int16(&buf[18], buf_csi_mem[count], nfft, True)
+            unpack_int16(&buf[18], self.buf_csi_mem[count], nfft, True)
         elif self.chip == '4358':
-            unpack_float(&buf[18], buf_csi_mem[count], nfft, 9, 5,
+            unpack_float(&buf[18], self.buf_csi_mem[count], nfft, 9, 5,
                          self._autoscale, True)
         elif self.chip == '4366c0':
-            unpack_float(&buf[18], buf_csi_mem[count], nfft, 12, 6,
+            unpack_float(&buf[18], self.buf_csi_mem[count], nfft, 12, 6,
                          self._autoscale, True)
         else:
             pass
-
-        del buf_magic_mem
-        del buf_rssi_mem
-        del buf_fc_mem
-        del buf_src_addr_mem
-        del buf_seq_mem
-        del buf_core_mem
-        del buf_spatial_mem
-        del buf_chan_spec_mem
-        del buf_chip_version_mem
-        del buf_csi_mem
 
         self.magic = self.buf_magic
         self.rssi = self.buf_rssi
@@ -1824,17 +1667,3 @@ cdef read_stpfile(stpfile, endian):
         stp[i] = a + b / 1000000
     f.close()
     return stp
-
-
-cdef db(x):
-    return 10 * np.log10(x)
-
-
-cdef dbinv(x):
-    return np.power(10, x / 10)
-
-
-cdef dbinvs(x):
-    ret = np.power(10, x / 10)
-    ret[ret == 1] = 0
-    return ret
