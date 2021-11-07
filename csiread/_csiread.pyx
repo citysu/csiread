@@ -2,7 +2,7 @@ from libc.stdio cimport (fopen, fread, fclose, fseek, ftell, printf, FILE,
                          SEEK_END, SEEK_SET, SEEK_CUR)
 from libc.stdint cimport (uint16_t, int16_t, uint32_t, int32_t, uint8_t,
                           int8_t, uint64_t)
-from libc.math cimport pi
+from libc.math cimport pi, log10, pow, sqrt
 import os
 import struct
 
@@ -50,6 +50,7 @@ cdef class Intel:
     cdef np.ndarray buf_rate
     cdef np.ndarray buf_csi
     cdef np.ndarray buf_stp
+    cdef np.ndarray buf_total_rss
 
     cdef np.ndarray buf_fc
     cdef np.ndarray buf_dur
@@ -71,6 +72,7 @@ cdef class Intel:
     cdef np.int_t[:, :] buf_perm_mem
     cdef np.int_t[:] buf_rate_mem
     cdef np.complex128_t[:, :, :, :] buf_csi_mem
+    cdef np.float64_t[:] buf_total_rss_mem
 
     cdef np.int_t[:] buf_fc_mem
     cdef np.int_t[:] buf_dur_mem
@@ -79,6 +81,11 @@ cdef class Intel:
     cdef np.int_t[:, :] buf_addr_bssid_mem
     cdef np.int_t[:] buf_seq_mem
     cdef np.uint8_t[:, :] buf_payload_mem
+
+    cdef np.complex128_t[:, :] sm_2_20_mem
+    cdef np.complex128_t[:, :] sm_2_40_mem
+    cdef np.complex128_t[:, :] sm_3_20_mem
+    cdef np.complex128_t[:, :] sm_3_40_mem
 
     cdef int nrxnum
     cdef int ntxnum
@@ -118,6 +125,7 @@ cdef class Intel:
         self.buf_rate = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, 30, self.nrxnum, self.ntxnum],
                                 dtype=np.complex_)
+        self.buf_total_rss = np.zeros([pk_num], dtype=np.float64)
 
         self.buf_fc = np.zeros([pk_num], dtype=btype)
         self.buf_dur = np.zeros([pk_num], dtype=btype)
@@ -139,6 +147,7 @@ cdef class Intel:
         self.buf_perm_mem = self.buf_perm
         self.buf_rate_mem = self.buf_rate
         self.buf_csi_mem = self.buf_csi
+        self.buf_total_rss_mem = self.buf_total_rss
 
         self.buf_fc_mem = self.buf_fc
         self.buf_dur_mem = self.buf_dur
@@ -147,6 +156,29 @@ cdef class Intel:
         self.buf_addr_bssid_mem = self.buf_addr_bssid
         self.buf_seq_mem = self.buf_seq
         self.buf_payload_mem = self.buf_payload
+
+        #  Conjugate Transpose
+        sm_2_20 = np.array([[1,  1],
+                            [1, -1]],
+                           dtype=np.complex_) / np.sqrt(2)
+        sm_2_40 = np.array([[ 1, -1j],
+                            [-1j, 1]],
+                           dtype=np.complex_) / np.sqrt(2)
+        sm_3_20 = np.array([[-2*pi/16,      2*pi/(80/23), -2*pi/(80/13)],
+                            [-2*pi/(80/33), 2*pi/(48/13),  2*pi/(240/37)],
+                            [ 2*pi/(80/3),  2*pi/(240/13), 2*pi/(48/13)]],
+                           dtype=np.complex_)
+        sm_3_20 = np.power(np.e, -1j * sm_3_20) / np.sqrt(3)
+        sm_3_40 = np.array([[-2*pi/16,      -2*pi/(80/37),    2*pi/(80/7)],
+                            [-2*pi/(80/13), -2*pi/(48/11),   -2*pi/(240/83)],
+                            [ 2*pi/(80/23), -2*pi/(240/107), -2*pi/(48/11)]],
+                           dtype=np.complex_)
+        sm_3_40 = np.power(np.e, -1j * sm_3_40) / np.sqrt(3)
+
+        self.sm_2_20_mem = sm_2_20
+        self.sm_2_40_mem = sm_2_40
+        self.sm_3_20_mem = sm_3_20
+        self.sm_3_40_mem = sm_3_40
 
     def __init__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
                  bufsize=0):
@@ -389,65 +421,61 @@ cdef class Intel:
         self.stp = read_stpfile(self.file + "stp", endian)
         return self.stp[0]
 
-    def get_total_rss(self):
-        rssi_mag = np.zeros_like(self.rssi_a, dtype=float)
-        rssi_mag += dbinvs(self.rssi_a)
-        rssi_mag += dbinvs(self.rssi_b)
-        rssi_mag += dbinvs(self.rssi_c)
-        ret = db(rssi_mag) - 44 - self.agc
-        return ret
+    cpdef get_total_rss(self):
+        cdef int i
+        for i in range(self.count):
+            if self.buf_rssi_a_mem[i]:
+                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_a_mem[i] / 10)
+            if self.buf_rssi_b_mem[i]:
+                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_b_mem[i] / 10)
+            if self.buf_rssi_c_mem[i]:
+                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_c_mem[i] / 10)
+            if self.buf_total_rss_mem[i]:
+                self.buf_total_rss_mem[i] = (10 * log10(self.buf_total_rss_mem[i]) - 44 - self.buf_agc_mem[i])
+        return self.buf_total_rss[:self.count]
 
     cpdef get_scaled_csi(self, inplace=False):
-        cdef int i, j
-        cdef int flat = 30 * self.nrxnum * self.ntxnum
+        cdef int i, j, k, g
         cdef double constant2 = 2
-        cdef double constant4_5 = np.power(10, 0.45)
-        cdef double temp_sum
-
-        csi = self.csi
-        csi_pwr = np.empty(self.count)
-        cdef np.float64_t[:] csi_pwr_mem = csi_pwr
-        cdef np.complex128_t[:, :] csi_mem = csi.reshape(self.count, flat)
-        for i in range(self.count):
-            temp_sum = 0
-            for j in range(flat):
-                with cython.boundscheck(False):
-                    temp_sum += (csi_mem[i, j].real * csi_mem[i, j].real + 
-                                 csi_mem[i, j].imag * csi_mem[i, j].imag)
-            csi_pwr_mem[i] = temp_sum
-        del csi_pwr_mem
-        del csi_mem
-        rssi_pwr = dbinv(self.get_total_rss())
-
-        scale = rssi_pwr / (csi_pwr / 30)
-
-        noise_db = self.noise
-        thermal_noise_pwr = dbinv(noise_db)
-        thermal_noise_pwr[noise_db == -127] = dbinv(-92)
-
-        quant_error_pwr = scale * (self.Nrx * self.Ntx)
-        total_noise_pwr = thermal_noise_pwr + quant_error_pwr
-
-        cdef np.float64_t[:] total_noise_pwr_mem = total_noise_pwr
-        cdef np.int_t[:] Ntx_mem = self.Ntx
-        for i in range(self.count):
-            if Ntx_mem[i] == 2:
-                total_noise_pwr_mem[i] = total_noise_pwr_mem[i] / constant2
-            if Ntx_mem[i] == 3:
-                total_noise_pwr_mem[i] = total_noise_pwr_mem[i] / constant4_5
-        del Ntx_mem
-        del total_noise_pwr_mem
-        
-        temp = np.sqrt(scale / total_noise_pwr).reshape(-1, 1, 1, 1)
+        cdef double constant4_5 = pow(10, 0.45)
+        cdef double temp_sum, quant_error_pwr, thermal_noise_pwr, total_noise_pwr, scale
 
         if inplace:
-            self.csi *= temp
-            return self.csi
+            scaled_csi = self.csi
         else:
-            return self.csi * temp
+            scaled_csi = np.zeros_like(self.csi)
+        cdef np.complex128_t[:, :, :, :] scaled_csi_mem = scaled_csi
+
+        for i in range(self.count):
+            temp_sum = 0
+            for j in range(30):
+                for k in range(self.nrxnum):
+                    for g in range(self.ntxnum):
+                        temp_sum += (self.buf_csi_mem[i, j, k, g].real * \
+                                     self.buf_csi_mem[i, j, k, g].real + \
+                                     self.buf_csi_mem[i, j, k, g].imag * \
+                                     self.buf_csi_mem[i, j, k, g].imag)
+            scale = pow(10, self.buf_total_rss_mem[i] / 10) / (temp_sum / 30)
+            if self.buf_noise_mem[i] == -127:
+                thermal_noise_pwr = pow(10, -9.2)
+            else:
+                thermal_noise_pwr = pow(10, self.buf_noise_mem[i] / 10)
+            quant_error_pwr = scale * (self.buf_Nrx_mem[i] * self.buf_Ntx_mem[i])
+            total_noise_pwr = thermal_noise_pwr + quant_error_pwr
+            if self.buf_Ntx_mem[i] == 2:
+                total_noise_pwr /= constant2
+            if self.buf_Ntx_mem[i] == 3:
+                total_noise_pwr /= constant4_5
+            scale = sqrt(scale / total_noise_pwr)
+            for j in range(30):
+                for k in range(self.nrxnum):
+                    for g in range(self.ntxnum):
+                        scaled_csi_mem[i, j, k, g].real = self.buf_csi_mem[i, j, k, g].real * scale
+                        scaled_csi_mem[i, j, k, g].imag = self.buf_csi_mem[i, j, k, g].imag * scale
+        return scaled_csi
 
     def get_scaled_csi_sm(self, inplace=False):
-        return self.__remove_sm(self.get_scaled_csi(inplace), inplace)
+        return self.__remove_sm(self.get_scaled_csi(inplace), True)
 
     def apply_sm(self, scaled_csi):
         return self.__remove_sm(scaled_csi)
@@ -462,75 +490,42 @@ cdef class Intel:
         Returns:
             ndarray: The pure MIMO channel matrix H.
         """
-        #  Conjugate Transpose
-        sm_2_20 = np.array([[1,  1],
-                            [1, -1]],
-                           dtype=np.complex_) / np.sqrt(2)
-        sm_2_40 = np.array([[ 1, -1j],
-                            [-1j, 1]],
-                           dtype=np.complex_) / np.sqrt(2)
-        sm_3_20 = np.array([[-2*pi/16,      2*pi/(80/23), -2*pi/(80/13)],
-                            [-2*pi/(80/33), 2*pi/(48/13),  2*pi/(240/37)],
-                            [ 2*pi/(80/3),  2*pi/(240/13), 2*pi/(48/13)]],
-                           dtype=np.complex_)
-        sm_3_20 = np.power(np.e, -1j * sm_3_20) / np.sqrt(3)
-        sm_3_40 = np.array([[-2*pi/16,      -2*pi/(80/37),    2*pi/(80/7)],
-                            [-2*pi/(80/13), -2*pi/(48/11),   -2*pi/(240/83)],
-                            [ 2*pi/(80/23), -2*pi/(240/107), -2*pi/(48/11)]],
-                           dtype=np.complex_)
-        sm_3_40 = np.power(np.e, -1j * sm_3_40) / np.sqrt(3)
-
         # Ntx is not a constant array
         if inplace:
             ret = scaled_csi
         else:
-            ret = np.zeros([self.count, 30, self.nrxnum, self.ntxnum],
-                           dtype=np.complex_)
+            ret = np.zeros_like(self.csi)
 
         cdef int i, N, M, B
-        cdef np.int_t[:] Ntx_mem = self.Ntx
-        cdef np.int_t[:] Nrx_mem = self.Nrx
-        cdef np.int_t[:] rate_mem = self.rate
         cdef np.complex128_t[:, :, :, :] scaled_csi_mem = scaled_csi
         cdef np.complex128_t[:, :, :, :] ret_mem = ret
-        cdef np.complex128_t[:, :] sm_2_20_mem = sm_2_20
-        cdef np.complex128_t[:, :] sm_2_40_mem = sm_2_40
-        cdef np.complex128_t[:, :] sm_3_20_mem = sm_3_20
-        cdef np.complex128_t[:, :] sm_3_40_mem = sm_3_40
-
+ 
         for i in range(self.count):
-            M = Ntx_mem[i]
-            N = Nrx_mem[i]
-            B = (rate_mem[i] & 0x800) == 0x800
+            M = self.buf_Ntx_mem[i]
+            N = self.buf_Nrx_mem[i]
+            B = (self.buf_rate_mem[i] & 0x800) == 0x800
             if B:
                 if M == 3:
-                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i], sm_3_40_mem,
-                                N, M)
+                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i],
+                                self.sm_3_40_mem, N, M)
                 elif M == 2:
-                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i], sm_2_40_mem,
-                                N, M)
+                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i],
+                                self.sm_2_40_mem, N, M)
                 else:
                     if inplace is False:
                         ret_mem[i] = scaled_csi_mem[i]
             else:
                 if M == 3:
-                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i], sm_3_20_mem,
-                                N, M)
+                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i],
+                                self.sm_3_20_mem, N, M)
                 elif M == 2:
-                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i], sm_2_20_mem,
-                                N, M)
+                    intel_mm_o3(ret_mem[i], scaled_csi_mem[i],
+                                self.sm_2_20_mem, N, M)
                 else:
                     if inplace is False:
                         ret_mem[i] = scaled_csi_mem[i]
-        del Ntx_mem
-        del Nrx_mem
-        del rate_mem
         del scaled_csi_mem
         del ret_mem
-        del sm_2_20_mem
-        del sm_2_40_mem
-        del sm_3_20_mem
-        del sm_3_40_mem
 
         return ret
 
