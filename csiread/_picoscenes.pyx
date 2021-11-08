@@ -1318,7 +1318,6 @@ cdef class Picoscenes:
 
     cpdef interpolate_csi(self, name, bint IQ=False):
         """interpolate csi"""
-        buf_raw = self.buf_raw[name]
         cdef int i, j, k, g, d, nsc, nrx, ntx
         cdef int max_idx = 0
         cdef int max_value = 0
@@ -1339,7 +1338,9 @@ cdef class Picoscenes:
             pass
 
         # initialize interpolated_csi and interpolated_scindex
-        _, nsc, nrx, ntx = buf_raw["CSI"].shape
+        nsc = mem_CSI_CSI.shape[1]
+        nrx = mem_CSI_CSI.shape[2]
+        ntx = mem_CSI_CSI.shape[3]
         if nsc == 0 or nrx == 0 or ntx == 0:
             return None
         for i in range(self.count):

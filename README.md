@@ -10,7 +10,7 @@ Support for [PicoScenes](https://ps.zpj.io) is **experimental**. Read csiread's 
 
 <center><b>real-time plotting</b></center>
 
-![real-time plotting](docs/sample2.png)
+![real-time plotting](https://github.com/citysu/csiread/blob/master/docs/sample2.png)
 
 ## Install
 

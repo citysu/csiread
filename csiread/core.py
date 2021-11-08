@@ -1185,7 +1185,7 @@ class Picoscenes(_picoscenes.Picoscenes):
         interp_csi, interp_scindex = super().interpolate_csi(name, flag_IQ)
         return interp_csi, interp_scindex
 
-    def get_info_shape(self, name):
+    def _get_info_shape(self, name):
         """return `name`'s shape
 
         Args:
@@ -1208,35 +1208,40 @@ class Picoscenes(_picoscenes.Picoscenes):
             info = None
         return info
 
+    def _get_pl_size(self, name):
+        if name in ["CSI", "PilotCSI", "LegacyCSI"]:
+            shape = self.raw[name]["CSI"].shape[1:]
+        elif name in ["BasebandSignals", "PreEQSymbols"]:
+            shape = self.raw[name]["data"].shape[1:]
+        elif name in ["MPDU"]:
+            shape = self.raw[name]["data"].shape[1:]
+        else:
+            shape = None
+        return np.asarray(shape)
+
     def check(self):
         """helper method for setting parameter `pl_size`"""
         T = "%15s%15s%15s%15s%10s\n"
         Delimiter = T % ("-"*15, "-"*15, "-"*15, "-"*15, "-"*10)
 
-        CSI_info = self.get_info_shape("CSI")
-        PilotCSI_info = self.get_info_shape("PilotCSI")
-        LegacyCSI_info = self.get_info_shape("LegacyCSI")
-        BasebandSignals_info = self.get_info_shape("BasebandSignals")
-        PreEQSymbols_info = self.get_info_shape("PreEQSymbols")
-        MPDU_info = self.get_info_shape("MPDU")
-
-        def rowstring(name, info):
-            pl_size = np.asarray(self.pl_size[name])
-            skip = np.nan if info.max() == 0 else (info > pl_size).any(1).sum()
+        def rowstring(name):
+            info = self._get_info_shape(name)
+            pl = self._get_pl_size(name)
+            skip = np.nan if info.max() == 0 else (info > pl).any(1).sum()
             with np.printoptions(formatter={'all':lambda x: str(x)}):
-                s = T % (name, info.min(0), info.max(0), pl_size, skip)
+                s = T % (name, info.min(0), info.max(0), pl, skip)
             return s
 
         s = ""
         s += Delimiter
         s += T % ("CHECK", "min", "max", "pl_size", "skip")
         s += Delimiter
-        s += rowstring("CSI", CSI_info)
-        s += rowstring("PilotCSI", PilotCSI_info)
-        s += rowstring("LegacyCSI", LegacyCSI_info)
-        s += rowstring("BasebandSignals", BasebandSignals_info)
-        s += rowstring("PreEQSymbols", PreEQSymbols_info)
-        s += rowstring("MPDU", MPDU_info)
+        s += rowstring("CSI")
+        s += rowstring("PilotCSI")
+        s += rowstring("LegacyCSI")
+        s += rowstring("BasebandSignals")
+        s += rowstring("PreEQSymbols")
+        s += rowstring("MPDU")
         s += Delimiter
         print(s, end='')
 
