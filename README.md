@@ -1,6 +1,6 @@
 # csiread [![PyPI](https://img.shields.io/pypi/v/csiread?)](https://pypi.org/project/csiread/)
 
-A fast channel state information parser for Intel, Atheros, Nexmon and ESP32 in Python.
+A fast channel state information parser for Intel, Atheros, Nexmon, ESP32 and PicoScenes in Python.
 
 - Full support for [Linux 802.11n CSI Tool](https://dhalperi.github.io/linux-80211n-csitool/), [Atheros CSI Tool](https://wands.sg/research/wifi/AtherosCSI/), [nexmon_csi](https://github.com/seemoo-lab/nexmon_csi) and [ESP32-CSI-Tool](https://github.com/StevenMHernandez/ESP32-CSI-Tool)
 - At least 15 times faster than the implementation in Matlab

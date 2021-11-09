@@ -66,6 +66,5 @@ The support for Picoscenes is an **experimental** feature. PicoScenes is still u
 - The method `pmsg` has been implemented, but not yet ready.
 - Access CSI like `csidata.CSI.CSI` is only available after calling `read` method.
 - 5-10 times faster than before
-- `seek(..., num=1)` method can still be improved.
 
 `csiread.Picoscenes` is based on the PicoScenes MATLAB Toolbox(PMT)(Last modified at 2021-10-06).
