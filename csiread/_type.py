@@ -163,7 +163,7 @@ def init_dtype_picoscenes(pl_size):
     ])
 
     dt_MPDU_info = np.dtype([
-        ('length', np.uint16)
+        ('length', np.uint32)
     ])
 
     dt_MPDU = np.dtype([

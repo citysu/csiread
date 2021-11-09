@@ -2,7 +2,7 @@ from libc.stdio cimport (fopen, fread, fclose, fseek, ftell, printf, FILE,
                          SEEK_END, SEEK_SET, SEEK_CUR)
 from libc.stdint cimport (uint8_t, uint16_t, uint32_t, uint64_t,
                           int8_t, int16_t, int32_t, int64_t)
-from libc.stdlib cimport malloc, realloc, free
+from libc.stdlib cimport malloc, realloc, free, exit
 from libc.stddef cimport size_t
 from libc.string cimport strncmp
 from libc.math cimport abs, atan2, pi, cos, sin
@@ -11,385 +11,7 @@ cimport numpy as np
 cimport cython
 
 
-# Section 1: C struct
-
-
-cdef extern from "_picoscenes.h":
-    cdef packed struct ModularPicoScenesRxFrameHeader:
-        uint32_t frameLength
-        uint32_t magicWord
-        uint16_t frameVersion
-        uint8_t numRxSegments
-    
-    cdef struct AbstractPicoScenesFrameSegment:
-        uint32_t segmentLength
-        uint8_t segNameLength
-        uint8_t *segmentName
-        uint16_t versionId
-    
-    cdef packed struct RxSBasicV1:
-        uint16_t deviceType
-        uint64_t tstamp
-        int16_t centerFreq
-        uint8_t packetFormat
-        uint16_t cbw
-        uint16_t guardInterval
-        uint8_t mcs
-        uint8_t numSTS
-        uint8_t numESS
-        uint8_t numRx
-        int8_t noiseFloor
-        int8_t rssi
-        int8_t rssi_ctl0
-        int8_t rssi_ctl1
-        int8_t rssi_ctl2
-    
-    cdef packed struct RxSBasicV2:
-        uint16_t deviceType
-        uint64_t tstamp
-        int16_t centerFreq
-        uint8_t packetFormat
-        uint16_t cbw
-        uint16_t guardInterval
-        uint8_t mcs
-        uint8_t numSTS
-        uint8_t numESS
-        uint8_t numRx
-        uint8_t numUser
-        uint8_t userIndex
-        int8_t noiseFloor
-        int8_t rssi
-        int8_t rssi_ctl0
-        int8_t rssi_ctl1
-        int8_t rssi_ctl2
-
-    cdef packed struct RxSBasicV3:
-        uint16_t deviceType
-        uint64_t tstamp
-        int16_t centerFreq
-        int16_t controlFreq
-        uint16_t cbw
-        uint8_t packetFormat
-        uint16_t pkt_cbw
-        uint16_t guardInterval
-        uint8_t mcs
-        uint8_t numSTS
-        uint8_t numESS
-        uint8_t numRx
-        uint8_t numUser
-        uint8_t userIndex
-        int8_t noiseFloor
-        int8_t rssi
-        int8_t rssi_ctl0
-        int8_t rssi_ctl1
-        int8_t rssi_ctl2
-
-    cdef packed struct FeatureCode:
-        uint32_t hasVersion
-        uint32_t hasLength
-        uint32_t hasMacAddr_cur
-        uint32_t hasMacAddr_rom
-        uint32_t hasChansel
-        uint32_t hasBMode
-        uint32_t hasEVM
-        uint32_t hasTxChainMask
-        uint32_t hasRxChainMask
-        uint32_t hasTxpower
-        uint32_t hasCF
-        uint32_t hasTxTSF
-        uint32_t hasLastHWTxTSF
-        uint32_t hasChannelFlags
-        uint32_t hasTxNess
-        uint32_t hasTuningPolicy
-        uint32_t hasPLLRate
-        uint32_t hasPLLRefDiv
-        uint32_t hasPLLClkSel
-        uint32_t hasAGC
-        uint32_t hasAntennaSelection
-        uint32_t hasSamplingRate
-        uint32_t hasCFO
-        uint32_t hasSFO
-        uint32_t hasPreciseTxTiming
-    
-    cdef packed struct IntelMVMParsedCSIHeader:
-        uint32_t iqDataSize
-        uint8_t reserved4[4]
-        uint32_t ftmClock
-        uint32_t samplingTick2
-        uint8_t reserved16_52[36]
-        uint32_t numTones
-        uint8_t reserved60[4]
-        uint32_t rssi1
-        uint32_t rssi2
-        uint8_t sourceAddress[6]
-        uint8_t reserved74[2]
-        uint8_t csiSequence
-        uint8_t reserved77[11]
-        uint32_t muClock # 88
-        uint32_t rate_n_flags # 92
-
-    cdef packed struct IntelMVMExtrta:
-        uint16_t CSIHeaderLength
-        IntelMVMParsedCSIHeader parsedHeader
-
-    cdef packed struct ieee80211_mac_frame_header_frame_control_field:
-        uint16_t version
-        uint16_t type
-        uint16_t subtype
-        uint16_t toDS
-        uint16_t fromDS
-        uint16_t moreFrags
-        uint16_t retry
-        uint16_t power_mgmt
-        uint16_t more
-        uint16_t protect
-        uint16_t order
-
-    cdef packed struct ieee80211_mac_frame_header:
-        ieee80211_mac_frame_header_frame_control_field fc
-        uint16_t dur
-        uint8_t addr1[6]
-        uint8_t addr2[6]
-        uint8_t addr3[6]
-        uint16_t frag
-        uint16_t seq
-
-    cdef packed struct PicoScenesFrameHeader:
-        uint32_t magicValue
-        uint32_t version
-        uint16_t deviceType
-        uint8_t numSegments
-        uint8_t frameType
-        uint16_t taskId
-        uint16_t txId
-
-    cdef packed struct CSIV1:
-        uint16_t deviceType		    # PicoScenesDeviceType
-        int8_t packetFormat		    # PacketFormatEnum
-        uint16_t cbw				# ChannelBandwidthEnum
-        uint64_t carrierFreq
-        uint64_t samplingRate
-        uint32_t subcarrierBandwidth
-        uint16_t numTones
-        uint8_t numTx
-        uint8_t numRx
-        uint8_t numESS
-        uint8_t antSel
-        uint32_t csiBufferLength
-        uint8_t payload[0]
-
-    cdef packed struct CSIV2:
-        uint16_t deviceType		    # PicoScenesDeviceType
-        int8_t packetFormat		    # PacketFormatEnum
-        uint16_t cbw			    # ChannelBandwidthEnum
-        uint64_t carrierFreq
-        uint64_t samplingRate
-        uint32_t subcarrierBandwidth
-        uint16_t numTones
-        uint8_t numTx
-        uint8_t numRx
-        uint8_t numESS
-        uint8_t antSel
-        int16_t subcarrierOffset
-        uint32_t csiBufferLength
-        uint8_t payload[0]
-    
-    cdef packed struct CSIV3:
-        uint16_t deviceType		    # PicoScenesDeviceType
-        int8_t packetFormat		    # PacketFormatEnum
-        uint16_t cbw			    # ChannelBandwidthEnum
-        uint64_t carrierFreq
-        uint64_t samplingRate
-        uint32_t subcarrierBandwidth
-        uint16_t numTones
-        uint8_t numTx
-        uint8_t numRx
-        uint8_t numESS
-        uint16_t numCSI
-        uint8_t antSel
-        int16_t subcarrierOffset
-        uint32_t csiBufferLength
-        uint8_t payload[0]
-
-
-# Section 2: cython type for `raw`
-
-
-cdef packed struct dtc_ieee80211_mac_frame_header_frame_control_field:
-    uint8_t Version
-    uint8_t Type
-    uint8_t SubType
-    uint8_t ToDS
-    uint8_t FromDS
-    uint8_t MoreFrags
-    uint8_t Retry
-    uint8_t PowerManagement
-    uint8_t More
-    uint8_t Protected
-    uint8_t Order
-
-
-cdef packed struct dtc_ieee80211_mac_frame_header:
-    dtc_ieee80211_mac_frame_header_frame_control_field ControlField
-    uint8_t Addr1[6]
-    uint8_t Addr2[6]
-    uint8_t Addr3[6]
-    uint16_t Fragment
-    uint16_t Sequence
-
-
-cdef packed struct dtc_RXBasic:
-    uint16_t deviceType
-    uint64_t timestamp
-    int16_t centerFreq
-    int16_t controlFreq
-    uint16_t CBW
-    uint8_t packetFormat
-    uint16_t packetCBW
-    uint16_t GI
-    uint8_t MCS
-    uint8_t numSTS
-    uint8_t numESS
-    uint8_t numRx
-    int8_t noiseFloor
-    int8_t rssi
-    int8_t rssi1
-    int8_t rssi2
-    int8_t rssi3
-
-
-cdef packed struct dtc_ExtraInfo :
-    uint8_t hasLength
-    uint8_t hasVersion
-    uint8_t hasMacAddr_cur
-    uint8_t hasMacAddr_rom
-    uint8_t hasChansel
-    uint8_t hasBMode
-    uint8_t hasEVM
-    uint8_t hasTxChainMask
-    uint8_t hasRxChainMask
-    uint8_t hasTxpower
-    uint8_t hasCF
-    uint8_t hasTxTSF
-    uint8_t hasLastHwTxTSF
-    uint8_t hasChannelFlags
-    uint8_t hasTxNess
-    uint8_t hasTuningPolicy
-    uint8_t hasPLLRate
-    uint8_t hasPLLClkSel
-    uint8_t hasPLLRefDiv
-    uint8_t hasAGC
-    uint8_t hasAntennaSelection
-    uint8_t hasSamplingRate
-    uint8_t hasCFO
-    uint8_t hasSFO
-
-    uint16_t length
-    uint64_t version
-    uint8_t macaddr_cur[6]
-    uint8_t macaddr_rom[6]
-    uint32_t chansel
-    uint8_t bmode
-    int8_t evm[20]
-    uint8_t tx_chainmask
-    uint8_t rx_chainmask
-    uint8_t txpower
-    uint64_t cf
-    uint32_t txtsf
-    uint32_t last_txtsf
-    uint16_t channel_flags
-    uint8_t tx_ness
-    uint8_t tuning_policy
-    uint16_t pll_rate
-    uint8_t pll_clock_select
-    uint8_t pll_refdiv
-    uint8_t agc
-    uint8_t ant_sel[3]
-    uint64_t sf
-    int32_t cfo
-    int32_t sfo
-
-
-cdef packed struct dtc_CSI_info:
-    uint16_t DeviceType
-    int8_t PacketFormat
-    uint16_t CBW
-    uint64_t CarrierFreq
-    uint64_t SamplingRate
-    uint32_t SubcarrierBandwidth
-    uint16_t numTones
-    uint8_t numTx
-    uint8_t numRx
-    uint8_t numESS
-    uint16_t numCSI
-    uint8_t ant_sel
-
-
-cdef packed struct dtc_IntelMVMExtrta:
-    uint32_t FMTClock
-    uint32_t usClock
-    uint32_t RateNFlags
-
-
-cdef packed struct dtc_PicoScenesFrameHeader:
-    uint32_t MagicValue
-    uint32_t Version
-    uint16_t DeviceType
-    uint8_t FrameType
-    uint16_t TaskId
-    uint16_t TxId
-
-
-cdef packed struct dtc_SignalMatrix_info:
-    uint8_t ndim
-    uint16_t shape[3]
-    uint8_t itemsize
-    char majority
-
-
-cdef packed struct dtc_MPDU_info:
-    uint16_t length
-
-
-# Section 3: numpy type for `raw` (removed)
-
-
-cdef init_array(pk_num, dtype):
-    return np.zeros([pk_num], dtype)
-
-
-# Section 4: functions for parsing
-
-
-cdef SC_INDICES_9300 = {
-    3: {
-        20: np.r_[-122:-1, 2:123].astype(np.int32),       # HE20_242Subcarriers_Indices
-        40: np.r_[-244:-2, 3:245].astype(np.int32),       # HE40_484Subcarriers_Indices
-        80: np.r_[-500:-2, 3:501].astype(np.int32),       # HE80_996Subcarriers_Indices,
-        160: np.r_[-1012:-514, -509:-11, 12:510, 515:1013].astype(np.int32),
-                                                          # HE160_1992Subcarriers_Indices,
-    },
-    2: {
-        20: np.r_[-28:0, 1:29].astype(np.int32),          # HTVHT20_56Subcarriers_Indices,
-        40: np.r_[-58:-1, 2:59].astype(np.int32),         # HTVHT40_114Subcarriers_Indices,
-        80: np.r_[-122:-1, 2:123].astype(np.int32),       # VHT80_242Subcarriers_Indices,
-        160: np.r_[-250:-129, -126:-5, 6:127, 130:251].astype(np.int32),
-                                                          # VHT160_484Subcarriers_Indices,
-    },
-    1: {
-        20: np.r_[-28:0, 1:29].astype(np.int32),          # HTVHT20_56Subcarriers_Indices,
-        40: np.r_[-58:-1, 2:59].astype(np.int32),         # HTVHT40_114Subcarriers_Indices,
-    },
-    0: {
-        20: np.r_[-26:0, 1:27].astype(np.int32),          # NonHT20_52Subcarriers_Indices
-    },
-}
-
-
-cdef SC_INDICES_5300 = {
-    20: np.r_[-28:-1:2, -1, 1:28:2, 28].astype(np.int32),  # IWL5300SubcarrierIndices_CBW20
-    40: np.r_[-58:-2:4, -2, 2:58:4, 58].astype(np.int32),  # IWL5300SubcarrierIndices_CBW40
-}
+# Functions for parsing
 
 
 cdef FILE* crfopen(str file):
@@ -403,19 +25,18 @@ cdef FILE* crfopen(str file):
 
 
 cdef unsigned char *crfread(unsigned char *buf, uint32_t *buf_size,
-                            FILE *f):
+                            FILE *f, uint32_t *field_len):
     cdef size_t l
     l = fread(buf, sizeof(unsigned char), 4, f)
-    field_len = cu32(buf) + 4
+    field_len[0] = cu32(buf) + 4
     fseek(f, -4, SEEK_CUR)
-    if buf_size[0] < field_len:
-        buf = <unsigned char *>realloc(buf, field_len)
-        buf_size[0] = field_len
+    if buf_size[0] < field_len[0]:
+        buf = <unsigned char *>realloc(buf, field_len[0])
+        buf_size[0] = field_len[0]
         if buf is NULL:
             printf("realloc failed\n")
             fclose(f)
             exit(-1)
-    l = fread(buf, sizeof(unsigned char), field_len, f)
     return buf
 
 
@@ -450,47 +71,126 @@ cdef inline double cd64(unsigned char *buf):
     return (<double*>buf)[0]
 
 
-cdef AbstractPicoScenesFrameSegment parse_AbstractPicoScenesFrameSegment(unsigned char *buf):
-    cdef AbstractPicoScenesFrameSegment apsfs
-    apsfs.segmentLength = cu32(buf)
-    apsfs.segNameLength = cu8(buf + 4)
-    apsfs.segmentName = buf + 5
-    apsfs.versionId = cu16(buf + 5 + apsfs.segNameLength)
-    return apsfs
+cdef void parse_AbstractPicoScenesFrameSegment(unsigned char *buf, 
+    AbstractPicoScenesFrameSegment *m):
+    m.segmentLength = cu32(buf)
+    m.segNameLength = cu8(buf + 4)
+    m.segmentName = buf + 5
+    m.versionId = cu16(buf + 5 + m.segNameLength)
 
 
-cdef parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
-                       uint16_t cbw, int offset):
+cdef bint get_scidx_9300(np.int32_t[:] scidx, int count, int offset,
+                         int a, int b, int c, int d):
     cdef int i
-    cdef np.int32_t[:] indices = SC_INDICES_9300[format][cbw]
-    cdef int length = len(indices)
-    if scidx.shape[0] < length:
+    cdef int j = 0
+    if scidx.shape[0] < count:
         return False
 
-    for i in range(length):
-        scidx[i] = indices[i] + offset
-    for i in range(length, scidx.shape[0]):
-        scidx[i] = indices[-1] + offset
+    for i in range(-a, -b):
+        scidx[j] = i + offset
+        j += 1
+    for i in range(-c, -d):
+        scidx[j] = i + offset
+        j += 1
+    for i in range(c + 1, d + 1):
+        scidx[j] = i + offset
+        j += 1
+    for i in range(b + 1, a + 1):
+        scidx[j] = i + offset
+        j += 1
+    for i in range(count, scidx.shape[0]):
+        scidx[j] = a + offset
+        j += 1
     return True
 
 
-cdef parseCSI5300scidx(np.int32_t[:] scidx, int8_t format,
-                       uint16_t cbw, int offset):
-    cdef int i
-    cdef np.int32_t[:] indices = SC_INDICES_5300[cbw]
-    cdef int length = len(indices)
-    if scidx.shape[0] < length:
+cdef bint get_scidx_5300(np.int32_t[:] scidx, int count, int offset,
+                         int a, int b, int step):
+    cdef int i, j
+    if scidx.shape[0] < count:
         return False
 
-    for i in range(length):
-        scidx[i] = indices[i] + offset
-    for i in range(length, scidx.shape[0]):
-        scidx[i] = indices[-1] + offset
+    j = -a + offset
+    for i in range(14):
+        scidx[i] = j
+        j += step
+    scidx[14] = -b
+
+    j = b + offset
+    for i in range(15, 29):
+        scidx[i] = j
+        j += step
+    scidx[29] = a
+    for i in range(count, scidx.shape[0]):
+        scidx[i] = a + offset
     return True
 
 
-cdef parseCSIUSRPscidx(np.int32_t[:] scidx, unsigned char *payload,
-                       int16_t numTones):
+cdef bint parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
+                            uint16_t cbw, int offset):
+    if format == 3:
+        if cbw == 20:
+            # HE20_242Subcarriers_Indices
+            return get_scidx_9300(scidx, 242, offset, 122, 1, 0, 0)
+        elif cbw == 40:
+            # HE40_484Subcarriers_Indices
+            return get_scidx_9300(scidx, 484, offset, 244, 2, 0, 0)
+        elif cbw == 80:
+            # HE80_996Subcarriers_Indices,
+            return get_scidx_9300(scidx, 996, offset, 500, 2, 0, 0)
+        elif cbw == 160:
+            # HE160_1992Subcarriers_Indices,
+            return get_scidx_9300(scidx, 1992, offset, 1012, 514, 509, 11)
+        else:
+            pass
+    elif format == 2:
+        if cbw == 20:
+            # HTVHT20_56Subcarriers_Indices,
+            return get_scidx_9300(scidx, 56, offset, 28, 0, 0, 0)
+        elif cbw == 40:
+            # HTVHT40_114Subcarriers_Indices,
+            return get_scidx_9300(scidx, 114, offset, 58, 1, 0, 0)
+        elif cbw == 80:
+            # VHT80_242Subcarriers_Indices,
+            return get_scidx_9300(scidx, 242, offset, 122, 1, 0, 0)
+        elif cbw == 160:
+            # VHT160_484Subcarriers_Indices,
+            return get_scidx_9300(scidx, 484, offset, 250, 129, 126, 5)
+        else:
+            pass
+    elif format == 1:
+        if cbw == 20:
+            # HTVHT20_56Subcarriers_Indices,
+            return get_scidx_9300(scidx, 56, offset, 28, 0, 0, 0)
+        elif cbw == 40:
+            # HTVHT40_114Subcarriers_Indices,
+            return get_scidx_9300(scidx, 114, offset, 58, 1, 0, 0)
+        else:
+            pass
+    elif format == 0:
+        if cbw == 20:
+            # NonHT20_52Subcarriers_Indices
+            return get_scidx_9300(scidx, 52, offset, 26, 0, 0, 0)
+    else:
+        pass
+    return True
+
+
+cdef bint parseCSI5300scidx(np.int32_t[:] scidx, int8_t format,
+                            uint16_t cbw, int offset):
+    if cbw == 20:
+        # IWL5300SubcarrierIndices_CBW20
+        return get_scidx_5300(scidx, 30, offset, 28, 1, 2)
+    elif cbw == 40:
+        # IWL5300SubcarrierIndices_CBW40
+        return get_scidx_5300(scidx, 30, offset, 58, 2, 4)
+    else:
+        pass
+    return True
+
+
+cdef bint parseCSIUSRPscidx(np.int32_t[:] scidx, unsigned char *payload,
+                            int16_t numTones):
     cdef int i
     if scidx.shape[0] < numTones:
         return False
@@ -502,8 +202,8 @@ cdef parseCSIUSRPscidx(np.int32_t[:] scidx, unsigned char *payload,
     return True
 
 
-cdef parseCSI9300(np.complex128_t[:, :, :] csi, unsigned char *payload,
-                  uint16_t numTones, uint8_t numTx, uint8_t numRx):
+cdef bint parseCSI9300(np.complex128_t[:, :, :] csi, unsigned char *payload,
+                       uint16_t numTones, uint8_t numTx, uint8_t numRx):
     cdef int i, j
     cdef int tempArray[4]
     cdef int valuePos, pos, rxIndex, txIndex, toneIndex
@@ -543,9 +243,9 @@ cdef parseCSI9300(np.complex128_t[:, :, :] csi, unsigned char *payload,
     return True
 
 
-cdef parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
-                  uint16_t numTones, uint8_t numTx, uint8_t numRx,
-                  uint8_t antSel):
+cdef bint parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
+                       uint16_t numTones, uint8_t numTx, uint8_t numRx,
+                       uint8_t antSel):
     """Parse CSI of Intel 5300 NIC
 
     Important:
@@ -557,7 +257,7 @@ cdef parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
     cdef int index_step, perm_j
     cdef int index = 0
     cdef uint8_t remainder
-    cdef double a, b
+    cdef uint8_t a, b
 
     if numTones > csi.shape[0] or numRx > csi.shape[1] or numTx > csi.shape[2]:
         return False
@@ -568,16 +268,18 @@ cdef parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
         for j in range(numRx):
             for k in range(numTx):
                 index_step =  index >> 3
-                a = <double><int8_t>(((payload[index_step + 0] >> remainder) | (payload[index_step + 1] << (8 - remainder))) & 0xff)
-                b = <double><int8_t>(((payload[index_step + 1] >> remainder) | (payload[index_step + 2] << (8 - remainder))) & 0xff)
-                csi[i, j, k].real = a
-                csi[i, j, k].imag = b
+                a = payload[index_step + 0] >> remainder
+                b = payload[index_step + 1] >> remainder
+                a |= payload[index_step + 1] << (8 - remainder)
+                b |= payload[index_step + 2] << (8 - remainder)
+                csi[i, j, k].real = <double><int8_t>(a & 0xff)
+                csi[i, j, k].imag = <double><int8_t>(b & 0xff)
                 index += 16
     return True
 
 
-cdef parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
-                  uint32_t csiBufferLength):
+cdef bint parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
+                       uint32_t csiBufferLength):
     """parseSignalMatrix = parseCSIUSRP"""
     cdef uint32_t i, j, k
     cdef uint32_t offset = 0
@@ -596,7 +298,8 @@ cdef parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
             shape[i] = cu64(payload+offset)
             offset += 8
 
-    if shape[0] > csi.shape[0] or shape[1] > csi.shape[1] or shape[2] > csi.shape[2]:
+    if shape[0] > csi.shape[0] or shape[1] > csi.shape[1] \
+        or shape[2] > csi.shape[2]:
         return False
 
     offset += 4
@@ -609,8 +312,8 @@ cdef parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
     return True
 
 
-cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
-                          np.complex128_t[:, :, :] data):
+cdef bint parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
+                               np.complex128_t[:, :, :] data):
     """parseSignalMatrix = parseCSIUSRP"""
     cdef uint32_t i, j, k
     cdef uint32_t offset = 0
@@ -634,7 +337,8 @@ cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
     m.majority = <char>cu8(buf+offset+3)
     offset += 4
 
-    if m.shape[0] > data.shape[0] or m.shape[1] > data.shape[1] or m.shape[2] > data.shape[2]:
+    if m.shape[0] > data.shape[0] or m.shape[1] > data.shape[1] \
+        or m.shape[2] > data.shape[2]:
         return False
 
     for i in range(m.shape[0]):
@@ -646,7 +350,7 @@ cdef parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
     return True
 
 
-cdef parse_RxSBasicV1(unsigned char *buf, dtc_RXBasic *m):
+cdef void parse_RxSBasicV1(unsigned char *buf, dtc_RXBasic *m):
     cdef RxSBasicV1 *rsbv1 = <RxSBasicV1*>buf
     m.deviceType = rsbv1.deviceType
     m.timestamp = rsbv1.tstamp
@@ -667,7 +371,7 @@ cdef parse_RxSBasicV1(unsigned char *buf, dtc_RXBasic *m):
     m.rssi3 = rsbv1.noiseFloor + rsbv1.rssi_ctl2
 
 
-cdef parse_RxSBasicV2(unsigned char *buf, dtc_RXBasic *m):
+cdef void parse_RxSBasicV2(unsigned char *buf, dtc_RXBasic *m):
     cdef RxSBasicV2 *rsbv2 = <RxSBasicV2*>buf
     m.deviceType = rsbv2.deviceType
     m.timestamp = rsbv2.tstamp
@@ -688,7 +392,7 @@ cdef parse_RxSBasicV2(unsigned char *buf, dtc_RXBasic *m):
     m.rssi3 = rsbv2.noiseFloor + rsbv2.rssi_ctl2
 
 
-cdef parse_RxSBasicV3(unsigned char *buf, dtc_RXBasic *m):
+cdef void parse_RxSBasicV3(unsigned char *buf, dtc_RXBasic *m):
     cdef RxSBasicV3 *rsbv3 = <RxSBasicV3*>buf
     m.deviceType = rsbv3.deviceType
     m.timestamp = rsbv3.tstamp
@@ -709,10 +413,7 @@ cdef parse_RxSBasicV3(unsigned char *buf, dtc_RXBasic *m):
     m.rssi3 = rsbv3.rssi_ctl2
 
 
-
-
-
-cdef parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
+cdef void parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
     cdef FeatureCode *featurecode = <FeatureCode*>buf
     cdef int offset = 4
     cdef int i
@@ -821,18 +522,19 @@ cdef parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
         offset += 4
 
 
-cdef parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
+cdef void parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
     cdef IntelMVMExtrta *imvme = <IntelMVMExtrta*>buf
     m.FMTClock = imvme.parsedHeader.ftmClock
     m.usClock = imvme.parsedHeader.muClock
     m.RateNFlags = imvme.parsedHeader.rate_n_flags
 
 
-cdef parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
-                 np.complex128_t[:, :, :] csi,
-                 np.int32_t[:] scidx):
+cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
+                      np.complex128_t[:, :, :] csi,
+                      np.int32_t[:] scidx):
     cdef CSIV1 *csiv1 = <CSIV1*>buf
     cdef int actualNumSTSPerChain
+    cdef int temp
 
     m.DeviceType = csiv1.deviceType
     m.PacketFormat = csiv1.packetFormat
@@ -844,32 +546,39 @@ cdef parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
     m.numTx = csiv1.numTx
     m.numRx = csiv1.numRx
     if csiv1.deviceType == 0x9300:
-        actualNumSTSPerChain = csiv1.csiBufferLength // (140 if csiv1.cbw == 20 else 285) // csiv1.numRx
+        temp = 140 if csiv1.cbw == 20 else 285
+        actualNumSTSPerChain = <int>(csiv1.csiBufferLength / temp)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv1.numRx)
         m.numESS = actualNumSTSPerChain - csiv1.numTx
         m.numCSI = 1
         m.ant_sel = csiv1.antSel
         parseCSI9300scidx(scidx, csiv1.packetFormat, csiv1.cbw, 0)
-        parseCSI9300(csi, csiv1.payload, csiv1.numTones, actualNumSTSPerChain, csiv1.numRx)
+        parseCSI9300(csi, csiv1.payload, csiv1.numTones,
+                     actualNumSTSPerChain, csiv1.numRx)
     elif csiv1.deviceType == 0x5300:
-        actualNumSTSPerChain = (csiv1.csiBufferLength - 12) // 60 // csiv1.numRx
+        actualNumSTSPerChain = <int>((csiv1.csiBufferLength - 12) / 60)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv1.numRx)
         m.numESS = actualNumSTSPerChain - csiv1.numTx
         m.numCSI = 1
         m.ant_sel = csiv1.antSel
         parseCSI5300scidx(scidx, csiv1.packetFormat, csiv1.cbw, 0)
-        parseCSI5300(csi, csiv1.payload, csiv1.numTones, actualNumSTSPerChain, csiv1.numRx, csiv1.antSel)
+        parseCSI5300(csi, csiv1.payload, csiv1.numTones,
+                     actualNumSTSPerChain, csiv1.numRx, csiv1.antSel)
     elif csiv1.deviceType == 0x1234:
         m.numESS = csiv1.numESS
         m.numCSI = 1
         m.ant_sel = csiv1.antSel
         parseCSIUSRPscidx(scidx, csiv1.payload, csiv1.numTones)
-        parseCSIUSRP(csi, csiv1.payload + csiv1.numTones * 2, csiv1.csiBufferLength - csiv1.numTones * 2)
+        parseCSIUSRP(csi, csiv1.payload + csiv1.numTones * 2,
+                     csiv1.csiBufferLength - csiv1.numTones * 2)
 
 
-cdef parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
-                 np.complex128_t[:, :, :] csi,
-                 np.int32_t[:] scidx):    
+cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
+                      np.complex128_t[:, :, :] csi,
+                      np.int32_t[:] scidx):    
     cdef CSIV2 *csiv2 = <CSIV2*>buf
     cdef int actualNumSTSPerChain
+    cdef int temp
 
     m.DeviceType = csiv2.deviceType
     m.PacketFormat = csiv2.packetFormat
@@ -881,32 +590,41 @@ cdef parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
     m.numTx = csiv2.numTx
     m.numRx = csiv2.numRx
     if csiv2.deviceType == 0x9300:
-        actualNumSTSPerChain = csiv2.csiBufferLength // (140 if csiv2.cbw == 20 else 285) // csiv2.numRx
+        temp = 140 if csiv2.cbw == 20 else 285
+        actualNumSTSPerChain = <int>(csiv2.csiBufferLength / temp)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv2.numRx)
         m.numESS = actualNumSTSPerChain - csiv2.numTx
         m.numCSI = 1
         m.ant_sel = csiv2.antSel
-        parseCSI9300scidx(scidx, csiv2.packetFormat, csiv2.cbw, csiv2.subcarrierOffset)
-        parseCSI9300(csi, csiv2.payload, csiv2.numTones, actualNumSTSPerChain, csiv2.numRx)
+        parseCSI9300scidx(scidx, csiv2.packetFormat,
+                          csiv2.cbw, csiv2.subcarrierOffset)
+        parseCSI9300(csi, csiv2.payload, csiv2.numTones,
+                     actualNumSTSPerChain, csiv2.numRx)
     elif csiv2.deviceType == 0x5300:
-        actualNumSTSPerChain = (csiv2.csiBufferLength - 12) // 60 // csiv2.numRx
+        actualNumSTSPerChain = <int>((csiv2.csiBufferLength - 12) / 60)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv2.numRx)
         m.numESS = actualNumSTSPerChain - csiv2.numTx
         m.numCSI = 1
         m.ant_sel = csiv2.antSel
-        parseCSI5300scidx(scidx, csiv2.packetFormat, csiv2.cbw, csiv2.subcarrierOffset)
-        parseCSI5300(csi, csiv2.payload, csiv2.numTones, actualNumSTSPerChain, csiv2.numRx, csiv2.antSel)
+        parseCSI5300scidx(scidx, csiv2.packetFormat,
+                          csiv2.cbw, csiv2.subcarrierOffset)
+        parseCSI5300(csi, csiv2.payload, csiv2.numTones,
+                     actualNumSTSPerChain, csiv2.numRx, csiv2.antSel)
     elif csiv2.deviceType == 0x1234:
         m.numESS = csiv2.numESS
         m.numCSI = 1
         m.ant_sel = csiv2.antSel
         parseCSIUSRPscidx(scidx, csiv2.payload, csiv2.numTones)
-        parseCSIUSRP(csi, csiv2.payload + csiv2.numTones * 2, csiv2.csiBufferLength - csiv2.numTones * 2)
+        parseCSIUSRP(csi, csiv2.payload + csiv2.numTones * 2,
+                     csiv2.csiBufferLength - csiv2.numTones * 2)
 
 
-cdef parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
-                 np.complex128_t[:, :, :] csi,
-                 np.int32_t[:] scidx):
+cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
+                      np.complex128_t[:, :, :] csi,
+                      np.int32_t[:] scidx):
     cdef CSIV3 *csiv3 = <CSIV3*>buf
     cdef int actualNumSTSPerChain
+    cdef int temp
 
     m.DeviceType = csiv3.deviceType
     m.PacketFormat = csiv3.packetFormat
@@ -918,28 +636,37 @@ cdef parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
     m.numTx = csiv3.numTx
     m.numRx = csiv3.numRx
     if csiv3.deviceType == 0x9300:
-        actualNumSTSPerChain = csiv3.csiBufferLength // (140 if csiv3.cbw == 20 else 285) // csiv3.numRx
+        temp = 140 if csiv3.cbw == 20 else 285
+        actualNumSTSPerChain = <int>(csiv3.csiBufferLength / temp)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv3.numRx)
         m.numESS = actualNumSTSPerChain - csiv3.numTx
         m.numCSI = 1
         m.ant_sel = csiv3.antSel
-        parseCSI9300scidx(scidx, csiv3.packetFormat, csiv3.cbw, csiv3.subcarrierOffset)
-        parseCSI9300(csi, csiv3.payload, csiv3.numTones, actualNumSTSPerChain, csiv3.numRx)
+        parseCSI9300scidx(scidx, csiv3.packetFormat,
+                          csiv3.cbw, csiv3.subcarrierOffset)
+        parseCSI9300(csi, csiv3.payload, csiv3.numTones,
+                     actualNumSTSPerChain, csiv3.numRx)
     elif csiv3.deviceType == 0x5300:
-        actualNumSTSPerChain = (csiv3.csiBufferLength - 12) // 60 // csiv3.numRx
+        actualNumSTSPerChain = <int>((csiv3.csiBufferLength - 12) / 60)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv3.numRx)
         m.numESS = actualNumSTSPerChain - csiv3.numTx
         m.numCSI = 1
         m.ant_sel = csiv3.antSel
-        parseCSI5300scidx(scidx, csiv3.packetFormat, csiv3.cbw, csiv3.subcarrierOffset)
-        parseCSI5300(csi, csiv3.payload, csiv3.numTones, actualNumSTSPerChain, csiv3.numRx, csiv3.antSel)
+        parseCSI5300scidx(scidx, csiv3.packetFormat,
+                          csiv3.cbw, csiv3.subcarrierOffset)
+        parseCSI5300(csi, csiv3.payload, csiv3.numTones,
+                     actualNumSTSPerChain, csiv3.numRx, csiv3.antSel)
     elif csiv3.deviceType == 0x1234:
         m.numESS = csiv3.numESS
         m.numCSI = csiv3.numCSI
         m.ant_sel = csiv3.antSel
         parseCSIUSRPscidx(scidx, csiv3.payload, csiv3.numTones)
-        parseCSIUSRP(csi, csiv3.payload + csiv3.numTones * 2, csiv3.csiBufferLength - csiv3.numTones * 2)
+        parseCSIUSRP(csi, csiv3.payload + csiv3.numTones * 2,
+                     csiv3.csiBufferLength - csiv3.numTones * 2)
 
 
-cdef parse_MPDU(unsigned char *buf, dtc_MPDU_info *m, np.uint8_t[:] mpdu, uint32_t length):
+cdef bint parse_MPDU(unsigned char *buf, dtc_MPDU_info *m,
+                     np.uint8_t[:] mpdu, uint32_t length):
     cdef uint32_t i
     m.length = length
     if mpdu.shape[0] < length:
@@ -950,7 +677,8 @@ cdef parse_MPDU(unsigned char *buf, dtc_MPDU_info *m, np.uint8_t[:] mpdu, uint32
     return True
 
 
-cdef parse_StandardHeader(unsigned char *buf, dtc_ieee80211_mac_frame_header *m):
+cdef void parse_StandardHeader(unsigned char *buf,
+                               dtc_ieee80211_mac_frame_header *m):
     cdef ieee80211_mac_frame_header *imfh = <ieee80211_mac_frame_header*>buf
     cdef int i
 
@@ -973,7 +701,8 @@ cdef parse_StandardHeader(unsigned char *buf, dtc_ieee80211_mac_frame_header *m)
     m.Sequence = imfh.seq
 
 
-cdef parse_PicoScenesHeader(unsigned char *buf, dtc_PicoScenesFrameHeader *m):
+cdef void parse_PicoScenesHeader(unsigned char *buf,
+                                 dtc_PicoScenesFrameHeader *m):
     cdef PicoScenesFrameHeader *psfh = <PicoScenesFrameHeader*>buf
     m.MagicValue = psfh.magicValue
     m.Version = psfh.version
@@ -983,7 +712,8 @@ cdef parse_PicoScenesHeader(unsigned char *buf, dtc_PicoScenesFrameHeader *m):
     m.TxId = psfh.txId
 
 
-cdef parse_RxSBasic(uint16_t versionId, unsigned char *buf, dtc_RXBasic *m):
+cdef void parse_RxSBasic(uint16_t versionId, unsigned char *buf,
+                         dtc_RXBasic *m):
     if versionId == 0x1:
         parse_RxSBasicV1(buf, m)
     elif versionId == 0x2:
@@ -994,23 +724,24 @@ cdef parse_RxSBasic(uint16_t versionId, unsigned char *buf, dtc_RXBasic *m):
         pass
 
 
-cdef parse_ExtraInfo(uint16_t versionId, unsigned char *buf, dtc_ExtraInfo *m):
+cdef void parse_ExtraInfo(uint16_t versionId, unsigned char *buf,
+                          dtc_ExtraInfo *m):
     if versionId == 0x1:
         parse_ExtraInfoV1(buf, m)
     else:
         pass
 
 
-cdef parse_MVMExtra(uint16_t versionId, unsigned char *buf, dtc_IntelMVMExtrta *m):
+cdef void parse_MVMExtra(uint16_t versionId, unsigned char *buf,
+                         dtc_IntelMVMExtrta *m):
     if versionId == 0x1:
         parse_MVMExtraV1(buf, m)
     else:
         pass
 
 
-cdef parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
-               np.complex128_t[:, :, :] csi,
-               np.int32_t[:] scidx):
+cdef void parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
+                    np.complex128_t[:, :, :] csi, np.int32_t[:] scidx):
     if versionId == 0x1:
         parse_CSIV1(buf, m, csi, scidx)
     elif versionId == 0x2:
@@ -1021,16 +752,17 @@ cdef parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
         pass
 
 
-cdef parse_SignalMatrix(uint16_t versionId, unsigned char *buf, dtc_SignalMatrix_info *m,
-                        np.complex128_t[:, :, :] data):
+cdef void parse_SignalMatrix(uint16_t versionId, unsigned char *buf,
+                             dtc_SignalMatrix_info *m,
+                             np.complex128_t[:, :, :] data):
     if versionId == 0x1:
         parse_SignalMatrixV1(buf, m, data)
     else:
         pass
 
 
-cdef interp_iq(np.complex128_t *csi_1, np.complex128_t *csi_2,
-               np.float64_t ratio, np.complex128_t *iplcsi):
+cdef void interp_iq(np.complex128_t *csi_1, np.complex128_t *csi_2,
+                    np.float64_t ratio, np.complex128_t *iplcsi):
     """interpolate csi along real and imag (linear)"""
     cdef np.complex128_t csi
     csi = csi_2[0] - csi_1[0]
@@ -1039,8 +771,8 @@ cdef interp_iq(np.complex128_t *csi_1, np.complex128_t *csi_2,
     iplcsi[0] = csi
 
 
-cdef interp_ap(np.complex128_t *csi_1, np.complex128_t *csi_2,
-               np.float64_t ratio, np.complex128_t *iplcsi):
+cdef void interp_ap(np.complex128_t *csi_1, np.complex128_t *csi_2,
+                    np.float64_t ratio, np.complex128_t *iplcsi):
     """interpolate csi along amplitude and phase (linear)"""
     cdef np.float64_t csi_a
     cdef np.float64_t csi_p
@@ -1062,103 +794,20 @@ cdef interp_ap(np.complex128_t *csi_1, np.complex128_t *csi_2,
     iplcsi[0].imag = csi_a * sin(csi_p)
 
 
-# Section 5: Picoscenes
+# Picoscenes
 
 
 cdef class Picoscenes:
-    cdef readonly str file
-    cdef readonly int count
+    def __cinit__(self, *argv, **kw):
+        pass
 
-    cdef public np.ndarray raw
-    cdef np.ndarray buf_raw
-
-    cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader
-    cdef dtc_RXBasic[:] mem_RxSBasic
-    cdef dtc_ExtraInfo[:] mem_RxExtraInfo
-    cdef dtc_CSI_info[:] mem_CSI_info
-    cdef dtc_IntelMVMExtrta[:] mem_MVMExtra
-    cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader
-    cdef dtc_ExtraInfo[:] mem_TxExtraInfo
-    cdef dtc_CSI_info[:] mem_PilotCSI_info
-    cdef dtc_CSI_info[:] mem_LegacyCSI_info
-    cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info
-    cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info
-    cdef dtc_MPDU_info[:] mem_MPDU_info
-
-    cdef np.complex128_t[:, :, :, :] mem_CSI_CSI
-    cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI
-    cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI
-    cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data
-    cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data
-    cdef np.uint8_t[:, :] mem_MPDU_data
-
-    cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex
-    cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex
-    cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex
-
-    cdef bint if_report
-
-    def __cinit__(self, file, dtype, if_report=True, bufsize=0,
-                  *argv, **kw):
+    def __init__(self, str file, np.dtype dtype, bint if_report=True,
+                 int bufsize=0):
         self.file = file
         self.if_report = if_report
-
-    def __init__(self, file, dtype, if_report=True, bufsize=0):
-        pk_num = self.__get_pknum(bufsize)
-        self.buf_raw = init_array(pk_num, dtype)
-        self.mem_StandardHeader = self.buf_raw["StandardHeader"]
-        self.mem_RxSBasic = self.buf_raw["RxSBasic"]
-        self.mem_RxExtraInfo = self.buf_raw["RxExtraInfo"]
-        self.mem_CSI_info = self.buf_raw["CSI"]["info"]
-        self.mem_MVMExtra = self.buf_raw["MVMExtra"]
-        self.mem_PicoScenesHeader = self.buf_raw["PicoScenesHeader"]
-        self.mem_TxExtraInfo = self.buf_raw["TxExtraInfo"]
-        self.mem_PilotCSI_info = self.buf_raw["PilotCSI"]["info"]
-        self.mem_LegacyCSI_info = self.buf_raw["LegacyCSI"]["info"]
-        self.mem_BasebandSignals_info = self.buf_raw["BasebandSignals"]["info"]
-        self.mem_PreEQSymbols_info = self.buf_raw["PreEQSymbols"]["info"]
-        self.mem_MPDU_info = self.buf_raw["MPDU"]["info"]
-
-        self.mem_CSI_CSI = self.buf_raw["CSI"]["CSI"]
-        self.mem_PilotCSI_CSI = self.buf_raw["PilotCSI"]["CSI"]
-        self.mem_LegacyCSI_CSI = self.buf_raw["LegacyCSI"]["CSI"]
-        self.mem_BasebandSignals_data = self.buf_raw["BasebandSignals"]["data"]
-        self.mem_PreEQSymbols_data = self.buf_raw["PreEQSymbols"]["data"]
-        self.mem_MPDU_data = self.buf_raw["MPDU"]["data"]
-
-        self.mem_CSI_SubcarrierIndex = self.buf_raw["CSI"]["SubcarrierIndex"]
-        self.mem_PilotCSI_SubcarrierIndex = self.buf_raw["PilotCSI"]["SubcarrierIndex"]
-        self.mem_LegacyCSI_SubcarrierIndex = self.buf_raw["LegacyCSI"]["SubcarrierIndex"]
-
-    cdef __get_pknum(self, bufsize):
-        if bufsize == 0:
-            if self.file is None:
-                self.count = 1
-                pk_num = 1
-            else:
-                pk_num = self.__get_count()
-        else:
-            pk_num = bufsize
-        return pk_num
-
-    cdef __get_count(self):
-        cdef int count = 0
-        cdef long pos = 0
-        cdef uint32_t field_len
-        cdef size_t l
-        cdef FILE *f = crfopen(self.file)
-        cdef long lens = getfilesize(f, 0)
-        cdef unsigned char buf[4]
-
-        while pos < (lens - 4):
-            l = fread(buf, sizeof(unsigned char), 4, f)
-            field_len = cu32(buf) + 4
-            fseek(f, field_len - 4, SEEK_CUR)
-
-            pos += field_len
-            count += 1
-        fclose(f)
-        return count
+        pk_num = self.get_pknum(bufsize)
+        self.cache = np.zeros([pk_num], dtype)
+        self.init_memview()
 
     cpdef read(self):
         self.seek(self.file, 0, 0) 
@@ -1166,78 +815,21 @@ cdef class Picoscenes:
     cpdef seek(self, file, long pos, long num):
         cdef FILE *f = crfopen(file)
         cdef long lens = getfilesize(f, 0)
+        cdef uint32_t field_len
         cdef uint32_t buf_size = 4              # Require: buf_size >= 4
-        cdef unsigned char *buf = <unsigned char *>malloc(
-            buf_size * sizeof(unsigned char))
+        cdef unsigned char *buf
         if num == 0:
             num = lens
 
         cdef int count = 0
-        cdef int cur = 0
-        cdef int i, offset
-        cdef ModularPicoScenesRxFrameHeader *mpsrfh
-        cdef AbstractPicoScenesFrameSegment apsfs
-        cdef PicoScenesFrameHeader *psfh
+        cdef size_t l
 
+        buf = <unsigned char *>malloc(buf_size * sizeof(unsigned char))
         while pos < (lens-4):
-            buf = crfread(buf, &buf_size, f)
-            cur = 0
-
-            # ModularPicoScenesRxFrameHeader
-            mpsrfh = <ModularPicoScenesRxFrameHeader*>buf
-            if mpsrfh.magicWord != 0x20150315  or mpsrfh.frameVersion != 0x1:
-                pos += (mpsrfh.frameLength + 4)
-                continue
-            cur += sizeof(ModularPicoScenesRxFrameHeader)
-
-            # MUST
-            for i in range(mpsrfh.numRxSegments):
-                apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
-                offset = apsfs.segNameLength + 7
-
-                if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic", apsfs.segNameLength):
-                    parse_RxSBasic(apsfs.versionId, buf + cur + offset, &self.mem_RxSBasic[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_RxExtraInfo[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra", apsfs.segNameLength):
-                    parse_MVMExtra(apsfs.versionId, buf + cur + offset, &self.mem_MVMExtra[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"CSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_CSI_info[count], self.mem_CSI_CSI[count], self.mem_CSI_SubcarrierIndex[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_PilotCSI_info[count], self.mem_PilotCSI_CSI[count], self.mem_PilotCSI_SubcarrierIndex[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI", apsfs.segNameLength):
-                    parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_LegacyCSI_info[count], self.mem_LegacyCSI_CSI[count], self.mem_LegacyCSI_SubcarrierIndex[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal", apsfs.segNameLength):
-                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_BasebandSignals_info[count], self.mem_BasebandSignals_data[count])
-                elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols", apsfs.segNameLength):
-                    parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_PreEQSymbols_info[count], self.mem_PreEQSymbols_data[count])
-                else:
-                    pass
-                cur += (4 + apsfs.segmentLength)
-
-            # MPDU
-            parse_MPDU(buf + cur, &self.mem_MPDU_info[count], self.mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
-
-            # StandardHeader
-            parse_StandardHeader(buf + cur, &self.mem_StandardHeader[count])
-            cur += sizeof(ieee80211_mac_frame_header)
-
-            # PicoScenesFrameHeader
-            psfh = <PicoScenesFrameHeader*>(buf + cur)
-            if psfh.magicValue == 0x20150315:
-                parse_PicoScenesHeader(buf + cur, &self.mem_PicoScenesHeader[count])
-                cur += sizeof(PicoScenesFrameHeader)
-
-                # Optional
-                for i in range(psfh.numSegments):
-                    apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
-                    offset = apsfs.segNameLength + 7
-
-                    if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                        parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_TxExtraInfo[count])
-                    cur += (4 + apsfs.segmentLength)
-
-            pos += (mpsrfh.frameLength + 4)
+            buf = crfread(buf, &buf_size, f, &field_len)
+            l = fread(buf, sizeof(unsigned char), field_len, f)
+            self.parse(buf, l, count)
+            pos += field_len
             count += 1
             if count >= num:
                 break
@@ -1246,74 +838,13 @@ cdef class Picoscenes:
         self.count = count
         if self.if_report:
             printf("%d packets parsed\n", count)
-        self.raw = self.buf_raw[:count]
+        self.raw = self.cache[:count]
 
     cpdef pmsg(self, data):
         # This method hasn't been ready
-        cdef int count = 0
-        cdef int cur = 0
-        cdef int i, offset
-        cdef ModularPicoScenesRxFrameHeader *mpsrfh
-        cdef AbstractPicoScenesFrameSegment apsfs
-        cdef PicoScenesFrameHeader *psfh
-        cdef unsigned char *buf = data
-
-        # ModularPicoScenesRxFrameHeader
-        mpsrfh = <ModularPicoScenesRxFrameHeader*>buf
-        if mpsrfh.frameLength + 4 != len(data):
+        if self.parse(data, len(data), 0):
             return
-        if mpsrfh.magicWord != 0x20150315  or mpsrfh.frameVersion != 0x1:
-            return
-        cur += sizeof(ModularPicoScenesRxFrameHeader)
-
-        # MUST
-        for i in range(mpsrfh.numRxSegments):
-            apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
-            offset = apsfs.segNameLength + 7
-
-            if not strncmp(<const char *>apsfs.segmentName, b"RxSBasic", apsfs.segNameLength):
-                parse_RxSBasic(apsfs.versionId, buf + cur + offset, &self.mem_RxSBasic[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_RxExtraInfo[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"MVMExtra", apsfs.segNameLength):
-                parse_MVMExtra(apsfs.versionId, buf + cur + offset, &self.mem_MVMExtra[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"CSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_CSI_info[count], self.mem_CSI_CSI[count], self.mem_CSI_SubcarrierIndex[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"PilotCSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_PilotCSI_info[count], self.mem_PilotCSI_CSI[count], self.mem_PilotCSI_SubcarrierIndex[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"LegacyCSI", apsfs.segNameLength):
-                parse_CSI(apsfs.versionId, buf + cur + offset, &self.mem_LegacyCSI_info[count], self.mem_LegacyCSI_CSI[count], self.mem_LegacyCSI_SubcarrierIndex[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"BasebandSignal", apsfs.segNameLength):
-                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_BasebandSignals_info[count], self.mem_BasebandSignals_data[count])
-            elif not strncmp(<const char *>apsfs.segmentName, b"PreEQSymbols", apsfs.segNameLength):
-                parse_SignalMatrix(apsfs.versionId, buf + cur + offset, &self.mem_PreEQSymbols_info[count], self.mem_PreEQSymbols_data[count])
-            else:
-                pass
-            cur += (4 + apsfs.segmentLength)
-
-        # MPDU
-        parse_MPDU(buf + cur, &self.mem_MPDU_info[count], self.mem_MPDU_data[count],  mpsrfh.frameLength + 4 - cur)
-
-        # StandardHeader
-        parse_StandardHeader(buf + cur, &self.mem_StandardHeader[count])
-        cur += sizeof(ieee80211_mac_frame_header)
-
-        # PicoScenesFrameHeader
-        psfh = <PicoScenesFrameHeader*>(buf + cur)
-        if psfh.magicValue == 0x20150315:
-            parse_PicoScenesHeader(buf + cur, &self.mem_PicoScenesHeader[count])
-            cur += sizeof(PicoScenesFrameHeader)
-
-            # Optional
-            for i in range(psfh.numSegments):
-                apsfs = parse_AbstractPicoScenesFrameSegment(buf + cur)
-                offset = apsfs.segNameLength + 7
-
-                if not strncmp(<const char *>apsfs.segmentName, b"ExtraInfo", apsfs.segNameLength):
-                    parse_ExtraInfo(apsfs.versionId, buf + cur + offset, &self.mem_TxExtraInfo[count])
-                cur += (4 + apsfs.segmentLength)
-
-        self.raw = self.buf_raw
+        self.raw = self.cache
         return 0xf300       # status code
 
     cpdef interpolate_csi(self, name, bint IQ=False):
@@ -1376,6 +907,7 @@ cdef class Picoscenes:
                             if g == (sci[d] - sci[0]):
                                 mem_iplcsi[i, g, j, k] = mem_CSI_CSI[i, d, j,k]
                                 d += 1
+                                continue
                             else:
                                 ratio = g - (sci[d - 1] - sci[0])
                                 ratio /= (sci[d] - sci[d - 1])
@@ -1390,3 +922,153 @@ cdef class Picoscenes:
                                               ratio,
                                               &mem_iplcsi[i, g, j, k])
         return interpolated_csi, interpolated_scindex
+
+    cdef void init_memview(self):
+        self.mem_StandardHeader = self.cache["StandardHeader"]
+        self.mem_RxSBasic = self.cache["RxSBasic"]
+        self.mem_RxExtraInfo = self.cache["RxExtraInfo"]
+        self.mem_CSI_info = self.cache["CSI"]["info"]
+        self.mem_MVMExtra = self.cache["MVMExtra"]
+        self.mem_PicoScenesHeader = self.cache["PicoScenesHeader"]
+        self.mem_TxExtraInfo = self.cache["TxExtraInfo"]
+        self.mem_PilotCSI_info = self.cache["PilotCSI"]["info"]
+        self.mem_LegacyCSI_info = self.cache["LegacyCSI"]["info"]
+        self.mem_BasebandSignals_info = self.cache["BasebandSignals"]["info"]
+        self.mem_PreEQSymbols_info = self.cache["PreEQSymbols"]["info"]
+        self.mem_MPDU_info = self.cache["MPDU"]["info"]
+
+        self.mem_CSI_CSI = self.cache["CSI"]["CSI"]
+        self.mem_PilotCSI_CSI = self.cache["PilotCSI"]["CSI"]
+        self.mem_LegacyCSI_CSI = self.cache["LegacyCSI"]["CSI"]
+        self.mem_BasebandSignals_data = self.cache["BasebandSignals"]["data"]
+        self.mem_PreEQSymbols_data = self.cache["PreEQSymbols"]["data"]
+        self.mem_MPDU_data = self.cache["MPDU"]["data"]
+
+        self.mem_CSI_SubcarrierIndex = self.cache["CSI"]["SubcarrierIndex"]
+        self.mem_PilotCSI_SubcarrierIndex = self.cache["PilotCSI"]["SubcarrierIndex"]
+        self.mem_LegacyCSI_SubcarrierIndex = self.cache["LegacyCSI"]["SubcarrierIndex"]
+
+    cdef int get_pknum(self, int bufsize):
+        cdef int pk_num
+        if bufsize == 0:
+            if self.file is None:
+                self.count = 1
+                pk_num = 1
+            else:
+                pk_num = self.get_count()
+        else:
+            pk_num = bufsize
+        return pk_num
+
+    cdef int get_count(self):
+        cdef int count = 0
+        cdef long pos = 0
+        cdef uint32_t field_len
+        cdef size_t l
+        cdef FILE *f = crfopen(self.file)
+        cdef long lens = getfilesize(f, 0)
+        cdef unsigned char buf[4]
+
+        while pos < (lens - 4):
+            l = fread(buf, sizeof(unsigned char), 4, f)
+            field_len = cu32(buf) + 4
+            fseek(f, field_len - 4, SEEK_CUR)
+
+            pos += field_len
+            count += 1
+        fclose(f)
+        return count
+
+    cdef bint parse(self, unsigned char *buf, uint32_t buf_length, int count):
+        cdef int cur = 0
+        cdef int i, offset
+        cdef ModularPicoScenesRxFrameHeader *mpsrfh
+        cdef AbstractPicoScenesFrameSegment apsfs
+        cdef PicoScenesFrameHeader *psfh
+        cdef unsigned char *p
+        cdef char *sname
+        cdef uint8_t slength
+
+        # ModularPicoScenesRxFrameHeader
+        mpsrfh = <ModularPicoScenesRxFrameHeader*>buf
+        if mpsrfh.frameLength + 4 != buf_length:
+            return False
+        if mpsrfh.magicWord != 0x20150315  or mpsrfh.frameVersion != 0x1:
+            return False
+        cur += sizeof(ModularPicoScenesRxFrameHeader)
+
+        # MUST
+        for i in range(mpsrfh.numRxSegments):
+            parse_AbstractPicoScenesFrameSegment(buf + cur, &apsfs)
+            offset = apsfs.segNameLength + 7
+            sname = <char *>apsfs.segmentName
+            slength = apsfs.segNameLength
+            apsfs.versionId = apsfs.versionId
+            p = buf + cur + offset
+
+            if not strncmp(b"RxSBasic", sname, slength):
+                parse_RxSBasic(apsfs.versionId, p,
+                               &self.mem_RxSBasic[count])
+            elif not strncmp(b"ExtraInfo", sname, slength):
+                parse_ExtraInfo(apsfs.versionId, p,
+                                &self.mem_RxExtraInfo[count])
+            elif not strncmp(b"MVMExtra", sname, slength):
+                parse_MVMExtra(apsfs.versionId, p,
+                               &self.mem_MVMExtra[count])
+            elif not strncmp(b"CSI", sname, slength):
+                parse_CSI(apsfs.versionId, p,
+                          &self.mem_CSI_info[count],
+                          self.mem_CSI_CSI[count],
+                          self.mem_CSI_SubcarrierIndex[count])
+            elif not strncmp(b"PilotCSI", sname, slength):
+                parse_CSI(apsfs.versionId, p,
+                          &self.mem_PilotCSI_info[count],
+                          self.mem_PilotCSI_CSI[count],
+                          self.mem_PilotCSI_SubcarrierIndex[count])
+            elif not strncmp(b"LegacyCSI", sname, slength):
+                parse_CSI(apsfs.versionId, p,
+                          &self.mem_LegacyCSI_info[count],
+                          self.mem_LegacyCSI_CSI[count],
+                          self.mem_LegacyCSI_SubcarrierIndex[count])
+            elif not strncmp(b"BasebandSignal", sname, slength):
+                parse_SignalMatrix(apsfs.versionId, p,
+                                   &self.mem_BasebandSignals_info[count],
+                                   self.mem_BasebandSignals_data[count])
+            elif not strncmp(b"PreEQSymbols", sname, slength):
+                parse_SignalMatrix(apsfs.versionId, p,
+                                   &self.mem_PreEQSymbols_info[count],
+                                   self.mem_PreEQSymbols_data[count])
+            else:
+                pass
+            cur += (4 + apsfs.segmentLength)
+
+        # MPDU
+        parse_MPDU(buf + cur,
+                   &self.mem_MPDU_info[count],
+                   self.mem_MPDU_data[count],
+                   mpsrfh.frameLength + 4 - cur)
+
+        # StandardHeader
+        parse_StandardHeader(buf + cur, &self.mem_StandardHeader[count])
+        cur += sizeof(ieee80211_mac_frame_header)
+
+        # PicoScenesFrameHeader
+        psfh = <PicoScenesFrameHeader*>(buf + cur)
+        if psfh.magicValue == 0x20150315:
+            parse_PicoScenesHeader(buf + cur,
+                                   &self.mem_PicoScenesHeader[count])
+            cur += sizeof(PicoScenesFrameHeader)
+
+            # Optional
+            for i in range(psfh.numSegments):
+                parse_AbstractPicoScenesFrameSegment(buf + cur, &apsfs)
+                offset = apsfs.segNameLength + 7
+                sname = <char *>apsfs.segmentName
+                slength = apsfs.segNameLength
+                p = buf + cur + offset
+
+                if not strncmp(b"ExtraInfo", sname, slength):
+                    parse_ExtraInfo(apsfs.versionId, p,
+                                    &self.mem_TxExtraInfo[count])
+                cur += (4 + apsfs.segmentLength)
+        return True

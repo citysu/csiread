@@ -7,7 +7,7 @@ import numpy as np
 from numpy.lib import recfunctions as rfn
 from . import _csiread
 from . import _picoscenes
-from ._deftype import init_dtype_picoscenes
+from ._type import init_dtype_picoscenes
 
 
 def stringify(array, sep=':'):

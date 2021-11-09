@@ -12,86 +12,6 @@ cimport cython
 
 
 cdef class Intel:
-    cdef readonly str file
-    cdef readonly int count
-
-    cdef public np.ndarray timestamp_low
-    cdef public np.ndarray bfee_count
-    cdef public np.ndarray Nrx
-    cdef public np.ndarray Ntx
-    cdef public np.ndarray rssi_a
-    cdef public np.ndarray rssi_b
-    cdef public np.ndarray rssi_c
-    cdef public np.ndarray noise
-    cdef public np.ndarray agc
-    cdef public np.ndarray perm
-    cdef public np.ndarray rate
-    cdef public np.ndarray csi
-    cdef public np.ndarray stp
-
-    cdef public np.ndarray fc
-    cdef public np.ndarray dur
-    cdef public np.ndarray addr_des
-    cdef public np.ndarray addr_src
-    cdef public np.ndarray addr_bssid
-    cdef public np.ndarray seq
-    cdef public np.ndarray payload
-
-    cdef np.ndarray buf_timestamp_low
-    cdef np.ndarray buf_bfee_count
-    cdef np.ndarray buf_Nrx
-    cdef np.ndarray buf_Ntx
-    cdef np.ndarray buf_rssi_a
-    cdef np.ndarray buf_rssi_b
-    cdef np.ndarray buf_rssi_c
-    cdef np.ndarray buf_noise
-    cdef np.ndarray buf_agc
-    cdef np.ndarray buf_perm
-    cdef np.ndarray buf_rate
-    cdef np.ndarray buf_csi
-    cdef np.ndarray buf_stp
-    cdef np.ndarray buf_total_rss
-
-    cdef np.ndarray buf_fc
-    cdef np.ndarray buf_dur
-    cdef np.ndarray buf_addr_des
-    cdef np.ndarray buf_addr_src
-    cdef np.ndarray buf_addr_bssid
-    cdef np.ndarray buf_seq
-    cdef np.ndarray buf_payload
-
-    cdef np.uint32_t[:] buf_timestamp_low_mem
-    cdef np.int_t[:] buf_bfee_count_mem
-    cdef np.int_t[:] buf_Nrx_mem
-    cdef np.int_t[:] buf_Ntx_mem
-    cdef np.int_t[:] buf_rssi_a_mem
-    cdef np.int_t[:] buf_rssi_b_mem
-    cdef np.int_t[:] buf_rssi_c_mem
-    cdef np.int_t[:] buf_noise_mem
-    cdef np.int_t[:] buf_agc_mem
-    cdef np.int_t[:, :] buf_perm_mem
-    cdef np.int_t[:] buf_rate_mem
-    cdef np.complex128_t[:, :, :, :] buf_csi_mem
-    cdef np.float64_t[:] buf_total_rss_mem
-
-    cdef np.int_t[:] buf_fc_mem
-    cdef np.int_t[:] buf_dur_mem
-    cdef np.int_t[:, :] buf_addr_des_mem
-    cdef np.int_t[:, :] buf_addr_src_mem
-    cdef np.int_t[:, :] buf_addr_bssid_mem
-    cdef np.int_t[:] buf_seq_mem
-    cdef np.uint8_t[:, :] buf_payload_mem
-
-    cdef np.complex128_t[:, :] sm_2_20_mem
-    cdef np.complex128_t[:, :] sm_2_40_mem
-    cdef np.complex128_t[:, :] sm_3_20_mem
-    cdef np.complex128_t[:, :] sm_3_40_mem
-
-    cdef int nrxnum
-    cdef int ntxnum
-    cdef int pl_size
-    cdef bint if_report
-
     def __cinit__(self, file, nrxnum=3, ntxnum=2, pl_size=0, if_report=True,
                   bufsize=0, *argv, **kw):
         self.file = file
@@ -340,7 +260,8 @@ cdef class Intel:
         buf += 1
 
         if code == 0xbb:
-            self.buf_timestamp_low_mem[0] = cu32l(buf[0], buf[1], buf[2], buf[3])
+            self.buf_timestamp_low_mem[0] = cu32l(buf[0], buf[1],
+                                                  buf[2], buf[3])
             self.buf_bfee_count_mem[0] = cu16l(buf[4], buf[5])
             self.buf_Nrx_mem[0] = buf[8]
             self.buf_Ntx_mem[0] = buf[9]
@@ -423,22 +344,29 @@ cdef class Intel:
 
     cpdef get_total_rss(self):
         cdef int i
+        cdef double temp
         for i in range(self.count):
             if self.buf_rssi_a_mem[i]:
-                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_a_mem[i] / 10)
+                temp = pow(10, self.buf_rssi_a_mem[i] / 10)
+                self.buf_total_rss_mem[i] += temp
             if self.buf_rssi_b_mem[i]:
-                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_b_mem[i] / 10)
+                temp = pow(10, self.buf_rssi_b_mem[i] / 10)
+                self.buf_total_rss_mem[i] += temp
             if self.buf_rssi_c_mem[i]:
-                self.buf_total_rss_mem[i] += pow(10, self.buf_rssi_c_mem[i] / 10)
+                temp = pow(10, self.buf_rssi_c_mem[i] / 10)
+                self.buf_total_rss_mem[i] += temp
             if self.buf_total_rss_mem[i]:
-                self.buf_total_rss_mem[i] = (10 * log10(self.buf_total_rss_mem[i]) - 44 - self.buf_agc_mem[i])
+                temp = 10 * log10(self.buf_total_rss_mem[i]) - 44
+                temp -= self.buf_agc_mem[i]
+                self.buf_total_rss_mem[i] = temp
         return self.buf_total_rss[:self.count]
 
     cpdef get_scaled_csi(self, inplace=False):
         cdef int i, j, k, g
         cdef double constant2 = 2
         cdef double constant4_5 = pow(10, 0.45)
-        cdef double temp_sum, quant_error_pwr, thermal_noise_pwr, total_noise_pwr, scale
+        cdef double temp, quant_error_pwr, thermal_noise_pwr,
+        cdef double total_noise_pwr, scale
 
         if inplace:
             scaled_csi = self.csi
@@ -447,15 +375,15 @@ cdef class Intel:
         cdef np.complex128_t[:, :, :, :] scaled_csi_mem = scaled_csi
 
         for i in range(self.count):
-            temp_sum = 0
+            temp = 0
             for j in range(30):
                 for k in range(self.nrxnum):
                     for g in range(self.ntxnum):
-                        temp_sum += (self.buf_csi_mem[i, j, k, g].real * \
-                                     self.buf_csi_mem[i, j, k, g].real + \
-                                     self.buf_csi_mem[i, j, k, g].imag * \
-                                     self.buf_csi_mem[i, j, k, g].imag)
-            scale = pow(10, self.buf_total_rss_mem[i] / 10) / (temp_sum / 30)
+                        temp += (self.buf_csi_mem[i, j, k, g].real * \
+                                 self.buf_csi_mem[i, j, k, g].real + \
+                                 self.buf_csi_mem[i, j, k, g].imag * \
+                                 self.buf_csi_mem[i, j, k, g].imag)
+            scale = pow(10, self.buf_total_rss_mem[i] / 10) / (temp / 30)
             if self.buf_noise_mem[i] == -127:
                 thermal_noise_pwr = pow(10, -9.2)
             else:
@@ -470,8 +398,10 @@ cdef class Intel:
             for j in range(30):
                 for k in range(self.nrxnum):
                     for g in range(self.ntxnum):
-                        scaled_csi_mem[i, j, k, g].real = self.buf_csi_mem[i, j, k, g].real * scale
-                        scaled_csi_mem[i, j, k, g].imag = self.buf_csi_mem[i, j, k, g].imag * scale
+                        scaled_csi_mem[i, j, k, g].real = \
+                            self.buf_csi_mem[i, j, k, g].real * scale
+                        scaled_csi_mem[i, j, k, g].imag = \
+                            self.buf_csi_mem[i, j, k, g].imag * scale
         return scaled_csi
 
     def get_scaled_csi_sm(self, inplace=False):
@@ -544,69 +474,6 @@ cdef class Intel:
 
 
 cdef class Atheros:
-    cdef readonly str file
-    cdef readonly int count
-
-    cdef public np.ndarray timestamp
-    cdef public np.ndarray csi_len
-    cdef public np.ndarray tx_channel
-    cdef public np.ndarray err_info
-    cdef public np.ndarray noise_floor
-    cdef public np.ndarray Rate
-    cdef public np.ndarray bandWidth
-    cdef public np.ndarray num_tones
-    cdef public np.ndarray nr
-    cdef public np.ndarray nc
-    cdef public np.ndarray rssi
-    cdef public np.ndarray rssi_1
-    cdef public np.ndarray rssi_2
-    cdef public np.ndarray rssi_3
-    cdef public np.ndarray payload_len
-    cdef public np.ndarray csi
-    cdef public np.ndarray payload
-
-    cdef np.ndarray buf_timestamp
-    cdef np.ndarray buf_csi_len
-    cdef np.ndarray buf_tx_channel
-    cdef np.ndarray buf_err_info
-    cdef np.ndarray buf_noise_floor
-    cdef np.ndarray buf_Rate
-    cdef np.ndarray buf_bandWidth
-    cdef np.ndarray buf_num_tones
-    cdef np.ndarray buf_nr
-    cdef np.ndarray buf_nc
-    cdef np.ndarray buf_rssi
-    cdef np.ndarray buf_rssi_1
-    cdef np.ndarray buf_rssi_2
-    cdef np.ndarray buf_rssi_3
-    cdef np.ndarray buf_payload_len
-    cdef np.ndarray buf_csi
-    cdef np.ndarray buf_payload
-
-    cdef np.uint64_t[:] buf_timestamp_mem
-    cdef np.int_t[:] buf_csi_len_mem
-    cdef np.int_t[:] buf_tx_channel_mem
-    cdef np.int_t[:] buf_err_info_mem
-    cdef np.int_t[:] buf_noise_floor_mem
-    cdef np.int_t[:] buf_Rate_mem
-    cdef np.int_t[:] buf_bandWidth_mem
-    cdef np.int_t[:] buf_num_tones_mem
-    cdef np.int_t[:] buf_nr_mem
-    cdef np.int_t[:] buf_nc_mem
-    cdef np.int_t[:] buf_rssi_mem
-    cdef np.int_t[:] buf_rssi_1_mem
-    cdef np.int_t[:] buf_rssi_2_mem
-    cdef np.int_t[:] buf_rssi_3_mem
-    cdef np.int_t[:] buf_payload_len_mem
-    cdef np.complex128_t[:, :, :, :] buf_csi_mem
-    cdef np.uint8_t[:, :] buf_payload_mem
-
-    cdef int nrxnum
-    cdef int ntxnum
-    cdef int tones
-    cdef int pl_size
-    cdef bint if_report
-
     def __cinit__(self, file, nrxnum=3, ntxnum=2, pl_size=0, tones=56,
                   if_report=True, bufsize=0, *argv, **kw):
         self.file = file
@@ -721,8 +588,9 @@ cdef class Atheros:
                 break
 
             l = <int>fread(&buf, sizeof(unsigned char), 25, f)
-            self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
-                                                buf[4], buf[5], buf[6], buf[7])
+            self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2],
+                                                     buf[3], buf[4], buf[5],
+                                                     buf[6], buf[7])
             self.buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
             self.buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
             self.buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
@@ -791,8 +659,8 @@ cdef class Atheros:
                             bits_left -= 10
                             current_data = current_data >> 10
                             # csi
-                            set_csi_mem(self.buf_csi_mem, count, k, nr_idx, nc_idx,
-                                        real, imag)
+                            set_csi_mem(self.buf_csi_mem, count, k,
+                                        nr_idx, nc_idx, real, imag)
                 pos += c_len
 
             pl_len = self.buf_payload_len_mem[count]
@@ -854,8 +722,9 @@ cdef class Atheros:
             ath_cu64 = cu64b
         else:
             raise ValueError("endian must be either 'little' or 'big'")
-        self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2], buf[3],
-                                            buf[4], buf[5], buf[6], buf[7])
+        self.buf_timestamp_mem[count] = ath_cu64(buf[0], buf[1], buf[2],
+                                                 buf[3], buf[4], buf[5],
+                                                 buf[6], buf[7])
         self.buf_csi_len_mem[count] = ath_cu16(buf[8], buf[9])
         self.buf_tx_channel_mem[count] = ath_cu16(buf[10], buf[11])
         self.buf_payload_len_mem[count] = ath_cu16(buf[23], buf[24])
@@ -921,8 +790,8 @@ cdef class Atheros:
                         bits_left -= 10
                         current_data = current_data >> 10
                         # csi
-                        set_csi_mem(self.buf_csi_mem, count, k, nr_idx, nc_idx,
-                                    real, imag)
+                        set_csi_mem(self.buf_csi_mem, count, k,
+                                    nr_idx, nc_idx, real, imag)
 
         pl_len = self.buf_payload_len_mem[count]
         pl_stop = min(pl_len, self.pl_size)
@@ -960,54 +829,6 @@ cdef class Atheros:
 
 
 cdef class Nexmon:
-    cdef readonly str file
-    cdef readonly int count
-    cdef readonly str chip
-    cdef readonly int bw
-    cdef readonly bint nano
-
-    cdef public np.ndarray sec
-    cdef public np.ndarray usec
-    cdef public np.ndarray caplen
-    cdef public np.ndarray wirelen
-    cdef public np.ndarray magic
-    cdef public np.ndarray src_addr
-    cdef public np.ndarray seq
-    cdef public np.ndarray core
-    cdef public np.ndarray spatial
-    cdef public np.ndarray chan_spec
-    cdef public np.ndarray chip_version
-    cdef public np.ndarray csi
-
-    cdef np.ndarray buf_sec
-    cdef np.ndarray buf_usec
-    cdef np.ndarray buf_caplen
-    cdef np.ndarray buf_wirelen
-    cdef np.ndarray buf_magic
-    cdef np.ndarray buf_src_addr
-    cdef np.ndarray buf_seq
-    cdef np.ndarray buf_core
-    cdef np.ndarray buf_spatial
-    cdef np.ndarray buf_chan_spec
-    cdef np.ndarray buf_chip_version
-    cdef np.ndarray buf_csi
-
-    cdef np.uint32_t[:] buf_sec_mem
-    cdef np.uint32_t[:] buf_usec_mem
-    cdef np.int_t[:] buf_caplen_mem
-    cdef np.int_t[:] buf_wirelen_mem
-    cdef np.int_t[:] buf_magic_mem
-    cdef np.int_t[:, :] buf_src_addr_mem
-    cdef np.int_t[:] buf_seq_mem
-    cdef np.int_t[:] buf_core_mem
-    cdef np.int_t[:] buf_spatial_mem
-    cdef np.int_t[:] buf_chan_spec_mem
-    cdef np.int_t[:] buf_chip_version_mem
-    cdef np.complex128_t[:, :] buf_csi_mem
-
-    cdef bint if_report
-    cdef public int _autoscale
-
     def __cinit__(self, file, chip, bw, if_report=True, bufsize=0,
                   *argv, **kw):
         self.file = file
@@ -1102,7 +923,7 @@ cdef class Nexmon:
             self.buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
             self.buf_caplen_mem[count] = caplen
             self.buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
-                                               buf[15])
+                                                    buf[15])
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
@@ -1265,15 +1086,6 @@ cdef class Nexmon:
 
 
 cdef class NexmonPull46(Nexmon):
-    cdef public np.ndarray rssi
-    cdef public np.ndarray fc
-
-    cdef np.ndarray buf_rssi
-    cdef np.ndarray buf_fc
-
-    cdef np.int_t[:] buf_rssi_mem 
-    cdef np.int_t[:] buf_fc_mem
-
     def __cinit__(self, file, chip, bw, if_report=True, bufsize=0,
                   *argv, **kw):
         self.file = file
@@ -1342,7 +1154,7 @@ cdef class NexmonPull46(Nexmon):
             self.buf_usec_mem[count] = pcap_cu32(buf[4], buf[5], buf[6], buf[7])
             self.buf_caplen_mem[count] = caplen
             self.buf_wirelen_mem[count] = pcap_cu32(buf[12], buf[13], buf[14],
-                                               buf[15])
+                                                    buf[15])
             pos += (16 + caplen)
 
             # we don't care about enth+ip+udp header
