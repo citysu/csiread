@@ -379,10 +379,11 @@ cdef class Intel:
             for j in range(30):
                 for k in range(self.nrxnum):
                     for g in range(self.ntxnum):
-                        temp += (self.buf_csi_mem[i, j, k, g].real * \
-                                 self.buf_csi_mem[i, j, k, g].real + \
-                                 self.buf_csi_mem[i, j, k, g].imag * \
-                                 self.buf_csi_mem[i, j, k, g].imag)
+                        with cython.boundscheck(False):
+                            temp += (self.buf_csi_mem[i, j, k, g].real * \
+                                     self.buf_csi_mem[i, j, k, g].real + \
+                                     self.buf_csi_mem[i, j, k, g].imag * \
+                                     self.buf_csi_mem[i, j, k, g].imag)
             scale = pow(10, self.buf_total_rss_mem[i] / 10) / (temp / 30)
             if self.buf_noise_mem[i] == -127:
                 thermal_noise_pwr = pow(10, -9.2)
@@ -398,10 +399,11 @@ cdef class Intel:
             for j in range(30):
                 for k in range(self.nrxnum):
                     for g in range(self.ntxnum):
-                        scaled_csi_mem[i, j, k, g].real = \
-                            self.buf_csi_mem[i, j, k, g].real * scale
-                        scaled_csi_mem[i, j, k, g].imag = \
-                            self.buf_csi_mem[i, j, k, g].imag * scale
+                        with cython.boundscheck(False):
+                            scaled_csi_mem[i, j, k, g].real = \
+                                self.buf_csi_mem[i, j, k, g].real * scale
+                            scaled_csi_mem[i, j, k, g].imag = \
+                                self.buf_csi_mem[i, j, k, g].imag * scale
         return scaled_csi
 
     def get_scaled_csi_sm(self, inplace=False):

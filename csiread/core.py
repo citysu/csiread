@@ -1208,17 +1208,6 @@ class Picoscenes(_picoscenes.Picoscenes):
             info = None
         return info
 
-    def _get_pl_size(self, name):
-        if name in ["CSI", "PilotCSI", "LegacyCSI"]:
-            shape = self.raw[name]["CSI"].shape[1:]
-        elif name in ["BasebandSignals", "PreEQSymbols"]:
-            shape = self.raw[name]["data"].shape[1:]
-        elif name in ["MPDU"]:
-            shape = self.raw[name]["data"].shape[1:]
-        else:
-            shape = None
-        return np.asarray(shape)
-
     def check(self):
         """helper method for setting parameter `pl_size`"""
         T = "%15s%15s%15s%15s%10s\n"
@@ -1226,10 +1215,13 @@ class Picoscenes(_picoscenes.Picoscenes):
 
         def rowstring(name):
             info = self._get_info_shape(name)
-            pl = self._get_pl_size(name)
+            pl = np.asarray(self.pl_size[name])
             skip = np.nan if info.max() == 0 else (info > pl).any(1).sum()
             with np.printoptions(formatter={'all':lambda x: str(x)}):
-                s = T % (name, info.min(0), info.max(0), pl, skip)
+                s = T % (name,
+                         info.min(0) if pl.ndim else info.min(0)[0],
+                         info.max(0) if pl.ndim else info.max(0)[0],
+                         pl, skip)
             return s
 
         s = ""
