@@ -3,6 +3,7 @@ from libc.stdio cimport (fopen, fread, fclose, fseek, ftell, printf, FILE,
 from libc.stdint cimport (uint16_t, int16_t, uint32_t, int32_t, uint8_t,
                           int8_t, uint64_t)
 from libc.math cimport pi, log10, pow, sqrt
+from libc.stdlib cimport exit
 import os
 import struct
 

@@ -4,9 +4,10 @@
 
 _????.??.??_
 
-- new feature: add support for PicoScenes
+- experimental feature: add support for PicoScenes
 - improvement: improve `seek(..., num=1)`
 - improvement: improve `get_total_rss`, `get_scaled_csi` and `get_scaled_csi_sm`. They were inefficient in a loop.
+- fix bug: `import csiread` in an ipython shell raised `NameError: name 'exit' is not defined`
 
 ## v1.3.8
 
