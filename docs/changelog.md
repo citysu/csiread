@@ -2,12 +2,14 @@
 
 ## v1.3.9
 
-_????.??.??_
-- update: add `NexmonPull256'
+_2022.01.24_
+
+- update: add `NexmonPull256`
 - experimental feature: add support for PicoScenes
 - improvement: improve `seek(..., num=1)`
 - improvement: improve `get_total_rss`, `get_scaled_csi` and `get_scaled_csi_sm`. They were inefficient in a loop.
 - fix bug: `import csiread` in an ipython shell raised `NameError: name 'exit' is not defined`
+- fix bug(#18): `pyproject.toml` is required when executing `pip install <*.tar.gz from pypi>`
 
 ## v1.3.8
 
