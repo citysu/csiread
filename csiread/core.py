@@ -712,14 +712,14 @@ class NexmonPull46(_csiread.NexmonPull46):
         See ``Nexmon``
 
     Attributes:
-        _autoscale (int): It can be 0 and 1, Pull 46 set it to 0. If you got a
-            bad plotting, you may want it to be 1.
+        _autoscale (int): It can be 0 and 1
         rssi (ndarray): rssi
         fc (ndarray): frame control
         others: see ``Nexmon``
 
     References:
         1. `nexmon_csi pull 46 <https://github.com/seemoo-lab/nexmon_csi/pull/46>`_
+        2. `nexmon_csi pull 256 <https://github.com/seemoo-lab/nexmon_csi/pull/256>`_
     """
     def __init__(self, file, chip, bw, if_report=True, bufsize=0):
         super(NexmonPull46, self).__init__(file, chip, bw, if_report, bufsize)
@@ -785,6 +785,9 @@ class NexmonPull46(_csiread.NexmonPull46):
         s += T % (tab, "rssi", self.rssi[index])
         s += T % (tab, "fc", self.fc[index])
         print(s, end='')
+
+
+NexmonPull256 = NexmonPull46
 
 
 class ESP32:

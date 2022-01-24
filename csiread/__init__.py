@@ -1,5 +1,5 @@
-from .core import (Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46, ESP32,
-				   Picoscenes)
+from .core import (Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46,
+				   NexmonPull256, ESP32, Picoscenes)
 from .utils import scidx, calib, phy_ifft, phy_fft
 
 
