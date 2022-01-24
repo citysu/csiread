@@ -69,7 +69,7 @@ def setup_package():
     setup(
         name="csiread",
         version=VERSION,
-        description=DOCLINES[2],
+        description=DOCLINES[2].rstrip("\n"),
         long_description="".join(DOCLINES),
         long_description_content_type="text/markdown",
         author="Hecheng Su",
