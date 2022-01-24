@@ -1198,15 +1198,15 @@ class Picoscenes(_picoscenes.Picoscenes):
             info (ndarray): 2D array which records the shape of `name`
         """
         if name in ["CSI", "PilotCSI", "LegacyCSI"]:
-            nsc = self.raw[name]["info"]["numTones"]
-            nrx = self.raw[name]["info"]["numRx"]
-            ntx = self.raw[name]["info"]["numTx"] \
-                + self.raw[name]["info"]["numESS"]
+            nsc = self.raw[name]["Info"]["NumTones"]
+            nrx = self.raw[name]["Info"]["NumRx"]
+            ntx = self.raw[name]["Info"]["NumTx"] \
+                + self.raw[name]["Info"]["NumESS"]
             info = np.c_[nsc, nrx, ntx]
         elif name in ["BasebandSignals", "PreEQSymbols"]:
-            info = self.raw[name]["info"]["shape"]
+            info = self.raw[name]["Info"]["Shape"]
         elif name in ["MPDU"]:
-            info = self.raw[name]["info"]["length"][:, None]
+            info = self.raw[name]["Info"]["Length"][:, None]
         else:
             info = None
         return info
@@ -1255,21 +1255,21 @@ class Picoscenes(_picoscenes.Picoscenes):
         hfo = len(self.raw['RxExtraInfo'].dtype.names) // 2
 
         def skip(raw, name):
-            if name == 'MVMExtra' and raw[name]['FMTClock'] == 0:
+            if name == 'MVMExtra' and raw[name]['FTMClock'] == 0:
                 return True
             if name == 'PicoScenesHeader' and raw[name]['MagicValue'] == 0:
                 return True
-            if name == 'TxExtraInfo' and raw[name]['version'] == 0:
+            if name == 'TxExtraInfo' and raw[name]['Version'] == 0:
                 return True
-            if name == 'PilotCSI' and raw[name]['info']['DeviceType'] == 0:
+            if name == 'PilotCSI' and raw[name]['Info']['DeviceType'] == 0:
                 return True
-            if name == 'LegacyCSI' and raw[name]['info']['DeviceType']  == 0:
+            if name == 'LegacyCSI' and raw[name]['Info']['DeviceType']  == 0:
                 return True
-            if name == 'BasebandSignals' and raw[name]['info']['ndim'] == 0:
+            if name == 'BasebandSignals' and raw[name]['Info']['Ndim'] == 0:
                 return True
-            if name == 'PreEQSymbols' and raw[name]['info']['ndim'] == 0:
+            if name == 'PreEQSymbols' and raw[name]['Info']['Ndim'] == 0:
                 return True
-            if name == 'MPDU' and raw[name]['info']['length'] == 0:
+            if name == 'MPDU' and raw[name]['Info']['Length'] == 0:
                 return True
             return False
 
@@ -1285,11 +1285,11 @@ class Picoscenes(_picoscenes.Picoscenes):
                     s = report(s, raw[name[0]], name[0], indent)
                 else:
                     if parent and parent.endswith("ExtraInfo"):
-                        if name.startswith("has") or not raw[names[i - hfo]]:
+                        if name.startswith("Has") or not raw[names[i - hfo]]:
                             continue
-                    if name == 'shape':
+                    if name == 'Shape':
                         s += T % (tab, name, tuple(raw[name]))
-                    elif name == 'majority':
+                    elif name == 'Majority':
                         s += T % (tab, name, raw[name].tobytes())
                     elif name.lower() == "devicetype":
                         s += T % (tab, name, hex(raw[name]))

@@ -79,28 +79,132 @@ cdef void parse_AbstractPicoScenesFrameSegment(unsigned char *buf,
     m.versionId = cu16(buf + 5 + m.segNameLength)
 
 
-cdef bint get_scidx_9300(np.int32_t[:] scidx, int count, int offset,
-                         int a, int b, int c, int d):
+cdef int16_t* get_scidx_pilot(int8_t format, uint16_t cbw):
+    global pilot_scidx
+    if format == PacketFormatEnum.PacketFormat_HESU:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return pilot_scidx.HE20_242
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return pilot_scidx.HE40_484
+        elif cbw == ChannelBandwidthEnum.CBW_80:
+            return pilot_scidx.HE80_996
+        elif cbw == ChannelBandwidthEnum.CBW_160:
+            return pilot_scidx.HE160_1992
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_VHT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return pilot_scidx.HTVHT20_56
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return pilot_scidx.HTVHT40_114
+        elif cbw == ChannelBandwidthEnum.CBW_80:
+            return pilot_scidx.VHT80_242
+        elif cbw == ChannelBandwidthEnum.CBW_160:
+            return pilot_scidx.VHT160_484
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_HT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return pilot_scidx.HTVHT20_56
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return pilot_scidx.HTVHT40_114
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_NonHT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return pilot_scidx.NonHT20_52
+    else:
+        pass
+    return NULL
+
+
+cdef bint set_scidx_all(np.int32_t[:] scidx, int count, int offset,
+                  int a, int b, int c, int d, int16_t *pilot_scidx,
+                  bint skip_pilot):
     cdef int i
     cdef int j = 0
+    cdef int k = 0
     if scidx.shape[0] < count:
         return False
 
     for i in range(-a, -b):
+        if skip_pilot and j == pilot_scidx[k]:
+            k += 1
+            continue
         scidx[j] = i + offset
         j += 1
     for i in range(-c, -d):
+        if skip_pilot and j == pilot_scidx[k]:
+            k += 1
+            continue
         scidx[j] = i + offset
         j += 1
     for i in range(c + 1, d + 1):
+        if skip_pilot and j == pilot_scidx[k]:
+            k += 1
+            continue
         scidx[j] = i + offset
         j += 1
     for i in range(b + 1, a + 1):
+        if skip_pilot and j == pilot_scidx[k]:
+            k += 1
+            continue
         scidx[j] = i + offset
         j += 1
     for i in range(count, scidx.shape[0]):
         scidx[j] = a + offset
         j += 1
+    return True
+
+
+cdef bint get_scidx_all(np.int32_t[:] scidx, int8_t format,
+                        uint16_t cbw, int offset, bint skip_pilot=False):
+    global pilot_scidx
+    if format == PacketFormatEnum.PacketFormat_HESU:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return set_scidx_all(scidx, 242, offset, 122, 1, 0, 0,
+                                 pilot_scidx.HE20_242, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return set_scidx_all(scidx, 484, offset, 244, 2, 0, 0,
+                                 pilot_scidx.HE40_484, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_80:
+            return set_scidx_all(scidx, 996, offset, 500, 2, 0, 0,
+                                 pilot_scidx.HE80_996, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_160:
+            return set_scidx_all(scidx, 1992, offset, 1012, 514, 509, 11,
+                                 pilot_scidx.HE160_1992, skip_pilot)
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_VHT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return set_scidx_all(scidx, 56, offset, 28, 0, 0, 0,
+                                 pilot_scidx.HTVHT20_56, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return set_scidx_all(scidx, 114, offset, 58, 1, 0, 0,
+                                 pilot_scidx.HTVHT40_114, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_80:
+            return set_scidx_all(scidx, 242, offset, 122, 1, 0, 0,
+                                 pilot_scidx.VHT80_242, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_160:
+            return set_scidx_all(scidx, 484, offset, 250, 129, 126, 5,
+                                 pilot_scidx.VHT160_484, skip_pilot)
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_HT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return set_scidx_all(scidx, 56, offset, 28, 0, 0, 0,
+                                 pilot_scidx.HTVHT20_56, skip_pilot)
+        elif cbw == ChannelBandwidthEnum.CBW_40:
+            return set_scidx_all(scidx, 114, offset, 58, 1, 0, 0,
+                                 pilot_scidx.HTVHT40_114, skip_pilot)
+        else:
+            pass
+    elif format == PacketFormatEnum.PacketFormat_NonHT:
+        if cbw == ChannelBandwidthEnum.CBW_20:
+            return set_scidx_all(scidx, 52, offset, 26, 0, 0, 0,
+                                 pilot_scidx.NonHT20_52, skip_pilot)
+    else:
+        pass
     return True
 
 
@@ -128,65 +232,23 @@ cdef bint get_scidx_5300(np.int32_t[:] scidx, int count, int offset,
 
 cdef bint parseCSI9300scidx(np.int32_t[:] scidx, int8_t format,
                             uint16_t cbw, int offset):
-    if format == 3:
-        if cbw == 20:
-            # HE20_242Subcarriers_Indices
-            return get_scidx_9300(scidx, 242, offset, 122, 1, 0, 0)
-        elif cbw == 40:
-            # HE40_484Subcarriers_Indices
-            return get_scidx_9300(scidx, 484, offset, 244, 2, 0, 0)
-        elif cbw == 80:
-            # HE80_996Subcarriers_Indices,
-            return get_scidx_9300(scidx, 996, offset, 500, 2, 0, 0)
-        elif cbw == 160:
-            # HE160_1992Subcarriers_Indices,
-            return get_scidx_9300(scidx, 1992, offset, 1012, 514, 509, 11)
-        else:
-            pass
-    elif format == 2:
-        if cbw == 20:
-            # HTVHT20_56Subcarriers_Indices,
-            return get_scidx_9300(scidx, 56, offset, 28, 0, 0, 0)
-        elif cbw == 40:
-            # HTVHT40_114Subcarriers_Indices,
-            return get_scidx_9300(scidx, 114, offset, 58, 1, 0, 0)
-        elif cbw == 80:
-            # VHT80_242Subcarriers_Indices,
-            return get_scidx_9300(scidx, 242, offset, 122, 1, 0, 0)
-        elif cbw == 160:
-            # VHT160_484Subcarriers_Indices,
-            return get_scidx_9300(scidx, 484, offset, 250, 129, 126, 5)
-        else:
-            pass
-    elif format == 1:
-        if cbw == 20:
-            # HTVHT20_56Subcarriers_Indices,
-            return get_scidx_9300(scidx, 56, offset, 28, 0, 0, 0)
-        elif cbw == 40:
-            # HTVHT40_114Subcarriers_Indices,
-            return get_scidx_9300(scidx, 114, offset, 58, 1, 0, 0)
-        else:
-            pass
-    elif format == 0:
-        if cbw == 20:
-            # NonHT20_52Subcarriers_Indices
-            return get_scidx_9300(scidx, 52, offset, 26, 0, 0, 0)
-    else:
-        pass
-    return True
+    return get_scidx_all(scidx, format, cbw, offset, False)
 
 
 cdef bint parseCSI5300scidx(np.int32_t[:] scidx, int8_t format,
                             uint16_t cbw, int offset):
-    if cbw == 20:
-        # IWL5300SubcarrierIndices_CBW20
+    if cbw == ChannelBandwidthEnum.CBW_20:
         return get_scidx_5300(scidx, 30, offset, 28, 1, 2)
-    elif cbw == 40:
-        # IWL5300SubcarrierIndices_CBW40
+    elif cbw == ChannelBandwidthEnum.CBW_40:
         return get_scidx_5300(scidx, 30, offset, 58, 2, 4)
     else:
         pass
     return True
+
+
+cdef bint parseCSIMVMscidx(np.int32_t[:] scidx, int8_t format,
+                          uint16_t cbw, int offset, bint skipPilotSubcarriers):
+    return get_scidx_all(scidx, format, cbw, offset, skipPilotSubcarriers)
 
 
 cdef bint parseCSIUSRPscidx(np.int32_t[:] scidx, unsigned char *payload,
@@ -277,6 +339,40 @@ cdef bint parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
                 index += 16
     return True
 
+cdef bint parseCSIMVM(np.complex128_t[:, :, :] csi, unsigned char *payload,
+                      uint16_t numTones, uint8_t numTx, uint8_t numRx,
+                      int8_t format, uint16_t cbw, uint8_t fwversion,
+                      bint skip_pilot):
+    """Important: this function may be incorrect"""
+    cdef int16_t *p = get_scidx_pilot(format, cbw)
+    cdef int i, j, k, g
+    cdef int offset = 0
+    cdef int p_idx = 0
+    for k in range(numTx):
+        for j in range(numRx):
+            g = 0
+            for i in range(numTones):
+                if fwversion == 67 or fwversion == 68:
+                    if format == PacketFormatEnum.PacketFormat_HESU and \
+                        cbw == ChannelBandwidthEnum.CBW_160:
+                        if i > 995 and i < 1024:
+                            offset += 4
+                            continue
+                    if format == PacketFormatEnum.PacketFormat_VHT and \
+                        cbw == ChannelBandwidthEnum.CBW_160:
+                        if i > 241 and i < 256:
+                            offset += 4
+                            continue
+                if skip_pilot and g == p[p_idx]:
+                    p_idx += 1
+                    offset += 4
+                    continue
+                csi[g, j, k].real = c16(payload + offset + 0)
+                csi[g, j, k].imag = c16(payload + offset + 2)
+                offset += 4
+                g += 1
+    return True
+
 
 cdef bint parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
                        uint32_t csiBufferLength):
@@ -312,7 +408,7 @@ cdef bint parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
     return True
 
 
-cdef bint parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_info *m,
+cdef bint parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_Info *m,
                                np.complex128_t[:, :, :] data):
     """parseSignalMatrix = parseCSIUSRP"""
     cdef uint32_t i, j, k
@@ -442,6 +538,7 @@ cdef void parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
     m.hasSamplingRate = featurecode.hasSamplingRate
     m.hasCFO = featurecode.hasCFO
     m.hasSFO = featurecode.hasSFO
+    m.hasTemperature = featurecode.hasTemperature 
 
     if featurecode.hasLength:
         m.length = cu16(buf + offset)
@@ -520,6 +617,9 @@ cdef void parse_ExtraInfoV1(unsigned char *buf, dtc_ExtraInfo *m):
     if featurecode.hasSFO:
         m.sfo = cu32(buf + offset)
         offset += 4
+    if featurecode.hasTemperature:
+        m.temperature = (buf + offset)[0]
+        offset += 1
 
 
 cdef void parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
@@ -529,7 +629,49 @@ cdef void parse_MVMExtraV1(unsigned char *buf, dtc_IntelMVMExtrta *m):
     m.RateNFlags = imvme.parsedHeader.rate_n_flags
 
 
-cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
+cdef void parse_DPASRequestV1(unsigned char *buf, dtc_DPASRequest *m):
+    cdef DPASRequestV1 *dpasr = <DPASRequestV1*>buf
+    m.batchId = dpasr.batchId
+    m.batchLength = dpasr.batchLength
+    m.sequenceId = dpasr.sequenceId
+    m.intervalTime = dpasr.intervalTime
+
+
+cdef void parse_DPASRequestV2(unsigned char *buf, dtc_DPASRequest *m):
+    cdef DPASRequestV2 *dpasr = <DPASRequestV2*>buf
+    m.batchId = dpasr.batchId
+    m.batchLength = dpasr.batchLength
+    m.sequenceId = dpasr.sequenceId
+    m.intervalTime = dpasr.intervalTime
+    m.intervalStep = dpasr.intervalStep
+
+
+cdef void parse_DPASRequestV3(unsigned char *buf, dtc_DPASRequest *m):
+    cdef DPASRequestV3 *dpasr = <DPASRequestV3*>buf
+    m.batchId = dpasr.batchId
+    m.batchLength = dpasr.batchLength
+    m.sequenceId = dpasr.sequenceId
+    m.intervalTime = dpasr.intervalTime
+    m.intervalStep = dpasr.intervalStep
+    m.deviceType = dpasr.deviceType
+    m.carrierFrequency = dpasr.carrierFrequency
+    m.samplingFrequency = dpasr.samplingFrequency
+
+cdef void parse_DPASRequestV4(unsigned char *buf, dtc_DPASRequest *m):
+    cdef DPASRequestV4 *dpasr = <DPASRequestV4*>buf
+    m.requestMode = dpasr.requestMode
+    m.batchId = dpasr.batchId
+    m.batchLength = dpasr.batchLength
+    m.sequenceId = dpasr.sequenceId
+    m.intervalTime = dpasr.intervalTime
+    m.intervalStep = dpasr.intervalStep
+    m.deviceType = dpasr.deviceType
+    m.deviceSubtype = dpasr.deviceSubtype
+    m.carrierFrequency = dpasr.carrierFrequency
+    m.samplingFrequency = dpasr.samplingFrequency
+
+
+cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_Info *m,
                       np.complex128_t[:, :, :] csi,
                       np.int32_t[:] scidx):
     cdef CSIV1 *csiv1 = <CSIV1*>buf
@@ -545,8 +687,9 @@ cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
     m.numTones = csiv1.numTones
     m.numTx = csiv1.numTx
     m.numRx = csiv1.numRx
-    if csiv1.deviceType == 0x9300:
-        temp = 140 if csiv1.cbw == 20 else 285
+    if csiv1.deviceType == PicoScenesDeviceType.QCA9300:
+        m.firmwareVersion = 0
+        temp = 140 if csiv1.cbw == ChannelBandwidthEnum.CBW_20 else 285
         actualNumSTSPerChain = <int>(csiv1.csiBufferLength / temp)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv1.numRx)
         m.numESS = actualNumSTSPerChain - csiv1.numTx
@@ -555,7 +698,8 @@ cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
         parseCSI9300scidx(scidx, csiv1.packetFormat, csiv1.cbw, 0)
         parseCSI9300(csi, csiv1.payload, csiv1.numTones,
                      actualNumSTSPerChain, csiv1.numRx)
-    elif csiv1.deviceType == 0x5300:
+    elif csiv1.deviceType == PicoScenesDeviceType.IWL5300:
+        m.firmwareVersion = 52
         actualNumSTSPerChain = <int>((csiv1.csiBufferLength - 12) / 60)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv1.numRx)
         m.numESS = actualNumSTSPerChain - csiv1.numTx
@@ -564,7 +708,8 @@ cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
         parseCSI5300scidx(scidx, csiv1.packetFormat, csiv1.cbw, 0)
         parseCSI5300(csi, csiv1.payload, csiv1.numTones,
                      actualNumSTSPerChain, csiv1.numRx, csiv1.antSel)
-    elif csiv1.deviceType == 0x1234:
+    elif csiv1.deviceType == PicoScenesDeviceType.USRP:
+        m.firmwareVersion = 0
         m.numESS = csiv1.numESS
         m.numCSI = 1
         m.ant_sel = csiv1.antSel
@@ -573,7 +718,7 @@ cdef void parse_CSIV1(unsigned char *buf, dtc_CSI_info *m,
                      csiv1.csiBufferLength - csiv1.numTones * 2)
 
 
-cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
+cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_Info *m,
                       np.complex128_t[:, :, :] csi,
                       np.int32_t[:] scidx):    
     cdef CSIV2 *csiv2 = <CSIV2*>buf
@@ -589,8 +734,9 @@ cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
     m.numTones = csiv2.numTones
     m.numTx = csiv2.numTx
     m.numRx = csiv2.numRx
-    if csiv2.deviceType == 0x9300:
-        temp = 140 if csiv2.cbw == 20 else 285
+    if csiv2.deviceType == PicoScenesDeviceType.QCA9300:
+        m.firmwareVersion = 0
+        temp = 140 if csiv2.cbw == ChannelBandwidthEnum.CBW_20 else 285
         actualNumSTSPerChain = <int>(csiv2.csiBufferLength / temp)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv2.numRx)
         m.numESS = actualNumSTSPerChain - csiv2.numTx
@@ -600,7 +746,8 @@ cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
                           csiv2.cbw, csiv2.subcarrierOffset)
         parseCSI9300(csi, csiv2.payload, csiv2.numTones,
                      actualNumSTSPerChain, csiv2.numRx)
-    elif csiv2.deviceType == 0x5300:
+    elif csiv2.deviceType == PicoScenesDeviceType.IWL5300:
+        m.firmwareVersion = 52
         actualNumSTSPerChain = <int>((csiv2.csiBufferLength - 12) / 60)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv2.numRx)
         m.numESS = actualNumSTSPerChain - csiv2.numTx
@@ -610,7 +757,8 @@ cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
                           csiv2.cbw, csiv2.subcarrierOffset)
         parseCSI5300(csi, csiv2.payload, csiv2.numTones,
                      actualNumSTSPerChain, csiv2.numRx, csiv2.antSel)
-    elif csiv2.deviceType == 0x1234:
+    elif csiv2.deviceType == PicoScenesDeviceType.USRP:
+        m.firmwareVersion = 0
         m.numESS = csiv2.numESS
         m.numCSI = 1
         m.ant_sel = csiv2.antSel
@@ -619,7 +767,7 @@ cdef void parse_CSIV2(unsigned char *buf, dtc_CSI_info *m,
                      csiv2.csiBufferLength - csiv2.numTones * 2)
 
 
-cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
+cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_Info *m,
                       np.complex128_t[:, :, :] csi,
                       np.int32_t[:] scidx):
     cdef CSIV3 *csiv3 = <CSIV3*>buf
@@ -635,8 +783,9 @@ cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
     m.numTones = csiv3.numTones
     m.numTx = csiv3.numTx
     m.numRx = csiv3.numRx
-    if csiv3.deviceType == 0x9300:
-        temp = 140 if csiv3.cbw == 20 else 285
+    if csiv3.deviceType == PicoScenesDeviceType.QCA9300:
+        m.firmwareVersion = 0
+        temp = 140 if csiv3.cbw == ChannelBandwidthEnum.CBW_20 else 285
         actualNumSTSPerChain = <int>(csiv3.csiBufferLength / temp)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv3.numRx)
         m.numESS = actualNumSTSPerChain - csiv3.numTx
@@ -646,7 +795,8 @@ cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
                           csiv3.cbw, csiv3.subcarrierOffset)
         parseCSI9300(csi, csiv3.payload, csiv3.numTones,
                      actualNumSTSPerChain, csiv3.numRx)
-    elif csiv3.deviceType == 0x5300:
+    elif csiv3.deviceType == PicoScenesDeviceType.IWL5300:
+        m.firmwareVersion = 52
         actualNumSTSPerChain = <int>((csiv3.csiBufferLength - 12) / 60)
         actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv3.numRx)
         m.numESS = actualNumSTSPerChain - csiv3.numTx
@@ -656,7 +806,20 @@ cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
                           csiv3.cbw, csiv3.subcarrierOffset)
         parseCSI5300(csi, csiv3.payload, csiv3.numTones,
                      actualNumSTSPerChain, csiv3.numRx, csiv3.antSel)
-    elif csiv3.deviceType == 0x1234:
+    elif csiv3.deviceType == PicoScenesDeviceType.IWLMVM_AX200 or \
+        csiv3.deviceType == PicoScenesDeviceType.IWLMVM_AX210:
+        pass
+        m.firmwareVersion = 67
+        m.numESS = 0
+        m.numCSI = 1
+        m.ant_sel = 0
+        parseCSIMVMscidx(scidx, csiv3.packetFormat,
+                         csiv3.cbw, csiv3.subcarrierOffset, True)
+        parseCSIMVM(csi, csiv3.payload, csiv3.numTones,
+                    csiv3.numTx, csiv3.numRx,
+                    csiv3.packetFormat, csiv3.cbw, 67, True)
+    elif csiv3.deviceType == PicoScenesDeviceType.USRP:
+        m.firmwareVersion = 0
         m.numESS = csiv3.numESS
         m.numCSI = csiv3.numCSI
         m.ant_sel = csiv3.antSel
@@ -665,7 +828,68 @@ cdef void parse_CSIV3(unsigned char *buf, dtc_CSI_info *m,
                      csiv3.csiBufferLength - csiv3.numTones * 2)
 
 
-cdef bint parse_MPDU(unsigned char *buf, dtc_MPDU_info *m,
+cdef void parse_CSIV4(unsigned char *buf, dtc_CSI_Info *m,
+                      np.complex128_t[:, :, :] csi,
+                      np.int32_t[:] scidx):
+    cdef CSIV4 *csiv4 = <CSIV4*>buf
+    cdef int actualNumSTSPerChain
+    cdef int temp
+
+    m.DeviceType = csiv4.deviceType
+    m.PacketFormat = csiv4.packetFormat
+    m.CBW = csiv4.cbw
+    m.CarrierFreq = csiv4.carrierFreq
+    m.SamplingRate = csiv4.samplingRate
+    m.SubcarrierBandwidth = csiv4.subcarrierBandwidth
+    m.numTones = csiv4.numTones
+    m.numTx = csiv4.numTx
+    m.numRx = csiv4.numRx
+    if csiv4.deviceType == PicoScenesDeviceType.QCA9300:
+        m.firmwareVersion = 0
+        temp = 140 if csiv4.cbw == ChannelBandwidthEnum.CBW_20 else 285
+        actualNumSTSPerChain = <int>(csiv4.csiBufferLength / temp)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv4.numRx)
+        m.numESS = actualNumSTSPerChain - csiv4.numTx
+        m.numCSI = 1
+        m.ant_sel = csiv4.antSel
+        parseCSI9300scidx(scidx, csiv4.packetFormat,
+                          csiv4.cbw, csiv4.subcarrierOffset)
+        parseCSI9300(csi, csiv4.payload, csiv4.numTones,
+                     actualNumSTSPerChain, csiv4.numRx)
+    elif csiv4.deviceType == PicoScenesDeviceType.IWL5300:
+        m.firmwareVersion = 52
+        actualNumSTSPerChain = <int>((csiv4.csiBufferLength - 12) / 60)
+        actualNumSTSPerChain = <int>(actualNumSTSPerChain / csiv4.numRx)
+        m.numESS = actualNumSTSPerChain - csiv4.numTx
+        m.numCSI = 1
+        m.ant_sel = csiv4.antSel
+        parseCSI5300scidx(scidx, csiv4.packetFormat,
+                          csiv4.cbw, csiv4.subcarrierOffset)
+        parseCSI5300(csi, csiv4.payload, csiv4.numTones,
+                     actualNumSTSPerChain, csiv4.numRx, csiv4.antSel)
+    elif csiv4.deviceType == PicoScenesDeviceType.IWLMVM_AX200 or \
+        csiv4.deviceType == PicoScenesDeviceType.IWLMVM_AX210:
+        pass
+        m.firmwareVersion = csiv4.firmwareVersion
+        m.numESS = 0
+        m.numCSI = 1
+        m.ant_sel = csiv4.antSel
+        parseCSIMVMscidx(scidx, csiv4.packetFormat,
+                         csiv4.cbw, csiv4.subcarrierOffset, True)
+        parseCSIMVM(csi, csiv4.payload, csiv4.numTones,
+                    csiv4.numTx, csiv4.numRx,
+                    csiv4.packetFormat, csiv4.cbw, csiv4.firmwareVersion, True)
+    elif csiv4.deviceType == PicoScenesDeviceType.USRP:
+        m.firmwareVersion = 0
+        m.numESS = csiv4.numESS
+        m.numCSI = csiv4.numCSI
+        m.ant_sel = csiv4.antSel
+        parseCSIUSRPscidx(scidx, csiv4.payload, csiv4.numTones)
+        parseCSIUSRP(csi, csiv4.payload + csiv4.numTones * 2,
+                     csiv4.csiBufferLength - csiv4.numTones * 2)
+
+
+cdef bint parse_MPDU(unsigned char *buf, dtc_MPDU_Info *m,
                      np.uint8_t[:] mpdu, uint32_t length):
     cdef uint32_t i
     m.length = length
@@ -740,7 +964,21 @@ cdef void parse_MVMExtra(uint16_t versionId, unsigned char *buf,
         pass
 
 
-cdef void parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
+cdef void parse_DPASRequest(uint16_t versionId, unsigned char *buf,
+                            dtc_DPASRequest *m):
+    if versionId == 0x1:
+        parse_DPASRequestV1(buf, m)
+    elif versionId == 0x2:
+        parse_DPASRequestV2(buf, m)
+    elif versionId == 0x3:
+        parse_DPASRequestV3(buf, m)
+    elif versionId == 0x4:
+        parse_DPASRequestV4(buf, m)
+    else:
+        pass
+
+
+cdef void parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_Info *m,
                     np.complex128_t[:, :, :] csi, np.int32_t[:] scidx):
     if versionId == 0x1:
         parse_CSIV1(buf, m, csi, scidx)
@@ -748,12 +986,14 @@ cdef void parse_CSI(uint16_t versionId, unsigned char *buf, dtc_CSI_info *m,
         parse_CSIV2(buf, m, csi, scidx)
     elif versionId == 0x3:
         parse_CSIV3(buf, m, csi, scidx)
+    elif versionId == 0x4:
+        parse_CSIV4(buf, m, csi, scidx)
     else:
         pass
 
 
 cdef void parse_SignalMatrix(uint16_t versionId, unsigned char *buf,
-                             dtc_SignalMatrix_info *m,
+                             dtc_SignalMatrix_Info *m,
                              np.complex128_t[:, :, :] data):
     if versionId == 0x1:
         parse_SignalMatrixV1(buf, m, data)
@@ -854,15 +1094,15 @@ cdef class Picoscenes:
         cdef int max_value = 0
         cdef np.float64_t ratio
         cdef np.int32_t[:] sci
-        cdef dtc_CSI_info[:] mem_CSI_info
+        cdef dtc_CSI_Info[:] mem_CSI_Info
         cdef np.int32_t[:, :] mem_CSI_scidx
         cdef np.complex128_t[:, :, :, :] mem_CSI_CSI
         if name == 'CSI':
-            mem_CSI_info = self.mem_CSI_info
+            mem_CSI_Info = self.mem_CSI_Info
             mem_CSI_scidx = self.mem_CSI_SubcarrierIndex
             mem_CSI_CSI = self.mem_CSI_CSI
         elif name == 'LegacyCSI':
-            mem_CSI_info = self.mem_LegacyCSI_info
+            mem_CSI_Info = self.mem_LegacyCSI_Info
             mem_CSI_scidx = self.mem_LegacyCSI_SubcarrierIndex
             mem_CSI_CSI = self.mem_LegacyCSI_CSI
         else:
@@ -875,8 +1115,8 @@ cdef class Picoscenes:
         if nsc == 0 or nrx == 0 or ntx == 0:
             return None
         for i in range(self.count):
-            if mem_CSI_info[i].numTones > max_value:
-                max_value = mem_CSI_info[i].numTones
+            if mem_CSI_Info[i].numTones > max_value:
+                max_value = mem_CSI_Info[i].numTones
                 max_idx = i
         nsc = mem_CSI_scidx[max_idx, -1] - mem_CSI_scidx[max_idx, 0] + 1
         interpolated_csi = np.zeros([self.count, nsc, nrx, ntx],
@@ -887,9 +1127,9 @@ cdef class Picoscenes:
 
         with cython.boundscheck(False):
             for i in range(self.count):
-                nsc = mem_CSI_info[i].numTones
-                nrx = mem_CSI_info[i].numRx
-                ntx = mem_CSI_info[i].numTx + mem_CSI_info[i].numESS
+                nsc = mem_CSI_Info[i].numTones
+                nrx = mem_CSI_Info[i].numRx
+                ntx = mem_CSI_Info[i].numTx + mem_CSI_Info[i].numESS
                 sci = mem_CSI_scidx[i, :nsc]
                 nsc = sci[-1] - sci[0] + 1
 
@@ -927,22 +1167,23 @@ cdef class Picoscenes:
         self.mem_StandardHeader = self.cache["StandardHeader"]
         self.mem_RxSBasic = self.cache["RxSBasic"]
         self.mem_RxExtraInfo = self.cache["RxExtraInfo"]
-        self.mem_CSI_info = self.cache["CSI"]["info"]
+        self.mem_CSI_Info = self.cache["CSI"]["Info"]
         self.mem_MVMExtra = self.cache["MVMExtra"]
+        self.mem_DPASRequest = self.cache["DPASRequest"]
         self.mem_PicoScenesHeader = self.cache["PicoScenesHeader"]
         self.mem_TxExtraInfo = self.cache["TxExtraInfo"]
-        self.mem_PilotCSI_info = self.cache["PilotCSI"]["info"]
-        self.mem_LegacyCSI_info = self.cache["LegacyCSI"]["info"]
-        self.mem_BasebandSignals_info = self.cache["BasebandSignals"]["info"]
-        self.mem_PreEQSymbols_info = self.cache["PreEQSymbols"]["info"]
-        self.mem_MPDU_info = self.cache["MPDU"]["info"]
+        self.mem_PilotCSI_Info = self.cache["PilotCSI"]["Info"]
+        self.mem_LegacyCSI_Info = self.cache["LegacyCSI"]["Info"]
+        self.mem_BasebandSignals_Info = self.cache["BasebandSignals"]["Info"]
+        self.mem_PreEQSymbols_Info = self.cache["PreEQSymbols"]["Info"]
+        self.mem_MPDU_Info = self.cache["MPDU"]["Info"]
 
         self.mem_CSI_CSI = self.cache["CSI"]["CSI"]
         self.mem_PilotCSI_CSI = self.cache["PilotCSI"]["CSI"]
         self.mem_LegacyCSI_CSI = self.cache["LegacyCSI"]["CSI"]
-        self.mem_BasebandSignals_data = self.cache["BasebandSignals"]["data"]
-        self.mem_PreEQSymbols_data = self.cache["PreEQSymbols"]["data"]
-        self.mem_MPDU_data = self.cache["MPDU"]["data"]
+        self.mem_BasebandSignals_Data = self.cache["BasebandSignals"]["Data"]
+        self.mem_PreEQSymbols_Data = self.cache["PreEQSymbols"]["Data"]
+        self.mem_MPDU_Data = self.cache["MPDU"]["Data"]
 
         self.mem_CSI_SubcarrierIndex = self.cache["CSI"]["SubcarrierIndex"]
         self.mem_PilotCSI_SubcarrierIndex = self.cache["PilotCSI"]["SubcarrierIndex"]
@@ -1017,35 +1258,35 @@ cdef class Picoscenes:
                                &self.mem_MVMExtra[count])
             elif not strncmp(b"CSI", sname, slength):
                 parse_CSI(apsfs.versionId, p,
-                          &self.mem_CSI_info[count],
+                          &self.mem_CSI_Info[count],
                           self.mem_CSI_CSI[count],
                           self.mem_CSI_SubcarrierIndex[count])
             elif not strncmp(b"PilotCSI", sname, slength):
                 parse_CSI(apsfs.versionId, p,
-                          &self.mem_PilotCSI_info[count],
+                          &self.mem_PilotCSI_Info[count],
                           self.mem_PilotCSI_CSI[count],
                           self.mem_PilotCSI_SubcarrierIndex[count])
             elif not strncmp(b"LegacyCSI", sname, slength):
                 parse_CSI(apsfs.versionId, p,
-                          &self.mem_LegacyCSI_info[count],
+                          &self.mem_LegacyCSI_Info[count],
                           self.mem_LegacyCSI_CSI[count],
                           self.mem_LegacyCSI_SubcarrierIndex[count])
             elif not strncmp(b"BasebandSignal", sname, slength):
                 parse_SignalMatrix(apsfs.versionId, p,
-                                   &self.mem_BasebandSignals_info[count],
-                                   self.mem_BasebandSignals_data[count])
+                                   &self.mem_BasebandSignals_Info[count],
+                                   self.mem_BasebandSignals_Data[count])
             elif not strncmp(b"PreEQSymbols", sname, slength):
                 parse_SignalMatrix(apsfs.versionId, p,
-                                   &self.mem_PreEQSymbols_info[count],
-                                   self.mem_PreEQSymbols_data[count])
+                                   &self.mem_PreEQSymbols_Info[count],
+                                   self.mem_PreEQSymbols_Data[count])
             else:
                 pass
             cur += (4 + apsfs.segmentLength)
 
         # MPDU
         parse_MPDU(buf + cur,
-                   &self.mem_MPDU_info[count],
-                   self.mem_MPDU_data[count],
+                   &self.mem_MPDU_Info[count],
+                   self.mem_MPDU_Data[count],
                    mpsrfh.frameLength + 4 - cur)
 
         # StandardHeader
@@ -1070,5 +1311,10 @@ cdef class Picoscenes:
                 if not strncmp(b"ExtraInfo", sname, slength):
                     parse_ExtraInfo(apsfs.versionId, p,
                                     &self.mem_TxExtraInfo[count])
+                elif not strncmp(b"DPASRequest", sname, slength):
+                    parse_DPASRequest(apsfs.versionId, p,
+                                      &self.mem_DPASRequest[count])
+                else:
+                    pass
                 cur += (4 + apsfs.segmentLength)
         return True

@@ -57,6 +57,43 @@ typedef struct ModularPicoScenesRxFrameHeader {
 #pragma pack(pop)
 
 
+typedef struct PilotScidx {
+    int16_t NonHT20_52[4];
+    int16_t HTVHT20_56[4];
+    int16_t HTVHT40_114[6];
+    int16_t VHT80_242[8];
+    int16_t VHT160_484[16];
+    int16_t HE20_242[8];
+    int16_t HE40_484[16];
+    int16_t HE80_996[16];
+    int16_t HE160_1992[32];
+} PilotScidx;
+
+
+struct PilotScidx pilot_scidx = {
+    .NonHT20_52 = {5, 19, 32, 46},
+    .NonHT20_52 = {5, 19, 32, 46},
+    .HTVHT20_56 = {7, 21, 34, 48},
+    .HTVHT40_114 = {5, 33, 47, 66, 80, 108},
+    .VHT80_242 = {19, 47, 83, 111, 130, 158, 194, 222},
+    .VHT160_484 = {
+        19, 47, 83, 111, 130, 158, 194, 222,
+        261, 289, 325, 353, 372, 400, 436, 464},
+    .HE20_242 = {6, 32, 74, 100, 141, 167, 209, 235},
+    .HE40_484 = {
+        6, 32, 74, 100, 140, 166, 208, 234,
+        249, 275, 317, 343, 383, 409, 451, 477},
+    .HE80_996 = {
+        32, 100, 166, 234, 274, 342, 408, 476,
+        519, 587, 653, 721, 761, 829, 895, 963},
+    .HE160_1992 = {
+        32, 100, 166, 234, 274, 342, 408, 476, 519,
+        587, 653, 721, 761, 829, 895, 963, 1028, 1096,
+        1162, 1230, 1270, 1338, 1404, 1472, 1515, 1583,
+        1649, 1717, 1757, 1825, 1891, 1959},
+};
+
+
 /*
 * AbstractPicoScenesFrameSegment.hxx
 */
@@ -131,6 +168,28 @@ typedef struct CSIV3 {
 #pragma pack(pop)
 
 
+#pragma pack(push, 1)
+typedef struct CSIV4 {
+    uint16_t deviceType;		/* PicoScenesDeviceType */
+    uint8_t firmwareVersion;
+    int8_t packetFormat;		/* PacketFormatEnum */
+    uint16_t cbw;				/* ChannelBandwidthEnum */
+    uint64_t carrierFreq;
+    uint64_t samplingRate;
+    uint32_t subcarrierBandwidth;
+    uint16_t numTones;
+    uint8_t numTx;
+    uint8_t numRx;
+    uint8_t numESS;
+    uint16_t numCSI;
+    uint8_t antSel;
+    int16_t subcarrierOffset;
+    uint32_t csiBufferLength;
+    uint8_t payload[0];
+} CSIV4;
+#pragma pack(pop)
+
+
 /*
 * MVMExtraSegment.hxx
 */
@@ -164,12 +223,67 @@ typedef struct IntelMVMExtrta {
 
 
 /*
+* DPASRequestSegment.hxx
+*/
+#pragma pack(push, 1)
+typedef struct DPASRequestV1 {
+    uint16_t batchId;
+    uint16_t batchLength;
+    uint16_t sequenceId;
+    uint16_t intervalTime;
+} DPASRequestV1;
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+typedef struct DPASRequestV2 {
+    uint16_t batchId;
+    uint16_t batchLength;
+    uint16_t sequenceId;
+    uint16_t intervalTime;
+    uint16_t intervalStep;
+} DPASRequestV2;
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+typedef struct DPASRequestV3 {
+    uint16_t batchId;
+    uint16_t batchLength;
+    uint16_t sequenceId;
+    uint16_t intervalTime;
+    uint16_t intervalStep;
+    uint16_t deviceType;        /* PicoScenesDeviceType */
+    uint64_t carrierFrequency;
+    uint32_t samplingFrequency;
+} DPASRequestV3;
+#pragma pack(pop)
+
+
+#pragma pack(push, 1)
+typedef struct DPASRequestV4 {
+    uint8_t  requestMode;
+    uint16_t batchId;
+    uint16_t batchLength;
+    uint16_t sequenceId;
+    uint16_t intervalTime;
+    uint16_t intervalStep;
+    uint16_t deviceType;        /* PicoScenesDeviceType */
+    uint16_t deviceSubtype;
+    uint64_t carrierFrequency;
+    uint32_t samplingFrequency;
+} DPASRequestV4;
+#pragma pack(pop)
+
+
+/*
 * PicoScenesCommons.hxx
 */
 typedef enum PicoScenesDeviceType {
     QCA9300 = 0x9300,
     IWL5300 = 0x5300,
-    IWLMVM = 0x2000,
+    IWLMVM_AX200 = 0x2000,
+    IWLMVM_AX210 = 0x2100,
     MAC80211Compatible = 0x802,
     USRP = 0x1234,
     VirtualSDR = 0x1000,
@@ -255,7 +369,7 @@ typedef struct FeatureCode {
         hasSamplingRate: 1,
         hasCFO: 1,
         hasSFO: 1,
-        hasPreciseTxTiming: 1;
+        hasTemperature: 1;
 } FeatureCode;
 #pragma pack(pop)
 
@@ -286,7 +400,7 @@ typedef struct ExtraInfo {
     uint64_t samplingRate;
     int32_t cfo;
     int32_t sfo;
-    double preciseTxTiming;
+    int8_t temperature;
 } ExtraInfo;
 
 /*

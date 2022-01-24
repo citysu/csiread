@@ -8,6 +8,66 @@ cimport numpy as np
 
 
 cdef extern from "_picoscenes.h":
+    cdef enum PicoScenesDeviceType:
+        QCA9300
+        IWL5300
+        IWLMVM_AX200
+        IWLMVM_AX210
+        MAC80211Compatible
+        USRP
+        VirtualSDR
+        Unknown
+    
+    cdef enum PacketFormatEnum:
+        PacketFormat_NonHT
+        PacketFormat_HT
+        PacketFormat_VHT
+        PacketFormat_HESU
+        PacketFormat_HEMU
+        PacketFormat_Unknown
+
+    cdef enum ChannelBandwidthEnum:
+        CBW_5
+        CBW_10
+        CBW_20
+        CBW_40
+        CBW_80
+        CBW_160
+
+    cdef enum ChannelModeEnum:
+        HT20
+        HT40_MINUS
+        HT40_PLUS
+
+    cdef enum GuardIntervalEnum:
+        GI_400
+        GI_800
+        GI_1600
+        GI_3200
+
+    cdef enum ChannelCodingEnum:
+        BCC
+        LDPC
+
+    cdef enum AtherosCFTuningPolicy:
+        CFTuningByChansel
+        CFTuningByFastCC
+        CFTuningByHardwareReset
+        CFTuningByDefault
+
+    cdef struct PilotScidx:
+        int16_t NonHT20_52[4]
+        int16_t HTVHT20_56[4]
+        int16_t HTVHT40_114[6]
+        int16_t VHT80_242[8]
+        int16_t VHT160_484[16]
+        int16_t HE20_242[8]
+        int16_t HE40_484[16]
+        int16_t HE80_996[16]
+        int16_t HE160_1992[32]
+
+    cdef PilotScidx pilot_scidx
+
     cdef packed struct ModularPicoScenesRxFrameHeader:
         uint32_t frameLength
         uint32_t magicWord
@@ -102,7 +162,7 @@ cdef extern from "_picoscenes.h":
         uint32_t hasSamplingRate
         uint32_t hasCFO
         uint32_t hasSFO
-        uint32_t hasPreciseTxTiming
+        uint32_t hasTemperature
     
     cdef packed struct IntelMVMParsedCSIHeader:
         uint32_t iqDataSize
@@ -124,6 +184,41 @@ cdef extern from "_picoscenes.h":
     cdef packed struct IntelMVMExtrta:
         uint16_t CSIHeaderLength
         IntelMVMParsedCSIHeader parsedHeader
+
+    cdef packed struct DPASRequestV1:
+        uint16_t batchId
+        uint16_t batchLength
+        uint16_t sequenceId
+        uint16_t intervalTime
+    
+    cdef packed struct DPASRequestV2:
+        uint16_t batchId
+        uint16_t batchLength
+        uint16_t sequenceId
+        uint16_t intervalTime
+        uint16_t intervalStep
+    
+    cdef packed struct DPASRequestV3:
+        uint16_t batchId
+        uint16_t batchLength
+        uint16_t sequenceId
+        uint16_t intervalTime
+        uint16_t intervalStep
+        uint16_t deviceType             # PicoScenesDeviceType
+        uint64_t carrierFrequency
+        uint32_t samplingFrequency
+
+    cdef packed struct DPASRequestV4:
+        uint8_t  requestMode
+        uint16_t batchId
+        uint16_t batchLength
+        uint16_t sequenceId
+        uint16_t intervalTime
+        uint16_t intervalStep
+        uint16_t deviceType             # PicoScenesDeviceType
+        uint16_t deviceSubtype
+        uint64_t carrierFrequency
+        uint32_t samplingFrequency
 
     cdef packed struct ieee80211_mac_frame_header_frame_control_field:
         uint16_t version
@@ -204,6 +299,23 @@ cdef extern from "_picoscenes.h":
         uint32_t csiBufferLength
         uint8_t payload[0]
 
+    cdef packed struct CSIV4:
+        uint16_t deviceType		    # PicoScenesDeviceType
+        uint8_t firmwareVersion
+        int8_t packetFormat		    # PacketFormatEnum
+        uint16_t cbw			    # ChannelBandwidthEnum
+        uint64_t carrierFreq
+        uint64_t samplingRate
+        uint32_t subcarrierBandwidth
+        uint16_t numTones
+        uint8_t numTx
+        uint8_t numRx
+        uint8_t numESS
+        uint16_t numCSI
+        uint8_t antSel
+        int16_t subcarrierOffset
+        uint32_t csiBufferLength
+        uint8_t payload[0]
 
 # Section 2: cython type for `raw` array.
 
@@ -276,6 +388,7 @@ cdef packed struct dtc_ExtraInfo :
     uint8_t hasSamplingRate
     uint8_t hasCFO
     uint8_t hasSFO
+    uint8_t hasTemperature
 
     uint16_t length
     uint64_t version
@@ -301,10 +414,12 @@ cdef packed struct dtc_ExtraInfo :
     uint64_t sf
     int32_t cfo
     int32_t sfo
+    int8_t temperature
 
 
-cdef packed struct dtc_CSI_info:
+cdef packed struct dtc_CSI_Info:
     uint16_t DeviceType
+    uint8_t firmwareVersion
     int8_t PacketFormat
     uint16_t CBW
     uint64_t CarrierFreq
@@ -323,6 +438,18 @@ cdef packed struct dtc_IntelMVMExtrta:
     uint32_t usClock
     uint32_t RateNFlags
 
+cdef packed struct dtc_DPASRequest:
+    uint8_t  requestMode
+    uint16_t batchId
+    uint16_t batchLength
+    uint16_t sequenceId
+    uint16_t intervalTime
+    uint16_t intervalStep
+    uint16_t deviceType             # PicoScenesDeviceType
+    uint16_t deviceSubtype
+    uint64_t carrierFrequency
+    uint32_t samplingFrequency
+
 
 cdef packed struct dtc_PicoScenesFrameHeader:
     uint32_t MagicValue
@@ -333,14 +460,14 @@ cdef packed struct dtc_PicoScenesFrameHeader:
     uint16_t TxId
 
 
-cdef packed struct dtc_SignalMatrix_info:
+cdef packed struct dtc_SignalMatrix_Info:
     uint8_t ndim
     uint16_t shape[3]
     uint8_t itemsize
     char majority
 
 
-cdef packed struct dtc_MPDU_info:
+cdef packed struct dtc_MPDU_Info:
     uint32_t length
 
 
@@ -357,21 +484,22 @@ cdef class Picoscenes:
     cdef dtc_ieee80211_mac_frame_header[:] mem_StandardHeader
     cdef dtc_RXBasic[:] mem_RxSBasic
     cdef dtc_ExtraInfo[:] mem_RxExtraInfo
-    cdef dtc_CSI_info[:] mem_CSI_info
+    cdef dtc_DPASRequest[:] mem_DPASRequest
+    cdef dtc_CSI_Info[:] mem_CSI_Info
     cdef dtc_IntelMVMExtrta[:] mem_MVMExtra
     cdef dtc_PicoScenesFrameHeader[:] mem_PicoScenesHeader
     cdef dtc_ExtraInfo[:] mem_TxExtraInfo
-    cdef dtc_CSI_info[:] mem_PilotCSI_info
-    cdef dtc_CSI_info[:] mem_LegacyCSI_info
-    cdef dtc_SignalMatrix_info[:] mem_BasebandSignals_info
-    cdef dtc_SignalMatrix_info[:] mem_PreEQSymbols_info
-    cdef dtc_MPDU_info[:] mem_MPDU_info
+    cdef dtc_CSI_Info[:] mem_PilotCSI_Info
+    cdef dtc_CSI_Info[:] mem_LegacyCSI_Info
+    cdef dtc_SignalMatrix_Info[:] mem_BasebandSignals_Info
+    cdef dtc_SignalMatrix_Info[:] mem_PreEQSymbols_Info
+    cdef dtc_MPDU_Info[:] mem_MPDU_Info
     cdef np.complex128_t[:, :, :, :] mem_CSI_CSI
     cdef np.complex128_t[:, :, :, :] mem_PilotCSI_CSI
     cdef np.complex128_t[:, :, :, :] mem_LegacyCSI_CSI
-    cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_data
-    cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_data
-    cdef np.uint8_t[:, :] mem_MPDU_data
+    cdef np.complex128_t[:, :, :, :] mem_BasebandSignals_Data
+    cdef np.complex128_t[:, :, :, :] mem_PreEQSymbols_Data
+    cdef np.uint8_t[:, :] mem_MPDU_Data
     cdef np.int32_t[:, :] mem_CSI_SubcarrierIndex
     cdef np.int32_t[:, :] mem_PilotCSI_SubcarrierIndex
     cdef np.int32_t[:, :] mem_LegacyCSI_SubcarrierIndex

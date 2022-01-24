@@ -34,7 +34,3 @@ __recvCSI/main.c__: record timestamp when the csi packet was received in userspa
 __sendData/sendData.c__: control the time interval more precisely when sending packets.
 
 __dataset/ath_csi_1.dat__: sample data of atheros.
-
-## PicoScenes
-
-__parser_basic/RXSParser.cxx__: I just backed it up for updating `_picoscenes.pyx` conveniently.
