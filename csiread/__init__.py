@@ -3,5 +3,5 @@ from .core import (Intel, Atheros, Nexmon, AtherosPull10, NexmonPull46,
 from .utils import scidx, calib, phy_ifft, phy_fft
 
 
-__version__ = "1.4.0"
+__version__ = "1.4.1"
 __version_picoscenes__ = "2022-01-21"
