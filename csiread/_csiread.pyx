@@ -610,15 +610,15 @@ cdef class Atheros:
             self.buf_rssi_3_mem[count] = buf[22]
             pos += 25
 
-            if buf[17] > self.nrxnum:
-                fclose(f)
-                raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
-            if buf[18] > self.ntxnum:
-                fclose(f)
-                raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
-
             c_len = self.buf_csi_len_mem[count]
             if c_len > 0:
+                if buf[17] > self.nrxnum:
+                    fclose(f)
+                    raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+                if buf[18] > self.ntxnum:
+                    fclose(f)
+                    raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
+
                 l = <int>fread(&csi_buf, sizeof(unsigned char), c_len, f)
                 bits_left = 16
                 bitmask = (1 << 10) - 1
@@ -743,13 +743,13 @@ cdef class Atheros:
         self.buf_rssi_2_mem[count] = buf[21]
         self.buf_rssi_3_mem[count] = buf[22]
 
-        if buf[17] > self.nrxnum:
-            raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
-        if buf[18] > self.ntxnum:
-            raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
-
         c_len = self.buf_csi_len_mem[count]
         if c_len > 0:
+            if buf[17] > self.nrxnum:
+                raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
+            if buf[18] > self.ntxnum:
+                raise ValueError("ntxnum=%d is too small!\n" % self.ntxnum)
+
             csi_buf = &buf[25]
             bits_left = 16
             bitmask = (1 << 10) - 1
