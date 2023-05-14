@@ -715,6 +715,7 @@ class NexmonPull46(_csiread.NexmonPull46):
         _autoscale (int): It can be 0 and 1
         rssi (ndarray): rssi
         fc (ndarray): frame control
+        magic (ndarray): Two magic bytes ``0x1111``
         others: see ``Nexmon``
 
     References:

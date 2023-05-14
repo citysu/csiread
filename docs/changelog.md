@@ -1,6 +1,6 @@
 # ChangeLog
 
-## v1.3.9
+## v1.4.0
 
 _2022.01.24_
 
@@ -58,7 +58,7 @@ _2020.11.18_
 
 - new feature: process data faster
 - new feature: add in-place operation in `csiread.CSI`
-- new feature: add `CSI.pmsg()` and A`theros.pmsg()` to parse message in real time.
+- new feature: add `CSI.pmsg()` and `Atheros.pmsg()` to parse message in real time.
 - new feature: both `CSI.payload` and `Atheros.payload` are MPDU and stored as `np.uint8` now.
 - fix bug: `noise` will change after calling `get_scaled_csi()`
 - fix bug: in matlab, `read_log_file` drops the last two packets(Atheros), but here we keep them.

@@ -210,7 +210,7 @@ def nexmon_server_2(csifile, number, delay):
 
 
 def esp32_server(csifile, number, delay):
-    """nexmon server
+    """esp32 server
 
     Args:
         csifile: csi smaple file
