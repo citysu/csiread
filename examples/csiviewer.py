@@ -14,6 +14,10 @@ Usage:
     2. python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 2000
     3. F11: show fullscreen, F1: show menu bar.
 
+Important:
+    This code is based on pyqtgraph==0.11.1, some APIs of pyqtgraph have been changed
+    since pyqtgraph>=0.12.2
+
 Note:
     1. Functions such as np.angle() will take some time, so csiserver.py uses 
         a larger value of delay. downsampling would be better.
@@ -319,6 +323,7 @@ class MainWindow(QWidget):
         event.accept()
 
     def closeEvent(self, event):
+        self.timer.stop()
         self.task.stop()
         event.accept()
 

@@ -109,7 +109,7 @@ def calib(phase, k, axis=1):
     shape1[axis] = k.shape[0]
     shape1 = tuple(shape1)
 
-    k_n, k_1 = k[-1], k[1]
+    k_n, k_1 = k[-1], k[0]
     a = (p[slice1] - p[slice2]) / (k_n - k_1)
     b = p.mean(axis=axis, keepdims=True)
     k = k.reshape(shape1)
