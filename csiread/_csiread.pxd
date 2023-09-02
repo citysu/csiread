@@ -212,8 +212,8 @@ cdef class Nexmon:
     cpdef read(self)
     cpdef seek(self, file, long pos, long num)
     cpdef pmsg(self, unsigned char *data, endian=?)
-    cdef __get_count(self)
-    cdef __pcapheader(self, FILE *f)
+    cdef get_count(self)
+    cdef pcapheader(self, FILE *f)
 
 
 cdef class NexmonPull46(Nexmon):

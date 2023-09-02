@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v1.4.1
+
+- fix bug(#21): `nrxnum` and `ntxnum` should not be checked if `csi_len == 0`.
+- fix bug(#31): it can be built with Cython>=3.0
+- fix bug: k_1 should be k[0] in `utils.calib`.
+- fix some typos.
+
 ## v1.4.0
 
 _2022.01.24_

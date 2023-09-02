@@ -844,7 +844,7 @@ cdef class Nexmon:
                 self.count = 1
                 pk_num = 1
             else:
-                pk_num = self.__get_count()
+                pk_num = self.get_count()
         else:
             pk_num = bufsize
 
@@ -893,7 +893,7 @@ cdef class Nexmon:
             printf("Open failed!\n")
             exit(-1)
 
-        pcap_endian = self.__pcapheader(f)
+        pcap_endian = self.pcapheader(f)
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
@@ -1028,7 +1028,7 @@ cdef class Nexmon:
 
         return 0xf100
 
-    cdef __get_count(self):
+    cdef get_count(self):
         cdef FILE *f
         tempfile = self.file.encode(encoding="utf-8")
         cdef char *datafile = tempfile
@@ -1045,7 +1045,7 @@ cdef class Nexmon:
         cdef uint32_t (*nex_cu32)(uint8_t, uint8_t, uint8_t, uint8_t)
 
         # pcap header: head: endian
-        pcap_endian = self.__pcapheader(f)
+        pcap_endian = self.pcapheader(f)
         if pcap_endian == 'little':
             nex_cu32 = cu32l
         else:
@@ -1063,7 +1063,7 @@ cdef class Nexmon:
         fclose(f)
         return count
 
-    cdef __pcapheader(self, FILE *f):
+    cdef pcapheader(self, FILE *f):
         cdef unsigned char buf[16]
         cdef int l
 
@@ -1101,7 +1101,7 @@ cdef class NexmonPull46(Nexmon):
                 self.count = 1
                 pk_num = 1
             else:
-                pk_num = self.__get_count()
+                pk_num = self.get_count()
         else:
             pk_num = bufsize
 
@@ -1124,7 +1124,7 @@ cdef class NexmonPull46(Nexmon):
             printf("Open failed!\n")
             exit(-1)
 
-        pcap_endian = self.__pcapheader(f)
+        pcap_endian = self.pcapheader(f)
         fseek(f, 0, SEEK_END)
         cdef long lens = ftell(f)
         fseek(f, pos, SEEK_SET)
