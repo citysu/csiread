@@ -1172,7 +1172,7 @@ cdef class NexmonPull46(Nexmon):
             # nexmon header
             l = <int>fread(&buf, sizeof(unsigned char), 18, f)
             self.buf_magic_mem[count] = cu16l(buf[0], buf[1])
-            self.buf_rssi_mem[count] = buf[2]
+            self.buf_rssi_mem[count] = <int8_t>buf[2]
             self.buf_fc_mem[count] = buf[3]
             for i in range(6):
                 self.buf_src_addr_mem[count, i] = buf[4+i]
@@ -1232,7 +1232,7 @@ cdef class NexmonPull46(Nexmon):
 
         # nexmon header
         self.buf_magic_mem[count] = cu16l(buf[0], buf[1])
-        self.buf_rssi_mem[count] = buf[2]
+        self.buf_rssi_mem[count] = <int8_t>buf[2]
         self.buf_fc_mem[count] = buf[3]
         for i in range(6):
             self.buf_src_addr_mem[count, i] = buf[4+i]

@@ -4,6 +4,7 @@
 
 - fix bug(#21): `nrxnum` and `ntxnum` should not be checked if `csi_len == 0`.
 - fix bug(#31): it can be built with Cython>=3.0
+- fix bug(#36): `NexmonPull46.rssi` should be parsed as `int8`.
 - fix bug: k_1 should be k[0] in `utils.calib`.
 - fix some typos.
 
