@@ -57,7 +57,9 @@ docs/_build/
 # PyBuilder
 target/
 
-csiread/csiread\.c
-csiread/csiread\.cpp
+csiread/_csiread\.c
+csiread/_csiread\.cpp
+csiread/_picoscenes\.c
+csiread/_picoscenes\.cpp
 .vscode/
 .pytest_cache

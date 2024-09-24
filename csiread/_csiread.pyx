@@ -31,7 +31,7 @@ cdef class Intel:
         else:
             pk_num = bufsize
 
-        btype = np.int_
+        btype = np.intp
 
         self.buf_timestamp_low = np.zeros([pk_num], dtype=np.uint32)
         self.buf_bfee_count = np.zeros([pk_num], dtype=btype)
@@ -45,7 +45,7 @@ cdef class Intel:
         self.buf_perm = np.zeros([pk_num, 3], dtype=btype)
         self.buf_rate = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, 30, self.nrxnum, self.ntxnum],
-                                dtype=np.complex_)
+                                dtype=np.complex128)
         self.buf_total_rss = np.zeros([pk_num], dtype=np.float64)
 
         self.buf_fc = np.zeros([pk_num], dtype=btype)
@@ -81,19 +81,19 @@ cdef class Intel:
         #  Conjugate Transpose
         sm_2_20 = np.array([[1,  1],
                             [1, -1]],
-                           dtype=np.complex_) / np.sqrt(2)
+                           dtype=np.complex128) / np.sqrt(2)
         sm_2_40 = np.array([[ 1, -1j],
                             [-1j, 1]],
-                           dtype=np.complex_) / np.sqrt(2)
+                           dtype=np.complex128) / np.sqrt(2)
         sm_3_20 = np.array([[-2*pi/16,      2*pi/(80/23), -2*pi/(80/13)],
                             [-2*pi/(80/33), 2*pi/(48/13),  2*pi/(240/37)],
                             [ 2*pi/(80/3),  2*pi/(240/13), 2*pi/(48/13)]],
-                           dtype=np.complex_)
+                           dtype=np.complex128)
         sm_3_20 = np.power(np.e, -1j * sm_3_20) / np.sqrt(3)
         sm_3_40 = np.array([[-2*pi/16,      -2*pi/(80/37),    2*pi/(80/7)],
                             [-2*pi/(80/13), -2*pi/(48/11),   -2*pi/(240/83)],
                             [ 2*pi/(80/23), -2*pi/(240/107), -2*pi/(48/11)]],
-                           dtype=np.complex_)
+                           dtype=np.complex128)
         sm_3_40 = np.power(np.e, -1j * sm_3_40) / np.sqrt(3)
 
         self.sm_2_20_mem = sm_2_20
@@ -366,7 +366,7 @@ cdef class Intel:
         cdef int i, j, k, g
         cdef double constant2 = 2
         cdef double constant4_5 = pow(10, 0.45)
-        cdef double temp, quant_error_pwr, thermal_noise_pwr,
+        cdef double temp, quant_error_pwr, thermal_noise_pwr
         cdef double total_noise_pwr, scale
 
         if inplace:
@@ -499,7 +499,7 @@ cdef class Atheros:
         else:
             pk_num = bufsize
 
-        btype = np.int_
+        btype = np.intp
         self.buf_timestamp = np.zeros([pk_num], dtype=np.uint64)
         self.buf_csi_len = np.zeros([pk_num], dtype=btype)
         self.buf_tx_channel = np.zeros([pk_num], dtype=btype)
@@ -516,7 +516,7 @@ cdef class Atheros:
         self.buf_rssi_3 = np.zeros([pk_num], dtype=btype)
         self.buf_payload_len = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, self.tones, self.nrxnum, self.ntxnum],
-                                dtype=np.complex_)
+                                dtype=np.complex128)
         self.buf_payload = np.zeros([pk_num, self.pl_size], dtype=np.uint8)
 
         self.buf_timestamp_mem = self.buf_timestamp
@@ -848,7 +848,7 @@ cdef class Nexmon:
         else:
             pk_num = bufsize
 
-        btype = np.int_
+        btype = np.intp
         self.buf_sec = np.zeros([pk_num], dtype=np.uint32)
         self.buf_usec = np.zeros([pk_num], dtype=np.uint32)
         self.buf_caplen = np.zeros([pk_num], dtype=btype)
@@ -861,7 +861,7 @@ cdef class Nexmon:
         self.buf_chan_spec = np.zeros([pk_num], dtype=btype)
         self.buf_chip_version = np.zeros([pk_num], dtype=btype)
         self.buf_csi = np.zeros([pk_num, int(self.bw * 3.2)],
-                                dtype=np.complex_)
+                                dtype=np.complex128)
         self.buf_sec_mem = self.buf_sec
         self.buf_usec_mem = self.buf_usec
         self.buf_caplen_mem = self.buf_caplen
@@ -1105,7 +1105,7 @@ cdef class NexmonPull46(Nexmon):
         else:
             pk_num = bufsize
 
-        btype = np.int_
+        btype = np.intp
         self.buf_rssi = np.zeros([pk_num], dtype=btype)
         self.buf_fc = np.zeros([pk_num], dtype=btype)
 

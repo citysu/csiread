@@ -52,25 +52,25 @@ cdef class Intel:
     cdef np.ndarray buf_payload
 
     cdef np.uint32_t[:] buf_timestamp_low_mem
-    cdef np.int_t[:] buf_bfee_count_mem
-    cdef np.int_t[:] buf_Nrx_mem
-    cdef np.int_t[:] buf_Ntx_mem
-    cdef np.int_t[:] buf_rssi_a_mem
-    cdef np.int_t[:] buf_rssi_b_mem
-    cdef np.int_t[:] buf_rssi_c_mem
-    cdef np.int_t[:] buf_noise_mem
-    cdef np.int_t[:] buf_agc_mem
-    cdef np.int_t[:, :] buf_perm_mem
-    cdef np.int_t[:] buf_rate_mem
+    cdef np.intp_t[:] buf_bfee_count_mem
+    cdef np.intp_t[:] buf_Nrx_mem
+    cdef np.intp_t[:] buf_Ntx_mem
+    cdef np.intp_t[:] buf_rssi_a_mem
+    cdef np.intp_t[:] buf_rssi_b_mem
+    cdef np.intp_t[:] buf_rssi_c_mem
+    cdef np.intp_t[:] buf_noise_mem
+    cdef np.intp_t[:] buf_agc_mem
+    cdef np.intp_t[:, :] buf_perm_mem
+    cdef np.intp_t[:] buf_rate_mem
     cdef np.complex128_t[:, :, :, :] buf_csi_mem
     cdef np.float64_t[:] buf_total_rss_mem
 
-    cdef np.int_t[:] buf_fc_mem
-    cdef np.int_t[:] buf_dur_mem
-    cdef np.int_t[:, :] buf_addr_des_mem
-    cdef np.int_t[:, :] buf_addr_src_mem
-    cdef np.int_t[:, :] buf_addr_bssid_mem
-    cdef np.int_t[:] buf_seq_mem
+    cdef np.intp_t[:] buf_fc_mem
+    cdef np.intp_t[:] buf_dur_mem
+    cdef np.intp_t[:, :] buf_addr_des_mem
+    cdef np.intp_t[:, :] buf_addr_src_mem
+    cdef np.intp_t[:, :] buf_addr_bssid_mem
+    cdef np.intp_t[:] buf_seq_mem
     cdef np.uint8_t[:, :] buf_payload_mem
 
     cdef np.complex128_t[:, :] sm_2_20_mem
@@ -132,20 +132,20 @@ cdef class Atheros:
     cdef np.ndarray buf_payload
 
     cdef np.uint64_t[:] buf_timestamp_mem
-    cdef np.int_t[:] buf_csi_len_mem
-    cdef np.int_t[:] buf_tx_channel_mem
-    cdef np.int_t[:] buf_err_info_mem
-    cdef np.int_t[:] buf_noise_floor_mem
-    cdef np.int_t[:] buf_Rate_mem
-    cdef np.int_t[:] buf_bandWidth_mem
-    cdef np.int_t[:] buf_num_tones_mem
-    cdef np.int_t[:] buf_nr_mem
-    cdef np.int_t[:] buf_nc_mem
-    cdef np.int_t[:] buf_rssi_mem
-    cdef np.int_t[:] buf_rssi_1_mem
-    cdef np.int_t[:] buf_rssi_2_mem
-    cdef np.int_t[:] buf_rssi_3_mem
-    cdef np.int_t[:] buf_payload_len_mem
+    cdef np.intp_t[:] buf_csi_len_mem
+    cdef np.intp_t[:] buf_tx_channel_mem
+    cdef np.intp_t[:] buf_err_info_mem
+    cdef np.intp_t[:] buf_noise_floor_mem
+    cdef np.intp_t[:] buf_Rate_mem
+    cdef np.intp_t[:] buf_bandWidth_mem
+    cdef np.intp_t[:] buf_num_tones_mem
+    cdef np.intp_t[:] buf_nr_mem
+    cdef np.intp_t[:] buf_nc_mem
+    cdef np.intp_t[:] buf_rssi_mem
+    cdef np.intp_t[:] buf_rssi_1_mem
+    cdef np.intp_t[:] buf_rssi_2_mem
+    cdef np.intp_t[:] buf_rssi_3_mem
+    cdef np.intp_t[:] buf_payload_len_mem
     cdef np.complex128_t[:, :, :, :] buf_csi_mem
     cdef np.uint8_t[:, :] buf_payload_mem
 
@@ -195,15 +195,15 @@ cdef class Nexmon:
 
     cdef np.uint32_t[:] buf_sec_mem
     cdef np.uint32_t[:] buf_usec_mem
-    cdef np.int_t[:] buf_caplen_mem
-    cdef np.int_t[:] buf_wirelen_mem
-    cdef np.int_t[:] buf_magic_mem
-    cdef np.int_t[:, :] buf_src_addr_mem
-    cdef np.int_t[:] buf_seq_mem
-    cdef np.int_t[:] buf_core_mem
-    cdef np.int_t[:] buf_spatial_mem
-    cdef np.int_t[:] buf_chan_spec_mem
-    cdef np.int_t[:] buf_chip_version_mem
+    cdef np.intp_t[:] buf_caplen_mem
+    cdef np.intp_t[:] buf_wirelen_mem
+    cdef np.intp_t[:] buf_magic_mem
+    cdef np.intp_t[:, :] buf_src_addr_mem
+    cdef np.intp_t[:] buf_seq_mem
+    cdef np.intp_t[:] buf_core_mem
+    cdef np.intp_t[:] buf_spatial_mem
+    cdef np.intp_t[:] buf_chan_spec_mem
+    cdef np.intp_t[:] buf_chip_version_mem
     cdef np.complex128_t[:, :] buf_csi_mem
 
     cdef bint if_report
@@ -223,8 +223,8 @@ cdef class NexmonPull46(Nexmon):
     cdef np.ndarray buf_rssi
     cdef np.ndarray buf_fc
 
-    cdef np.int_t[:] buf_rssi_mem 
-    cdef np.int_t[:] buf_fc_mem
+    cdef np.intp_t[:] buf_rssi_mem 
+    cdef np.intp_t[:] buf_fc_mem
 
     cpdef seek(self, file, long pos, long num)
     cpdef pmsg(self, unsigned char *data, endian=?)

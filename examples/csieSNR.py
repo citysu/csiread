@@ -183,7 +183,7 @@ def get_eff_SNRs(csi, csi_sm=None):
             bers = qam64_ber(snrs)
             mean_ber = np.mean(bers, axis=(0, 1))
             ret[j, 6:6+len(mean_ber), 3] = qam64_berinv(mean_ber)
-    ret[ret == np.Inf] = dbinv(40)
+    ret[ret == np.inf] = dbinv(40)
     return ret
 
 
