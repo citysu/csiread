@@ -876,7 +876,7 @@ class ESP32:
             >>>     print(csidata.csi.shape)
         """
         if num == 0:
-            num = np.iinfo(np.int).max
+            num = np.iinfo(np.int64).max
         count = 0
         str_data = [[], [], []]
         int_data, flo_data, csi_data = [], [], []
@@ -1289,7 +1289,7 @@ class Picoscenes(_picoscenes.Picoscenes):
                         if name.startswith("Has") or not raw[names[i - hfo]]:
                             continue
                     if name == 'Shape':
-                        s += T % (tab, name, tuple(raw[name]))
+                        s += T % (tab, name, tuple(raw[name].tolist()))
                     elif name == 'Majority':
                         s += T % (tab, name, raw[name].tobytes())
                     elif name.lower() == "devicetype":

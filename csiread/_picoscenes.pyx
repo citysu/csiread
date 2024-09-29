@@ -1055,7 +1055,7 @@ cdef class Picoscenes:
     cpdef seek(self, file, long pos, long num):
         cdef FILE *f = crfopen(file)
         cdef long lens = getfilesize(f, 0)
-        cdef uint32_t field_len
+        cdef uint32_t field_len = 4
         cdef uint32_t buf_size = 4              # Require: buf_size >= 4
         cdef unsigned char *buf
         if num == 0:
