@@ -369,6 +369,8 @@ cdef class Intel:
         cdef double temp, quant_error_pwr, thermal_noise_pwr
         cdef double total_noise_pwr, scale
 
+        self.get_total_rss()
+
         if inplace:
             scaled_csi = self.csi
         else:
