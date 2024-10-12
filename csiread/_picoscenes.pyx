@@ -326,7 +326,7 @@ cdef bint parseCSI5300(np.complex128_t[:, :, :] csi, unsigned char *payload,
 
     for i in range(numTones):
         index += 3
-        remainder = index % 8
+        remainder = <uint8_t>(index % 8)
         for j in range(numRx):
             for k in range(numTx):
                 index_step =  index >> 3
@@ -391,7 +391,7 @@ cdef bint parseCSIUSRP(np.complex128_t[:, :, :] csi, unsigned char *payload,
             shape[i] = cu32(payload+offset)
             offset += 4
         if matrixVersion == 2:
-            shape[i] = cu64(payload+offset)
+            shape[i] = <uint16_t>cu64(payload+offset)
             offset += 8
 
     if shape[0] > csi.shape[0] or shape[1] > csi.shape[1] \
@@ -421,10 +421,10 @@ cdef bint parse_SignalMatrixV1(unsigned char *buf, dtc_SignalMatrix_Info *m,
         m.shape[i] = 1
     for i in range(m.ndim):
         if matrixVersion == 1:
-            m.shape[i] = cu32(buf+offset)
+            m.shape[i] = <uint16_t>cu32(buf+offset)
             offset += 4
         if matrixVersion == 2:
-            m.shape[i] = cu64(buf+offset)
+            m.shape[i] = <uint16_t>cu64(buf+offset)
             offset += 8
 
     cdef char complexChar = <char>cu8(buf+offset+0)
@@ -1068,7 +1068,7 @@ cdef class Picoscenes:
         while pos < (lens-4):
             buf = crfread(buf, &buf_size, f, &field_len)
             l = fread(buf, sizeof(unsigned char), field_len, f)
-            self.parse(buf, l, count)
+            self.parse(buf, <uint32_t>l, count)
             pos += field_len
             count += 1
             if count >= num:
@@ -1082,7 +1082,7 @@ cdef class Picoscenes:
 
     cpdef pmsg(self, data):
         # This method hasn't been ready
-        if self.parse(data, len(data), 0):
+        if self.parse(data, <uint32_t>len(data), 0):
             return
         self.raw = self.cache
         return 0xf300       # status code
@@ -1109,9 +1109,9 @@ cdef class Picoscenes:
             pass
 
         # initialize interpolated_csi and interpolated_scindex
-        nsc = mem_CSI_CSI.shape[1]
-        nrx = mem_CSI_CSI.shape[2]
-        ntx = mem_CSI_CSI.shape[3]
+        nsc = <int>mem_CSI_CSI.shape[1]
+        nrx = <int>mem_CSI_CSI.shape[2]
+        ntx = <int>mem_CSI_CSI.shape[3]
         if nsc == 0 or nrx == 0 or ntx == 0:
             return None
         for i in range(self.count):

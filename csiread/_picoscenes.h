@@ -72,7 +72,6 @@ typedef struct PilotScidx {
 
 struct PilotScidx pilot_scidx = {
     .NonHT20_52 = {5, 19, 32, 46},
-    .NonHT20_52 = {5, 19, 32, 46},
     .HTVHT20_56 = {7, 21, 34, 48},
     .HTVHT40_114 = {5, 33, 47, 66, 80, 108},
     .VHT80_242 = {19, 47, 83, 111, 130, 158, 194, 222},

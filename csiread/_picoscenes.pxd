@@ -321,17 +321,17 @@ cdef extern from "_picoscenes.h":
 
 
 cdef packed struct dtc_ieee80211_mac_frame_header_frame_control_field:
-    uint8_t Version
-    uint8_t Type
-    uint8_t SubType
-    uint8_t ToDS
-    uint8_t FromDS
-    uint8_t MoreFrags
-    uint8_t Retry
-    uint8_t PowerManagement
-    uint8_t More
-    uint8_t Protected
-    uint8_t Order
+    uint16_t Version
+    uint16_t Type
+    uint16_t SubType
+    uint16_t ToDS
+    uint16_t FromDS
+    uint16_t MoreFrags
+    uint16_t Retry
+    uint16_t PowerManagement
+    uint16_t More
+    uint16_t Protected
+    uint16_t Order
 
 
 cdef packed struct dtc_ieee80211_mac_frame_header:

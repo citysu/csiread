@@ -180,7 +180,7 @@ cdef class Intel:
                     remainder = index & 0x7
                     for j in range(buf[8]):
                         with cython.boundscheck(False):
-                            perm_j = self.buf_perm_mem[count_0xbb, j]
+                            perm_j = <int>self.buf_perm_mem[count_0xbb, j]
                         for k in range(buf[9]):
                             index_step = index >> 3
                             a = ccsi(payload[index_step + 0],
@@ -292,7 +292,7 @@ cdef class Intel:
                 remainder = index & 0x7
                 for j in range(buf[8]):
                     with cython.boundscheck(False):
-                        perm_j = self.buf_perm_mem[0, j]
+                        perm_j = <int>self.buf_perm_mem[0, j]
                     for k in range(buf[9]):
                         index_step = index >> 3
                         a = ccsi(payload[index_step + 0],
@@ -436,8 +436,8 @@ cdef class Intel:
         cdef np.complex128_t[:, :, :, :] ret_mem = ret
  
         for i in range(self.count):
-            M = self.buf_Ntx_mem[i]
-            N = self.buf_Nrx_mem[i]
+            M = <int>self.buf_Ntx_mem[i]
+            N = <int>self.buf_Nrx_mem[i]
             B = (self.buf_rate_mem[i] & 0x800) == 0x800
             if B:
                 if M == 3:
@@ -612,7 +612,7 @@ cdef class Atheros:
             self.buf_rssi_3_mem[count] = buf[22]
             pos += 25
 
-            c_len = self.buf_csi_len_mem[count]
+            c_len = <int>self.buf_csi_len_mem[count]
             if c_len > 0:
                 if buf[17] > self.nrxnum:
                     fclose(f)
@@ -668,7 +668,7 @@ cdef class Atheros:
                                         nr_idx, nc_idx, real, imag)
                 pos += c_len
 
-            pl_len = self.buf_payload_len_mem[count]
+            pl_len = <int>self.buf_payload_len_mem[count]
             pl_stop = min(pl_len, self.pl_size)
             if pl_len > 0:
                 l = <int>fread(&buf, sizeof(unsigned char), pl_len, f)
@@ -745,7 +745,7 @@ cdef class Atheros:
         self.buf_rssi_2_mem[count] = buf[21]
         self.buf_rssi_3_mem[count] = buf[22]
 
-        c_len = self.buf_csi_len_mem[count]
+        c_len = <int>self.buf_csi_len_mem[count]
         if c_len > 0:
             if buf[17] > self.nrxnum:
                 raise ValueError("nrxnum=%d is too small!\n" % self.nrxnum)
@@ -798,7 +798,7 @@ cdef class Atheros:
                         set_csi_mem(self.buf_csi_mem, count, k,
                                     nr_idx, nc_idx, real, imag)
 
-        pl_len = self.buf_payload_len_mem[count]
+        pl_len = <int>self.buf_payload_len_mem[count]
         pl_stop = min(pl_len, self.pl_size)
         if pl_len > 0:
             for i in range(pl_stop):

@@ -3,17 +3,17 @@ import numpy as np
 
 def init_dtype_picoscenes(pl_size):
     dt_ieee80211_mac_frame_header_frame_control_field = np.dtype([
-        ('Version', np.uint8),
-        ('Type', np.uint8),
-        ('SubType', np.uint8),
-        ('ToDS', np.uint8),
-        ('FromDS', np.uint8),
-        ('MoreFrags', np.uint8),
-        ('Retry', np.uint8),
-        ('PowerManagement', np.uint8),
-        ('More', np.uint8),
-        ('Protected', np.uint8),
-        ('Order', np.uint8),
+        ('Version', np.uint16),
+        ('Type', np.uint16),
+        ('SubType', np.uint16),
+        ('ToDS', np.uint16),
+        ('FromDS', np.uint16),
+        ('MoreFrags', np.uint16),
+        ('Retry', np.uint16),
+        ('PowerManagement', np.uint16),
+        ('More', np.uint16),
+        ('Protected', np.uint16),
+        ('Order', np.uint16),
     ])
 
     dt_ieee80211_mac_frame_header = np.dtype([
