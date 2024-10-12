@@ -24,8 +24,7 @@ import csiread
 import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import QMutex, Qt, QThread, QTimer, pyqtSlot
-from PyQt5.QtGui import QApplication
-from PyQt5.QtWidgets import QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QVBoxLayout, QWidget
 
 os.environ['QT_SCALE_FACTOR'] = '1'
 
@@ -36,10 +35,11 @@ mutex = QMutex()
 class GetDataThread(QThread):
     def __init__(self, parent):
         super(GetDataThread, self).__init__(parent)
+        self.running = True
 
     def stop(self):
-        self.requestInterruption()
-        self.exit()
+        self.running = False
+        self.wait()
 
     def run(self):
         """get data in real time
@@ -59,7 +59,7 @@ class GetDataThread(QThread):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
             s.settimeout(30/1000)
-            while not self.isInterruptionRequested():
+            while self.running:
                 try:
                     data, address_src = s.recvfrom(4096)
                 except socket.timeout:
@@ -69,15 +69,15 @@ class GetDataThread(QThread):
                 code = csidata.pmsg(data)
                 if code == 0xbb:
                     csi = csidata.get_scaled_csi_sm()
+                    csi[csi == 0.0 + 0.0j] = 1
                     scaled_csi_sm = np.abs(csi[0, :, 0, 0] / csi[0:, :, 1, 0])
-                    scaled_csi_sm[scaled_csi_sm==np.inf] = 0
                     mutex.lock()
                     cache[:, :-1] = cache[:, 1:]
                     cache[:, -1] = scaled_csi_sm
                     mutex.unlock()
                     count += 1
                     if count % 100 == 0:
-                        print('receive %d bytes [msgcnt=%u], seq=%d' % (msg_len, count, csidata.seq))
+                        print('receive %d bytes [msgcnt=%u], seq=%d' % (msg_len, count, csidata.seq[0]))
 
 
 class MainWindow(QWidget):
@@ -100,7 +100,7 @@ class MainWindow(QWidget):
         pg.setConfigOptions(background=(25, 25, 25))        # White
 
         # plot area
-        self.win = pg.GraphicsWindow()
+        self.win = pg.GraphicsLayoutWidget()
 
         # plot init
         self.initPlot()
@@ -158,6 +158,7 @@ class MainWindow(QWidget):
         mutex.unlock()
 
     def closeEvent(self, event):
+        self.timer.stop()
         self.task.stop()
         event.accept()
 

@@ -4,7 +4,7 @@
 """Drcsi: `Decimeter Ranging with Channel State Information`
 
 Usage:
-    python3 csiDrcsi.py
+    python3 csidrcsi.py
 
 Important:
     1. alg_3: it's not implemented. I can't understand *Algorithm 3 CFO + Weak Stream Removal*.

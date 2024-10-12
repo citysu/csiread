@@ -58,8 +58,7 @@ import csiread
 import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtCore import QMutex, Qt, QThread, QTimer, pyqtSlot
-from PyQt5.QtGui import QApplication
-from PyQt5.QtWidgets import QMenuBar, QVBoxLayout, QWidget
+from PyQt5.QtWidgets import QApplication, QMenuBar, QVBoxLayout, QWidget
 from utils import scidx, phy_ifft, calib
 
 
@@ -118,10 +117,11 @@ state = True
 class GetDataThread(QThread):
     def __init__(self, parent):
         super(GetDataThread, self).__init__(parent)
+        self.running = True
 
     def stop(self):
-        self.requestInterruption()
-        self.exit()
+        self.running = False
+        self.wait()
 
     def run(self):
         """get data in real time
@@ -140,8 +140,7 @@ class GetDataThread(QThread):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(address_des)
             s.settimeout(1/30)
-            # while True:       # `QThread: Destroyed while thread is still running`
-            while not self.isInterruptionRequested():
+            while self.running:
                 try:
                     data, address_src = s.recvfrom(4096)
                 except socket.timeout:
@@ -197,7 +196,7 @@ class MainWindow(QWidget):
         pg.setConfigOptions(foreground=(25, 25, 25))        # Black
 
         # plot area
-        self.plot = pg.GraphicsWindow()
+        self.plot = pg.GraphicsLayoutWidget()
         self.initPlot()
 
         # ctrl area

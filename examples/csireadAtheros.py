@@ -25,7 +25,7 @@ class Atheros:
             return -1
 
         lens = os.path.getsize(self.file)
-        btype = np.int_
+        btype = np.intp
         self.timestamp = np.zeros([lens//420])
         self.csi_len = np.zeros([lens//420], dtype=btype)
         self.tx_channel = np.zeros([lens//420], dtype=btype)

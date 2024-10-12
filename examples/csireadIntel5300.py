@@ -40,7 +40,7 @@ class Intel:
             return -1
 
         lens = os.path.getsize(self.file)
-        btype = np.int_
+        btype = np.intp
         self.timestamp_low = np.zeros([lens//95], dtype = btype)
         self.bfee_count = np.zeros([lens//95], dtype = btype)
         self.Nrx = np.zeros([lens//95], dtype = btype)
@@ -52,7 +52,7 @@ class Intel:
         self.agc = np.zeros([lens//95], dtype = btype)
         self.perm = np.zeros([lens//95, 3], dtype = btype)
         self.rate = np.zeros([lens//95], dtype = btype)
-        self.csi = np.zeros([lens//95, 30, self.nrxnum, self.ntxnum], dtype = np.complex_)
+        self.csi = np.zeros([lens//95, 30, self.nrxnum, self.ntxnum], dtype = np.complex128)
 
         cur = 0
         count = 0

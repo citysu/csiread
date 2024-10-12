@@ -25,13 +25,20 @@ mutex = threading.Lock()
 
 
 class GetDataThread(threading.Thread):
+    def __init__(self):
+        super(GetDataThread, self).__init__()
+        self.running = True
+
+    def __call__(self, event):
+        self.running = False
+
     def run(self):
         self.update_background()
 
     def update_background(self):
         csidata = csiread.ESP32(None, False)
         global cache_data, mutex
-        while True:
+        while self.running:
             data = sys.stdin.readline().strip('\n')
             code = csidata.pmsg(data)
             if code == 0xf200:
@@ -41,8 +48,9 @@ class GetDataThread(threading.Thread):
                 mutex.release()
 
 
-def realtime_plot_esp32():
+def realtime_plot_esp32(task):
     fig, ax = plt.subplots()
+    fig.canvas.mpl_connect('close_event', task)
     plt.title('csi-amplitude')
     plt.xlabel('subcarrier')
     plt.ylabel('amplitude')
@@ -63,11 +71,13 @@ def realtime_plot_esp32():
         mutex.release()
         return lines
 
-    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/60, blit=True)
+    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/60,
+                                  cache_frame_data=False, blit=True)
     plt.show()
 
 
 if __name__ == '__main__':
     task = GetDataThread()
     task.start()
-    realtime_plot_esp32()
+    realtime_plot_esp32(task)
+    task.join()

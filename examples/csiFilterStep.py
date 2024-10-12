@@ -7,7 +7,7 @@ Usage of scipy.signal.lfilter, an example of real-time filter.
 
 
 Usage:
-    python3 cisFilterStep.py
+    python3 csiFilterStep.py
 """
 
 import csiread

@@ -33,6 +33,7 @@ mutex = threading.Lock()
 class GetDataThread(threading.Thread):
     def __init__(self, device):
         super(GetDataThread, self).__init__()
+        self.running = True
         self.address_src = ('127.0.0.1', 10086)
         self.address_des = ('127.0.0.1', 10010)
         if device == 'intel':
@@ -41,6 +42,9 @@ class GetDataThread(threading.Thread):
             self.csidata = csiread.Nexmon(None, chip='4358', bw=80)
         if device == 'picoscenes':
             self.csidata = csiread.Picoscenes(None, {'CSI': [nsc_pico, 3, 1]})
+
+    def __call__(self, event):
+        self.running = False
 
     def run(self):
         self.update_background()
@@ -53,7 +57,7 @@ class GetDataThread(threading.Thread):
 
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.bind(self.address_des)
-            while True:
+            while self.running:
                 data, address_src = s.recvfrom(4096)    # 65507
                 msg_len = len(data)
 
@@ -84,8 +88,9 @@ class GetDataThread(threading.Thread):
                     print('receive %d bytes [msgcnt=%u]' % (msg_len, count))
 
 
-def realtime_plot_intel():
+def realtime_plot_intel(task):
     fig, ax = plt.subplots()
+    fig.canvas.mpl_connect('close_event', task)
     plt.title('csi-amplitude')
     plt.xlabel('packets')
     plt.ylabel('amplitude')
@@ -113,12 +118,14 @@ def realtime_plot_intel():
         mutex.release()
         return line1, line2, line3,
 
-    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25, blit=True)
+    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25,
+                                  cache_frame_data=False, blit=True)
     plt.show()
 
 
-def realtime_plot_nexmon():
+def realtime_plot_nexmon(task):
     fig, ax = plt.subplots()
+    fig.canvas.mpl_connect('close_event', task)
     plt.title('csi-amplitude')
     plt.xlabel('subcarrier')
     plt.ylabel('amplitude')
@@ -140,13 +147,15 @@ def realtime_plot_nexmon():
         mutex.release()
         return line4,
 
-    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25, blit=True)
+    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25,
+                                  cache_frame_data=False, blit=True)
     plt.show()
 
 
-def realtime_plot_picoscenes():
+def realtime_plot_picoscenes(task):
     print("Warning: Picoscenes.pmsg method hasn't been READY!")
     fig, ax = plt.subplots()
+    fig.canvas.mpl_connect('close_event', task)
     plt.title('csi-amplitude')
     plt.xlabel('subcarrier')
     plt.ylabel('amplitude')
@@ -168,14 +177,16 @@ def realtime_plot_picoscenes():
         mutex.release()
         return line5,
 
-    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25, blit=True)
+    ani = animation.FuncAnimation(fig, animate, init_func=init, interval=1000/25,
+                                  cache_frame_data=False, blit=True)
     plt.show()
 
 
 def realtime_plot(device):
     task = GetDataThread(device)
     task.start()
-    eval('realtime_plot_' + device)()
+    eval('realtime_plot_' + device)(task)
+    task.join()
 
 
 if __name__ == '__main__':

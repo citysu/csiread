@@ -71,7 +71,7 @@ class GetDataThread(threading.Thread):
                     mutex.release()
                     count += 1
                     if count % 100 == 0:
-                        print('receive %d bytes [msgcnt=%u], seq=%d' % (msg_len, count, csidata.seq))
+                        print('receive %d bytes [msgcnt=%u], seq=%d' % (msg_len, count, csidata.seq[0]))
 
     def stop(self):
         self.__state = False
@@ -107,7 +107,8 @@ def realtime_plot():
         mutex.release()
         return lines
 
-    ani = animation.FuncAnimation(fig, animate, interval=1000/30, blit=False)
+    ani = animation.FuncAnimation(fig, animate, interval=1000/30,
+                                  cache_frame_data=False, blit=False)
     plt.tight_layout()
     plt.show()
 

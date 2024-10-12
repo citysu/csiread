@@ -102,7 +102,7 @@ class Nexmon:
         else:
             pk_num = self.__get_count()
 
-        btype = np.int_
+        btype = np.intp
         self.sec = np.zeros([pk_num], dtype=btype)
         self.usec = np.zeros([pk_num], dtype=btype)
         self.caplen = np.zeros([pk_num], dtype=btype)
@@ -114,7 +114,7 @@ class Nexmon:
         self.spatial = np.zeros([pk_num], dtype=btype)
         self.chan_spec = np.zeros([pk_num], dtype=btype)
         self.chip_version = np.zeros([pk_num], dtype=btype)
-        self.csi = np.zeros([pk_num, int(self.bw * 3.2)], dtype=np.complex_)
+        self.csi = np.zeros([pk_num, int(self.bw * 3.2)], dtype=np.complex128)
 
     def read(self):
         count = 0

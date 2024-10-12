@@ -9,8 +9,8 @@ Usage:
     3. python3 csiserver.py ../material/5300/dataset/sample_0x5_64_3000.dat 3000 10000
 
 Tools:
-    python: flask, flask-socketio
-    javascript: socket.io, EChart, UIkit
+    python: flask==3.0.3, flask-socketio==5.4.1
+    javascript: socket.io==4.7.5, EChart, UIkit
 
 Note:
     1. Learn something about flask and flask-socketio before running csiflask.py
