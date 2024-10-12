@@ -5,7 +5,10 @@
 - fix bug(#21): `nrxnum` and `ntxnum` should not be checked if `csi_len == 0`.
 - fix bug(#31): it can be built with Cython>=3.0
 - fix bug(#36): `NexmonPull46.rssi` should be parsed as `int8`.
+- fix bug(#38): `buf_noise_mem` is not initialized in `get_scaled_csi()` method.
 - fix bug: k_1 should be k[0] in `utils.calib`.
+- compatibility: works with numpy2.0 (#37).
+- update examples: upgrade dependencies of some examples
 - fix some typos.
 
 ## v1.4.0
